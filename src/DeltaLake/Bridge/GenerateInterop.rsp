@@ -1,0 +1,12 @@
+--config
+compatible-codegen
+--with-access-specifier
+*=internal
+--file
+src/DeltaLake/Bridge/include/delta-lake-bridge.h
+--namespace
+DeltaLake.Bridge.Interop
+--libraryPath
+delta_lake_bridge
+--output
+src/DeltaLake/Bridge/Interop/Interop.cs

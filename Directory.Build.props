@@ -1,0 +1,44 @@
+<Project>
+  <PropertyGroup>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
+    <AnalysisMode>Recommended</AnalysisMode>
+    <Authors>KyJah Keys</Authors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <Nullable>enable</Nullable>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/mightyshazam/delta-dotnet</RepositoryUrl>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <Version>1.0.0</Version>
+    <!--
+      .NET does not allow the above version format for AssemblyVersion, and this
+      is the version used in gRPC headers. The format is
+      "major.minor[.build[.revision]]" and they all must be integers, see
+      https://learn.microsoft.com/en-us/dotnet/api/system.version. So we will
+      always set major.minor.build to match above.
+
+      We will only set revision if it is a prerelease version or the final
+      release after a prerelease version. The revision must start at one. For
+      each prerelease version, just keep incrementing the value. For example,
+      0.2.0-alpha1 is 0.2.0.1, 0.2.0-alpha2 is 0.2.0.3, 0.2.0-beta1 is 0.2.0.4,
+      and 0.2.0 then is 0.2.0.5. But if there is no prerelease version, just
+      leave revision off.
+    -->
+    <AssemblyVersion>1.0.0</AssemblyVersion>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.4.33"
+      PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

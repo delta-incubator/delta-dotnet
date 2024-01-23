@@ -1,0 +1,12 @@
+root = true
+[*.cs]
+
+# Please keep in alphabetical order by field.
+
+# Generated code doesn't set default DLL search path
+dotnet_diagnostic.CA5392.severity = none
+dotnet_diagnostic.CS0649.severity = none
+exclude = true
+generated_code = true
+
+###############################
