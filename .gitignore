@@ -1,0 +1,6 @@
+# Build results
+bin/
+obj/
+/.vs
+/.vscode
+target/
