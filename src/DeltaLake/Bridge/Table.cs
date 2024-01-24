@@ -136,7 +136,8 @@ namespace DeltaLake.Bridge
                 {
                     try
                     {
-                        throw new InvalidOperationException();
+                        var errorMessage = System.Text.Encoding.UTF8.GetString(genericOrError.error->error.data, (int)genericOrError.error->error.size);
+                        throw new InvalidOperationException(errorMessage);
                     }
                     finally
                     {

@@ -36,6 +36,9 @@ typedef enum DeltaTableErrorCode {
   SerializeSchemaJson = 27,
   Generic = 28,
   GenericError = 29,
+  Kernel = 30,
+  MetaDataError = 31,
+  NotInitialized = 32,
 } DeltaTableErrorCode;
 
 typedef struct CancellationToken CancellationToken;
@@ -113,11 +116,6 @@ typedef struct GenericOrError {
 typedef void (*GenericErrorCallback)(const void *success, const struct DeltaTableError *fail);
 
 typedef void (*TableEmptyCallback)(const struct DeltaTableError *fail);
-
-typedef struct BytesOrError {
-  const struct ByteArray *bytes;
-  const struct DeltaTableError *error;
-} BytesOrError;
 
 typedef struct VacuumOptions {
   bool dry_run;
@@ -204,7 +202,12 @@ void table_update(struct Runtime *runtime,
                   int64_t version,
                   TableEmptyCallback callback);
 
-struct BytesOrError table_schema(struct Runtime *runtime, struct RawDeltaTable *table);
+/**
+ * Must free the error, but there is no need to free the SerializedBuffer
+ */
+void table_schema(struct Runtime *runtime,
+                  struct RawDeltaTable *table,
+                  GenericErrorCallback callback);
 
 void table_checkpoint(struct Runtime *runtime,
                       struct RawDeltaTable *table,

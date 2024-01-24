@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Once;
 
 use crate::ByteArray;
 use crate::DynamicArray;
@@ -10,7 +11,7 @@ pub struct RuntimeOptions {}
 
 #[derive(Clone)]
 pub struct Runtime {
-    pub(crate) runtime: Arc<tokio::runtime::Runtime>,
+    runtime: Arc<tokio::runtime::Runtime>,
 }
 
 /// If fail is not null, it must be manually freed when done. Runtime is always
@@ -24,7 +25,11 @@ pub struct RuntimeOrFail {
 
 #[no_mangle]
 pub extern "C" fn runtime_new(options: *const RuntimeOptions) -> RuntimeOrFail {
-    match Runtime::new(unsafe { &*options }) {
+    let o = match options.is_null() {
+        true => &RuntimeOptions {},
+        false => unsafe { &*options },
+    };
+    match Runtime::new(o) {
         Ok(runtime) => RuntimeOrFail {
             runtime: Box::into_raw(Box::new(runtime)),
             fail: std::ptr::null(),
@@ -33,11 +38,7 @@ pub extern "C" fn runtime_new(options: *const RuntimeOptions) -> RuntimeOrFail {
             // We have to make an empty runtime just for the failure to be
             // freeable
             let mut runtime = Runtime {
-                runtime: Arc::new(
-                    tokio::runtime::Builder::new_current_thread()
-                        .build()
-                        .unwrap(),
-                ),
+                runtime: Arc::new(tokio::runtime::Builder::new_multi_thread().build().unwrap()),
             };
             let fail = runtime.alloc_utf8(&format!("Invalid options: {}", err));
             RuntimeOrFail {
@@ -115,22 +116,29 @@ pub extern "C" fn dynamic_array_free(runtime: *mut Runtime, array: *const Dynami
     }
 }
 
+static HANDLERS: Once = Once::new();
 impl Runtime {
-    fn new(options: &RuntimeOptions) -> Result<Runtime, std::io::Error> {
+    fn new(_options: &RuntimeOptions) -> Result<Runtime, std::io::Error> {
+        HANDLERS.call_once(|| {
+            deltalake::aws::register_handlers(None);
+            deltalake::azure::register_handlers(None);
+            deltalake::gcp::register_handlers(None);
+        });
         tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
             .build()
             .map(|rt| Runtime {
                 runtime: Arc::new(rt),
             })
     }
 
-    fn borrow_buf(&mut self) -> Vec<u8> {
+    pub fn borrow_buf(&mut self) -> Vec<u8> {
         // We currently do not use a thread-safe byte pool, but if wanted, it
         // can be added here
         Vec::new()
     }
 
-    fn return_buf(&mut self, _vec: Vec<u8>) {
+    pub fn return_buf(&mut self, _vec: Vec<u8>) {
         // We currently do not use a thread-safe byte pool, but if wanted, it
         // can be added here
     }
@@ -147,5 +155,9 @@ impl Runtime {
             data: HashMap::with_capacity(capacity),
             disable_free: false,
         }
+    }
+
+    pub fn handle(&self) -> tokio::runtime::Handle {
+        self.runtime.handle().clone()
     }
 }

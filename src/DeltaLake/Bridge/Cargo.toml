@@ -10,7 +10,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 chrono = "0.4.31"
 # deltalake = "0.16.5"
-deltalake = { git = "https://github.com/delta-io/delta-rs.git", branch = "main" }
+deltalake = { git = "https://github.com/delta-io/delta-rs.git", branch = "main", features = ["azure", "gcs", "s3"] }
+flatbuffers = "23.5.26"
 libc = "0.2"
 serde_json = "1.0.111"
 tokio = { version = "1" }

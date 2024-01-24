@@ -148,15 +148,6 @@ namespace DeltaLake.Bridge.Interop
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal unsafe delegate void TableEmptyCallback([NativeTypeName("const struct DeltaTableError *")] DeltaTableError* fail);
 
-    internal unsafe partial struct BytesOrError
-    {
-        [NativeTypeName("const struct ByteArray *")]
-        public ByteArray* bytes;
-
-        [NativeTypeName("const struct DeltaTableError *")]
-        public DeltaTableError* error;
-    }
-
     internal unsafe partial struct VacuumOptions
     {
         [NativeTypeName("bool")]
@@ -174,100 +165,99 @@ namespace DeltaLake.Bridge.Interop
 
     internal static unsafe partial class Methods
     {
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("const struct Map *")]
         public static extern Map* map_new([NativeTypeName("const struct Runtime *")] Runtime* runtime, [NativeTypeName("uintptr_t")] UIntPtr capacity);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("bool")]
         public static extern byte map_add([NativeTypeName("struct Map *")] Map* map, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* key, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* value);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct CancellationToken *")]
         public static extern CancellationToken* cancellation_token_new();
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void cancellation_token_cancel([NativeTypeName("struct CancellationToken *")] CancellationToken* token);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void cancellation_token_free([NativeTypeName("struct CancellationToken *")] CancellationToken* token);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void error_free([NativeTypeName("struct Runtime *")] Runtime* _runtime, [NativeTypeName("const struct DeltaTableError *")] DeltaTableError* error);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct RuntimeOrFail")]
         public static extern RuntimeOrFail runtime_new([NativeTypeName("const struct RuntimeOptions *")] RuntimeOptions* options);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void runtime_free([NativeTypeName("struct Runtime *")] Runtime* runtime);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void byte_array_free([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct ByteArray *")] ByteArray* bytes);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void map_free([NativeTypeName("struct Runtime *")] Runtime* _runtime, [NativeTypeName("const struct Map *")] Map* map);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void dynamic_array_free([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct DynamicArray *")] DynamicArray* array);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ByteArray *")]
         public static extern ByteArray* table_uri([NativeTypeName("const struct RawDeltaTable *")] RawDeltaTable* table);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_free([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_new([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* table_uri, [NativeTypeName("const struct TableOptions *")] TableOptions* table_options, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct GenericOrError")]
         public static extern GenericOrError table_file_uris([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct GenericOrError")]
         public static extern GenericOrError table_files([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void history([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("uintptr_t")] UIntPtr limit, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_update_incremental([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_load_version([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_load_with_datetime([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long ts_milliseconds, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_merge([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_protocol([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_restore([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_update([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct BytesOrError")]
-        public static extern BytesOrError table_schema([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void table_schema([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_checkpoint([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_vacuum([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("const struct VacuumOptions *")] VacuumOptions* options, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("int64_t")]
         public static extern long table_version([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle);
 
-        [DllImport("delta_lake_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_metadata([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
     }
 }

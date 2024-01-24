@@ -7,7 +7,7 @@ use libc::c_void;
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
-    ByteArray, ByteArrayRef, DynamicArray, Map,
+    ByteArray, ByteArrayRef, DynamicArray, Map, SerializedBuffer,
 };
 
 pub struct RawDeltaTable {
@@ -83,13 +83,12 @@ pub extern "C" fn table_new(
         match std::str::from_utf8(uri.to_slice()) {
             Ok(table_uri) => table_uri,
             Err(err) => {
-                let error = runtime.alloc_utf8(&format!("invalid uri: {}", err));
                 callback(
                     std::ptr::null_mut(),
                     Box::into_raw(Box::new(DeltaTableError::new(
                         runtime,
                         DeltaTableErrorCode::Utf8,
-                        error,
+                        &err.to_string(),
                     ))),
                 );
                 return;
@@ -119,16 +118,21 @@ pub extern "C" fn table_new(
             .unwrap();
     }
 
-    let runtime_handle = runtime.runtime.clone();
+    let runtime_handle = runtime.handle();
+    std::println!("spawning !");
     runtime_handle.spawn(async move {
+        // panic!("this isn't working");
+        std::println!("spawned!");
         match builder.load().await {
             Ok(table) => unsafe {
+                std::println!("returned ok");
                 callback(
                     Box::into_raw(Box::new(RawDeltaTable::new(table))),
                     std::ptr::null(),
                 )
             },
             Err(err) => unsafe {
+                std::println!("returned error");
                 callback(
                     std::ptr::null_mut(),
                     Box::into_raw(Box::new(DeltaTableError::from_error(runtime, err))),
@@ -277,21 +281,33 @@ pub extern "C" fn table_update(
     unimplemented!()
 }
 
+/// Must free the error, but there is no need to free the SerializedBuffer
 #[no_mangle]
-pub extern "C" fn table_schema(runtime: *mut Runtime, table: *mut RawDeltaTable) -> BytesOrError {
-    do_with_table_and_runtime_sync(runtime, table, move |rt, tbl| {
-        let result = match tbl.table.get_schema() {
-            Err(err) => {
-                let error = DeltaTableError::from_error(rt, err);
-                BytesOrError {
-                    bytes: std::ptr::null(),
-                    error: Box::into_raw(Box::new(error)),
+pub extern "C" fn table_schema(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    callback: GenericErrorCallback,
+) {
+    do_with_table_and_runtime_sync(
+        runtime,
+        table,
+        move |rt, tbl| match crate::schema::get_schema(rt, &tbl.table) {
+            Ok(schema) => {
+                let (array, offset) = crate::schema::serialize_schema(rt, &schema);
+                let fb = SerializedBuffer {
+                    data: array.as_ptr(),
+                    size: array.len() - offset,
+                    offset,
+                };
+                unsafe {
+                    callback(std::ptr::addr_of!(fb) as *const c_void, std::ptr::null());
                 }
             }
-            Ok(_) => panic!("todo"),
-        };
-        result
-    })
+            Err(err) => unsafe {
+                callback(std::ptr::null(), err.into_raw());
+            },
+        },
+    )
 }
 
 #[no_mangle]
@@ -306,11 +322,8 @@ pub extern "C" fn table_checkpoint(
                 callback(std::ptr::null());
             },
             Err(err) => {
-                let error = DeltaTableError::new(
-                    rt,
-                    DeltaTableErrorCode::Protocol,
-                    ByteArray::from_utf8(err.to_string()),
-                );
+                let error =
+                    DeltaTableError::new(rt, DeltaTableErrorCode::Protocol, &err.to_string());
                 unsafe { callback(error.into_raw()) }
             }
         };
@@ -418,7 +431,7 @@ where
 {
     let runtime = unsafe { &mut *rt };
     let table = unsafe { &mut *table };
-    let runtime_handle = runtime.runtime.clone();
+    let runtime_handle = runtime.handle();
     runtime_handle.spawn(async move {
         work(runtime, table).await;
     });

@@ -10,6 +10,7 @@
 
 pub mod error;
 pub mod runtime;
+pub mod schema;
 pub mod table;
 use std::collections::HashMap;
 
@@ -19,6 +20,13 @@ use runtime::Runtime;
 pub struct MapRef {
     data: *const MapElementRef,
     size: libc::size_t,
+}
+
+#[repr(C)]
+pub struct SerializedBuffer {
+    data: *const u8,
+    size: libc::size_t,
+    offset: libc::size_t,
 }
 
 pub struct Map {

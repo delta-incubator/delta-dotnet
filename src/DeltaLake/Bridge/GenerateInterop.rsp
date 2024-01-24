@@ -7,6 +7,6 @@ src/DeltaLake/Bridge/include/delta-lake-bridge.h
 --namespace
 DeltaLake.Bridge.Interop
 --libraryPath
-delta_lake_bridge
+delta_rs_bridge
 --output
 src/DeltaLake/Bridge/Interop/Interop.cs

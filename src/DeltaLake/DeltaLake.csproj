@@ -25,7 +25,6 @@
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
         <BridgeLibraryFile>libdelta_rs_bridge.dylib</BridgeLibraryFile>
-
     </PropertyGroup>
 
     <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds"

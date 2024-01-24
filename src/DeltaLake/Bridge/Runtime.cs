@@ -55,58 +55,64 @@ namespace DeltaLake.Bridge
 
         public async Task<Table> NewTableAsync(string tableUri, DeltaLake.Table.TableOptions options)
         {
-            var tsc = new TaskCompletionSource<Table>();
             var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(tableUri));
             var encodedLength = System.Text.Encoding.UTF8.GetBytes(tableUri, buffer);
             try
             {
-                unsafe
-                {
-                    var byteArrayRef = new ByteArrayRef(buffer.AsMemory(0, encodedLength));
-                    var handle = GCHandle.Alloc(byteArrayRef.Ref, GCHandleType.Pinned);
-                    var funcHandle = default(GCHandle);
-                    object? funcPointer = null;
-                    var (nativeOptions, map) = MakeNativeTableOptions(options);
-                    var optionsHandle = GCHandle.Alloc(nativeOptions);
-                    (funcHandle, funcPointer) = FunctionPointer<Interop.TableNewCallback>((success, fail) =>
-                    {
-                        try
-                        {
-                            if (fail != null)
-                            {
-                                tsc.TrySetException(new InvalidOperationException());
-                                Interop.Methods.error_free(Ptr, fail);
-                            }
-                            else
-                            {
-                                tsc.TrySetResult(new Table(this, success));
-                            }
-                        }
-                        finally
-                        {
-                            optionsHandle.Free();
-                            handle.Free();
-                            map?.Dispose();
-                            if (funcHandle.IsAllocated)
-                            {
-                                funcHandle.Free();
-                            }
-                        }
-                    });
-
-                    Interop.Methods.table_new(
-                        Ptr,
-                        (Interop.ByteArrayRef*)handle.AddrOfPinnedObject(),
-                        (Interop.TableOptions*)optionsHandle.AddrOfPinnedObject(),
-                        funcHandle.AddrOfPinnedObject());
-                }
-
-                return await tsc.Task.ConfigureAwait(false);
+                return await NewTableAsync(buffer.AsMemory(0, encodedLength), options);
             }
             finally
             {
                 ArrayPool<byte>.Shared.Return(buffer);
             }
+        }
+
+        internal async Task<Table> NewTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
+        {
+            var tsc = new TaskCompletionSource<Table>();
+            unsafe
+            {
+                var byteArrayRef = new ByteArrayRef(tableUri);
+                var handle = GCHandle.Alloc(byteArrayRef.Ref, GCHandleType.Pinned);
+                var funcHandle = default(GCHandle);
+                nint funcPointer = 0;
+                var (nativeOptions, map) = MakeNativeTableOptions(options);
+                var optionsHandle = GCHandle.Alloc(nativeOptions, GCHandleType.Pinned);
+                (funcHandle, funcPointer) = FunctionPointer<Interop.TableNewCallback>((success, fail) =>
+                {
+                    try
+                    {
+                        if (fail != null)
+                        {
+                            var errorMessage = System.Text.Encoding.UTF8.GetString(fail->error.data, (int)fail->error.size);
+                            tsc.TrySetException(new InvalidOperationException());
+                            Interop.Methods.error_free(Ptr, fail);
+                        }
+                        else
+                        {
+                            tsc.TrySetResult(new Table(this, success));
+                        }
+                    }
+                    finally
+                    {
+                        optionsHandle.Free();
+                        handle.Free();
+                        map?.Dispose();
+                        if (funcHandle.IsAllocated)
+                        {
+                            funcHandle.Free();
+                        }
+                    }
+                });
+
+                Interop.Methods.table_new(
+                    Ptr,
+                    (Interop.ByteArrayRef*)handle.AddrOfPinnedObject(),
+                    (Interop.TableOptions*)optionsHandle.AddrOfPinnedObject(),
+                    funcPointer);
+            }
+
+            return await tsc.Task.ConfigureAwait(false);
         }
 
         /// <summary>
@@ -177,7 +183,7 @@ namespace DeltaLake.Bridge
             return true;
         }
 
-        internal static (GCHandle, object) FunctionPointer<T>(T func)
+        internal static (GCHandle, nint) FunctionPointer<T>(T func)
         where T : Delegate
         {
             var handle = GCHandle.Alloc(func);
