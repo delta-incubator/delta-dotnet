@@ -153,7 +153,7 @@ impl Runtime {
     pub fn allocate_map(&self, capacity: usize) -> Map {
         Map {
             data: HashMap::with_capacity(capacity),
-            disable_free: false,
+            disable_free: true,
         }
     }
 

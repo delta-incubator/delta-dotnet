@@ -17,12 +17,6 @@ use std::collections::HashMap;
 use runtime::Runtime;
 
 #[repr(C)]
-pub struct MapRef {
-    data: *const MapElementRef,
-    size: libc::size_t,
-}
-
-#[repr(C)]
 pub struct SerializedBuffer {
     data: *const u8,
     size: libc::size_t,
@@ -32,6 +26,18 @@ pub struct SerializedBuffer {
 pub struct Map {
     data: HashMap<String, String>,
     disable_free: bool,
+}
+
+impl Map {
+    pub(crate) unsafe fn into_hash_map(source: *mut Map) -> Option<HashMap<String, String>> {
+        match source.is_null() {
+            true => None,
+            false => {
+                let map = Box::from_raw(source);
+                Some(map.data)
+            }
+        }
+    }
 }
 
 #[no_mangle]
@@ -55,12 +61,6 @@ pub extern "C" fn map_add(
 
     map.data.insert(key.to_string(), value.to_string());
     true
-}
-
-#[repr(C)]
-pub struct MapElementRef {
-    key: *const ByteArrayRef,
-    value: *const ByteArrayRef,
 }
 
 #[repr(C)]
@@ -155,6 +155,16 @@ impl ByteArrayRef {
 /// Metadata is <key1>\n<value1>\n<key2>\n<value2>. Metadata keys or
 /// values cannot contain a newline within.
 type MetadataRef = ByteArrayRef;
+
+#[repr(C)]
+pub struct ArrayRef {
+    data: *const ByteArrayRef,
+    size: libc::size_t,
+    /// For internal use only.
+    cap: libc::size_t,
+    /// For internal use only.
+    disable_free: bool,
+}
 
 #[repr(C)]
 pub struct DynamicArray {

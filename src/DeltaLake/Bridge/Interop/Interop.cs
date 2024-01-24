@@ -36,6 +36,9 @@ namespace DeltaLake.Bridge.Interop
         SerializeSchemaJson = 27,
         Generic = 28,
         GenericError = 29,
+        Kernel = 30,
+        MetaDataError = 31,
+        NotInitialized = 32,
     }
 
     internal partial struct CancellationToken
@@ -115,12 +118,15 @@ namespace DeltaLake.Bridge.Interop
         public byte disable_free;
     }
 
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    internal unsafe delegate void TableNewCallback([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* success, [NativeTypeName("const struct DeltaTableError *")] DeltaTableError* fail);
+
     internal unsafe partial struct TableOptions
     {
         [NativeTypeName("int64_t")]
         public long version;
 
-        [NativeTypeName("const struct Map *")]
+        [NativeTypeName("struct Map *")]
         public Map* storage_options;
 
         [NativeTypeName("bool")]
@@ -129,9 +135,6 @@ namespace DeltaLake.Bridge.Interop
         [NativeTypeName("size_t")]
         public UIntPtr log_buffer_size;
     }
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal unsafe delegate void TableNewCallback([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* success, [NativeTypeName("const struct DeltaTableError *")] DeltaTableError* fail);
 
     internal unsafe partial struct GenericOrError
     {
@@ -208,6 +211,9 @@ namespace DeltaLake.Bridge.Interop
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_free([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void create_deltalake([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* table_uri, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* schema, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* partition_by, [NativeTypeName("int32_t")] int mode, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* name, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* description, [NativeTypeName("struct Map *")] Map* configuration, [NativeTypeName("struct Map *")] Map* storage_options, [NativeTypeName("struct Map *")] Map* custom_metadata, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_new([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* table_uri, [NativeTypeName("const struct TableOptions *")] TableOptions* table_options, [NativeTypeName("TableNewCallback")] IntPtr callback);

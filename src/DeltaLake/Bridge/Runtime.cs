@@ -115,6 +115,28 @@ namespace DeltaLake.Bridge
             return await tsc.Task.ConfigureAwait(false);
         }
 
+        internal async Task<Table> CreateTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
+        {
+            var tsc = new TaskCompletionSource<Table>();
+            unsafe
+            {
+                Interop.Methods.create_deltalake(
+                    Ptr,
+                    null,
+                    null,
+                    null,
+                    0,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    (nint)0);
+            }
+
+            return await tsc.Task.ConfigureAwait(false);
+        }
+
         /// <summary>
         /// Gets the pointer to the runtime.
         /// </summary>

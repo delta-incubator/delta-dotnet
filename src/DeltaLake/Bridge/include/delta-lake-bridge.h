@@ -99,14 +99,14 @@ typedef struct DynamicArray {
   bool disable_free;
 } DynamicArray;
 
+typedef void (*TableNewCallback)(struct RawDeltaTable *success, const struct DeltaTableError *fail);
+
 typedef struct TableOptions {
   int64_t version;
-  const struct Map *storage_options;
+  struct Map *storage_options;
   bool without_files;
   size_t log_buffer_size;
 } TableOptions;
-
-typedef void (*TableNewCallback)(struct RawDeltaTable *success, const struct DeltaTableError *fail);
 
 typedef struct GenericOrError {
   const void *bytes;
@@ -153,6 +153,18 @@ void dynamic_array_free(struct Runtime *runtime, const struct DynamicArray *arra
 struct ByteArray *table_uri(const struct RawDeltaTable *table);
 
 void table_free(struct RawDeltaTable *table);
+
+void create_deltalake(struct Runtime *runtime,
+                      const struct ByteArrayRef *table_uri,
+                      const struct ByteArrayRef *schema,
+                      const struct ByteArrayRef *partition_by,
+                      int32_t mode,
+                      const struct ByteArrayRef *name,
+                      const struct ByteArrayRef *description,
+                      struct Map *configuration,
+                      struct Map *storage_options,
+                      struct Map *custom_metadata,
+                      TableNewCallback callback);
 
 void table_new(struct Runtime *runtime,
                const struct ByteArrayRef *table_uri,

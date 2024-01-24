@@ -12,7 +12,9 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Google.FlatBuffers" Version="23.5.26" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+        <PackageReference Include="Apache.Arrow" Version="15.0.0" />
     </ItemGroup>
 
     <!-- Build/copy debug/release bridge DLL -->
@@ -27,12 +29,10 @@
         <BridgeLibraryFile>libdelta_rs_bridge.dylib</BridgeLibraryFile>
     </PropertyGroup>
 
-    <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds"
-        Condition="'$(Configuration)' == 'Debug'">
+    <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds" Condition="'$(Configuration)' == 'Debug'">
         <Exec Command="cargo build" WorkingDirectory="Bridge" />
     </Target>
-    <Target Name="CopyBridgeDLLDebug" BeforeTargets="PreBuildEvent"
-        Condition="'$(Configuration)' == 'Debug'">
+    <Target Name="CopyBridgeDLLDebug" BeforeTargets="PreBuildEvent" Condition="'$(Configuration)' == 'Debug'">
         <ItemGroup Condition="'$(Configuration)' == 'Debug'">
             <Content Include="Bridge/target/debug/$(BridgeLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -42,12 +42,10 @@
         </ItemGroup>
     </Target>
 
-    <Target Name="CargoBuildRelease" BeforeTargets="DispatchToInnerBuilds"
-        Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
+    <Target Name="CargoBuildRelease" BeforeTargets="DispatchToInnerBuilds" Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
         <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
     </Target>
-    <Target Name="CopyBridgeDLLRelease" BeforeTargets="PreBuildEvent"
-        Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
+    <Target Name="CopyBridgeDLLRelease" BeforeTargets="PreBuildEvent" Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
         <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
         <ItemGroup Condition="'$(Configuration)' == 'Release'">
             <Content Include="Bridge/target/release/$(BridgeLibraryFile)">
@@ -64,8 +62,7 @@
     </ItemGroup>
 
     <!-- Pack the C if BridgeLibraryRoot property set -->
-    <Target Name="PackBridgeRuntimes" BeforeTargets="DispatchToInnerBuilds"
-        Condition="'$(BridgeLibraryRoot)' != ''">
+    <Target Name="PackBridgeRuntimes" BeforeTargets="DispatchToInnerBuilds" Condition="'$(BridgeLibraryRoot)' != ''">
         <ItemGroup>
             <Content Include="$(BridgeLibraryRoot)/linux-x64-bridge/libdelta_rs_bridge.so">
                 <PackagePath>runtimes/linux-x64/native/libdelta_rs_bridge.so</PackagePath>
