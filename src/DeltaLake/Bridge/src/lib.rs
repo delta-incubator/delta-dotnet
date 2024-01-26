@@ -24,12 +24,27 @@ pub struct SerializedBuffer {
 }
 
 pub struct Map {
-    data: HashMap<String, String>,
+    data: HashMap<String, Option<String>>,
     disable_free: bool,
 }
 
 impl Map {
     pub(crate) unsafe fn into_hash_map(source: *mut Map) -> Option<HashMap<String, String>> {
+        match source.is_null() {
+            true => None,
+            false => {
+                let map = Box::from_raw(source);
+                Some(
+                    map.data
+                        .into_iter()
+                        .map(|(k, v)| (k, v.unwrap_or_default()))
+                        .collect(),
+                )
+            }
+        }
+    }
+
+    pub(crate) unsafe fn into_map(source: *mut Map) -> Option<HashMap<String, Option<String>>> {
         match source.is_null() {
             true => None,
             false => {
@@ -55,11 +70,15 @@ pub extern "C" fn map_add(
     if map.is_null() {
         return false;
     }
-
-    let (key, value) = unsafe { ((&*key), (&*value)) };
+    let key = unsafe { (&*key) };
     let map = unsafe { &mut *map };
+    if value.is_null() {
+        map.data.insert(key.to_string(), None);
+    } else {
+        let value = unsafe { &*value };
+        map.data.insert(key.to_string(), Some(value.to_string()));
+    }
 
-    map.data.insert(key.to_string(), value.to_string());
     true
 }
 

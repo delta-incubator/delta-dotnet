@@ -6,40 +6,10 @@ using System.Text;
 
 namespace DeltaLake.Bridge
 {
-    internal struct RentedByteArrayRef : IDisposable
-    {
-        private readonly byte[] _array;
-        private readonly ArrayPool<byte>? _pool;
-
-        public RentedByteArrayRef(ByteArrayRef byteArrayRef, byte[] array, ArrayPool<byte>? pool)
-        {
-            Ref = byteArrayRef;
-            _array = array;
-            _pool = pool;
-        }
-
-        public static RentedByteArrayRef Empty { get; } = new(ByteArrayRef.Empty, Array.Empty<byte>(), null);
-
-        public ByteArrayRef Ref { get; init; }
-
-
-        public readonly void Dispose()
-        {
-            Dispose(true);
-        }
-
-        private readonly void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                _pool?.Return(_array);
-            }
-        }
-    }
     /// <summary>
     /// Representation of a byte array owned by .NET. Users should usually use a
     /// </summary>
-    internal class ByteArrayRef
+    internal sealed class ByteArrayRef : IDisposable
     {
         private readonly MemoryHandle bytesHandle;
 
@@ -80,12 +50,11 @@ namespace DeltaLake.Bridge
             }
         }
 
-        /// <summary>
-        /// Finalizes an instance of the <see cref="ByteArrayRef"/> class.
-        /// </summary>
-        ~ByteArrayRef()
+        /// <inheritdoc />
+        public void Dispose()
         {
             bytesHandle.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>

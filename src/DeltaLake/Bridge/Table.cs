@@ -2,14 +2,23 @@ using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DeltaLake.Bridge.Interop;
+using DeltaLake.Table;
 
 namespace DeltaLake.Bridge
 {
     /// <summary>
     ///
     /// </summary>
-    internal class Table : SafeHandle
+    internal sealed class Table : SafeHandle
     {
+        internal static ByteArrayRef SaveModeAppend = ByteArrayRef.FromUTF8("append");
+
+        internal static ByteArrayRef SaveModeOverwrite = ByteArrayRef.FromUTF8("overwrite");
+
+        internal static ByteArrayRef SaveModeError = ByteArrayRef.FromUTF8("error");
+
+        internal static ByteArrayRef SaveModeIfgnore = ByteArrayRef.FromUTF8("ignore");
+
         private readonly unsafe Interop.RawDeltaTable* _ptr;
 
         private readonly Runtime _runtime;
@@ -119,6 +128,18 @@ namespace DeltaLake.Bridge
             {
                 return GetStringArray(Interop.Methods.table_files(_runtime.Ptr, _ptr));
             }
+        }
+
+        internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode)
+        {
+            return saveMode switch
+            {
+                SaveMode.Append => SaveModeAppend,
+                SaveMode.Overwrite => SaveModeOverwrite,
+                SaveMode.ErrorIfExists => SaveModeError,
+                SaveMode.Ignore => SaveModeIfgnore,
+                _ => throw new ArgumentOutOfRangeException(nameof(saveMode)),
+            };
         }
 
         /// <inheritdoc />

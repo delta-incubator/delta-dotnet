@@ -4,7 +4,7 @@ namespace DeltaLake.Runtime
     /// <summary>
     ///
     /// </summary>
-    public class RuntimeOptions
+    public sealed class RuntimeOptions
     {
         /// <summary>
         /// Default instance of runtime options

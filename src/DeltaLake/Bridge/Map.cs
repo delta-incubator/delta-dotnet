@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace DeltaLake.Bridge
 {
-    internal sealed class Map : IDisposable
+    internal sealed class Map
     {
         private readonly Runtime _runtime;
 
@@ -12,11 +12,6 @@ namespace DeltaLake.Bridge
         {
             Ref = inner;
             _runtime = runtime;
-        }
-
-        ~Map()
-        {
-            Dispose(false);
         }
 
         public unsafe Interop.Map* Ref { get; }
@@ -29,6 +24,27 @@ namespace DeltaLake.Bridge
                 using var keyRef = ByteArrayRef.RentUtf8(key);
                 using var valueRef = ByteArrayRef.RentUtf8(value);
                 WriteTuple(map, keyRef.Ref, valueRef.Ref);
+            }
+
+            return new Map(map, runtime);
+        }
+
+        public static unsafe Map FromOptionalDictionary(Runtime runtime, IDictionary<string, string?> source)
+        {
+            var map = Interop.Methods.map_new(runtime.Ptr, (nuint)source.Count);
+            foreach (var (key, value) in source)
+            {
+                using var keyRef = ByteArrayRef.RentUtf8(key);
+                if (value != null)
+                {
+                    using var valueRef = ByteArrayRef.RentUtf8(value);
+                    WriteTuple(map, keyRef.Ref, valueRef.Ref);
+                }
+                else
+                {
+                    WriteSingle(map, keyRef.Ref);
+                }
+
             }
 
             return new Map(map, runtime);
@@ -59,17 +75,21 @@ namespace DeltaLake.Bridge
             }
         }
 
-        public void Dispose()
+        private static unsafe void WriteSingle(Interop.Map* map, ByteArrayRef keyRef)
         {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
 
-        private unsafe void Dispose(bool disposing)
-        {
-            if (Ref != null)
+            var keyRefHandle = GCHandle.Alloc(keyRef.Ref, GCHandleType.Pinned);
+            try
             {
-                Interop.Methods.map_free(_runtime.Ptr, Ref);
+                Interop.Methods.map_add(
+                    map,
+                    (Interop.ByteArrayRef*)keyRefHandle.AddrOfPinnedObject(),
+                    null);
+
+            }
+            finally
+            {
+                keyRefHandle.Free();
             }
         }
     }

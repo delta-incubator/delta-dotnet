@@ -6,7 +6,7 @@ namespace DeltaLake.Bridge
     /// <summary>
     /// Representation of a byte array owned by Core.
     /// </summary>
-    internal class ByteArray : SafeHandle
+    internal sealed class ByteArray : SafeHandle
     {
         private readonly Runtime runtime;
         private readonly unsafe Interop.ByteArray* byteArray;

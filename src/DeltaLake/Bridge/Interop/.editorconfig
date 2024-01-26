@@ -8,6 +8,8 @@ dotnet_diagnostic.CA5392.severity = none
 dotnet_diagnostic.CS0649.severity = none
 dotnet_diagnostic.CS1570.severity = none
 dotnet_diagnostic.CS1591.severity = none
+dotnet_analyzer_diagnostic.severity = none
+dotnet_analyzer_diagnostic.severity = none
 exclude = true
 generated_code = true
 

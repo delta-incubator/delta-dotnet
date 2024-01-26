@@ -1,9 +1,11 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Apache.Arrow.C;
 using Microsoft.Extensions.Logging;
 
 namespace DeltaLake.Bridge
@@ -11,7 +13,7 @@ namespace DeltaLake.Bridge
     /// <summary>
     /// Core-owned runtime.
     /// </summary>
-    internal class Runtime : SafeHandle
+    internal sealed class Runtime : SafeHandle
     {
         /*
         private static readonly Func<ForwardedLog, Exception?, string> ForwardLogMessageFormatter =
@@ -59,7 +61,7 @@ namespace DeltaLake.Bridge
             var encodedLength = System.Text.Encoding.UTF8.GetBytes(tableUri, buffer);
             try
             {
-                return await NewTableAsync(buffer.AsMemory(0, encodedLength), options);
+                return await NewTableAsync(buffer.AsMemory(0, encodedLength), options).ConfigureAwait(false);
             }
             finally
             {
@@ -72,7 +74,7 @@ namespace DeltaLake.Bridge
             var tsc = new TaskCompletionSource<Table>();
             unsafe
             {
-                var byteArrayRef = new ByteArrayRef(tableUri);
+                using var byteArrayRef = new ByteArrayRef(tableUri);
                 var handle = GCHandle.Alloc(byteArrayRef.Ref, GCHandleType.Pinned);
                 var funcHandle = default(GCHandle);
                 nint funcPointer = 0;
@@ -85,7 +87,7 @@ namespace DeltaLake.Bridge
                         if (fail != null)
                         {
                             var errorMessage = System.Text.Encoding.UTF8.GetString(fail->error.data, (int)fail->error.size);
-                            tsc.TrySetException(new InvalidOperationException());
+                            tsc.TrySetException(new InvalidOperationException(errorMessage));
                             Interop.Methods.error_free(Ptr, fail);
                         }
                         else
@@ -97,7 +99,6 @@ namespace DeltaLake.Bridge
                     {
                         optionsHandle.Free();
                         handle.Free();
-                        map?.Dispose();
                         if (funcHandle.IsAllocated)
                         {
                             funcHandle.Free();
@@ -115,26 +116,55 @@ namespace DeltaLake.Bridge
             return await tsc.Task.ConfigureAwait(false);
         }
 
-        internal async Task<Table> CreateTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
+        internal async Task<Table> CreateTableAsync(DeltaLake.Table.TableCreateOptions options)
         {
             var tsc = new TaskCompletionSource<Table>();
-            unsafe
+            using (var scope = new Scope())
             {
-                Interop.Methods.create_deltalake(
-                    Ptr,
-                    null,
-                    null,
-                    null,
-                    0,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    (nint)0);
-            }
+                unsafe
+                {
+                    var nativeSchema = CArrowSchema.Create();
+                    try
+                    {
+                        CArrowSchemaExporter.ExportSchema(options.Schema, nativeSchema);
+                        var saveMode = Table.ConvertSaveMode(options.SaveMode);
+                        var nativeOptions = new Interop.TableCreatOptions()
+                        {
+                            table_uri = scope.ByteArray(options.TableLocation),
+                            schema = nativeSchema,
+                            partition_by = scope.ArrayPointer(options.PartitionBy.Select(x => scope.ByteArray(x)).ToArray()),
+                            partition_count = (nuint)options.PartitionBy.Count,
+                            mode = saveMode.Ref,
+                            description = scope.ByteArray(options.Description),
+                            configuration = scope.OptionalDictionary(this, options.Configuration ?? new Dictionary<string, string?>()),
+                            custom_metadata = scope.Dictionary(this, options.CustomMetadata ?? new Dictionary<string, string>()),
+                            storage_options = scope.Dictionary(this, options.StorageOptions ?? new Dictionary<string, string>()),
+                        };
+                        Interop.Methods.create_deltalake(
+                            Ptr,
+                            scope.Pointer(nativeOptions),
+                            scope.FunctionPointer<Interop.TableNewCallback>((success, fail) =>
+                            {
+                                if (fail != null)
+                                {
+                                    var errorMessage = System.Text.Encoding.UTF8.GetString(fail->error.data, (int)fail->error.size);
+                                    tsc.TrySetException(new InvalidOperationException(errorMessage));
+                                    Interop.Methods.error_free(Ptr, fail);
+                                }
+                                else
+                                {
+                                    tsc.TrySetResult(new Table(this, success));
+                                }
+                            }));
+                    }
+                    finally
+                    {
+                        CArrowSchema.Free(nativeSchema);
+                    }
+                }
 
-            return await tsc.Task.ConfigureAwait(false);
+                return await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         /// <summary>

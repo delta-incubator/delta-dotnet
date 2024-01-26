@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 
 use chrono::Duration;
 use deltalake::{
@@ -10,22 +10,25 @@ use libc::c_void;
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
-    schema::deserialize_schema,
-    ArrayRef, ByteArray, ByteArrayRef, DynamicArray, Map, SerializedBuffer,
+    ByteArray, ByteArrayRef, DynamicArray, Map, SerializedBuffer,
 };
-
-macro_rules! option_deref {
-    // `()` indicates that the macro takes no argument.
-    ($a:expr, $b:expr) => {
-        match $a.is_null() {
-            true => None,
-            false => unsafe { $b(&*$a) },
-        }
-    };
-}
 
 pub struct RawDeltaTable {
     table: deltalake::DeltaTable,
+}
+
+#[repr(C)]
+pub struct TableCreatOptions {
+    table_uri: ByteArrayRef,
+    schema: *const c_void,
+    partition_by: *const ByteArrayRef,
+    partition_count: usize,
+    mode: ByteArrayRef,
+    name: ByteArrayRef,
+    description: ByteArrayRef,
+    configuration: *mut Map,
+    storage_options: *mut Map,
+    custom_metadata: *mut Map,
 }
 
 #[repr(C)]
@@ -59,7 +62,7 @@ pub struct VacuumOptions {
     dry_run: bool,
     retention_hours: u64,
     enforce_retention_duration: bool,
-    custom_metadata: *const Map,
+    custom_metadata: *mut Map,
 }
 
 type TableNewCallback =
@@ -87,22 +90,48 @@ pub extern "C" fn table_free(table: *mut RawDeltaTable) {
 #[no_mangle]
 pub extern "C" fn create_deltalake(
     runtime: *mut Runtime,
-    table_uri: *const ByteArrayRef,
-    schema: *const ByteArrayRef,
-    partition_by: *const ByteArrayRef,
-    mode: i32,
-    name: *const ByteArrayRef,
-    description: *const ByteArrayRef,
-    configuration: *mut Map,
-    storage_options: *mut Map,
-    custom_metadata: *mut Map,
+    options: *const TableCreatOptions,
     callback: TableNewCallback,
 ) {
-    let runtime = unsafe { &mut *runtime };
-    let table_uri = unsafe {
-        let uri = &*table_uri;
-        match String::from_utf8(uri.to_vec()) {
-            Ok(table_uri) => table_uri,
+    let (runtime, options) = unsafe { (&mut *runtime, &*options) };
+    let table_uri = options.table_uri.to_string();
+
+    let schema = unsafe { &*(options.schema as *mut arrow::ffi::FFI_ArrowSchema) };
+    let schema: Schema = match schema.try_into() {
+        Ok(schema) => schema,
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null_mut(),
+                Box::into_raw(Box::new(DeltaTableError::new(
+                    runtime,
+                    DeltaTableErrorCode::Utf8,
+                    &err.to_string(),
+                ))),
+            );
+            return;
+        },
+    };
+    let partition_by = unsafe {
+        let partition_by =
+            std::slice::from_raw_parts(options.partition_by, options.partition_count);
+        partition_by
+            .iter()
+            .map(|b| b.to_string())
+            .collect::<Vec<String>>()
+    };
+
+    let (name, description, configuration, storage_options, custom_metadata) = unsafe {
+        (
+            options.name.to_option_string(),
+            options.name.to_option_string(),
+            Map::into_hash_map(options.configuration),
+            Map::into_hash_map(options.storage_options),
+            Map::into_hash_map(options.custom_metadata),
+        )
+    };
+    let save_mode = unsafe {
+        match SaveMode::from_str(options.mode.to_str()) {
+            Ok(save_mode) => save_mode,
             Err(err) => {
                 callback(
                     std::ptr::null_mut(),
@@ -116,45 +145,13 @@ pub extern "C" fn create_deltalake(
             }
         }
     };
-
-    let schema = unsafe {
-        match deserialize_schema(runtime, (&*schema).to_slice()) {
-            Ok(schema) => schema,
-            Err(error) => {
-                callback(std::ptr::null_mut(), error.into_raw());
-                return;
-            }
-        }
-    };
-
-    let partition_by = match partition_by.is_null() {
-        true => Vec::new(),
-        false => unsafe {
-            (*partition_by)
-                .to_slice()
-                .split(|s| *s == 0)
-                .map(|entry| String::from_utf8_unchecked(entry.to_vec()))
-                .collect::<Vec<String>>()
-        },
-    };
-
-    let (name, description, configuration, storage_options, custom_metadata) = unsafe {
-        (
-            option_deref!(name, ByteArrayRef::to_option_string),
-            option_deref!(description, ByteArrayRef::to_option_string),
-            Map::into_hash_map(configuration),
-            Map::into_hash_map(storage_options),
-            Map::into_hash_map(custom_metadata),
-        )
-    };
-
     runtime.handle().spawn(async move {
         match create_delta_table(
             runtime,
             table_uri,
             schema,
             partition_by,
-            SaveMode::ErrorIfExists,
+            save_mode,
             name,
             description,
             configuration.map(|hm| {
@@ -171,9 +168,12 @@ pub extern "C" fn create_deltalake(
                 callback(
                     Box::into_raw(Box::new(RawDeltaTable::new(table))),
                     std::ptr::null(),
-                )
+                );
             },
-            Err(err) => unsafe { callback(std::ptr::null_mut(), err.into_raw()) },
+            Err(err) => unsafe {
+                println!("calling on error");
+                callback(std::ptr::null_mut(), err.into_raw())
+            },
         }
     });
 }
@@ -448,12 +448,7 @@ pub extern "C" fn table_vacuum(
         } else {
             None
         };
-        let custom_metadata = if options.custom_metadata.is_null() {
-            None
-        } else {
-            let map = &*options.custom_metadata;
-            Some(map.data.clone())
-        };
+        let custom_metadata = Map::into_hash_map(options.custom_metadata);
         (
             options.dry_run,
             retention_hours,

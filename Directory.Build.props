@@ -1,17 +1,15 @@
 <Project>
   <PropertyGroup>
     <AnalysisLevel>latest</AnalysisLevel>
-    <CodeAnalysisTreatWarningsAsErrors>false</CodeAnalysisTreatWarningsAsErrors>
-    <AnalysisMode>Recommended</AnalysisMode>
     <Authors>KyJah Keys</Authors>
-    <EnableNETAnalyzers>true</EnableNETAnalyzers>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <Nullable>enable</Nullable>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/mightyshazam/delta-dotnet</RepositoryUrl>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <ProduceReferenceAssembly>True</ProduceReferenceAssembly>
+    <UNSAFE_BYTEBUFFER>true</UNSAFE_BYTEBUFFER>
+    <ENABLE_SPAN_T>true</ENABLE_SPAN_T>
+    <BYTEBUFFER_NO_BOUNDS_CHECK>true</BYTEBUFFER_NO_BOUNDS_CHECK>
   </PropertyGroup>
 
   <PropertyGroup>

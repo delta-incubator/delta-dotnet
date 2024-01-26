@@ -264,6 +264,7 @@ version = "49.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09e28a5e781bf1b0f981333684ad13f5901f4cd2f20589eab7cf1797da8fc167"
 dependencies = [
+ "bitflags 2.4.1",
  "serde",
 ]
 
@@ -623,6 +624,7 @@ dependencies = [
 name = "delta-rs-bridge"
 version = "0.1.0"
 dependencies = [
+ "arrow",
  "cbindgen",
  "chrono",
  "deltalake",

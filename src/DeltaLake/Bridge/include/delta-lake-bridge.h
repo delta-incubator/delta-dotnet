@@ -99,6 +99,19 @@ typedef struct DynamicArray {
   bool disable_free;
 } DynamicArray;
 
+typedef struct TableCreatOptions {
+  struct ByteArrayRef table_uri;
+  const void *schema;
+  const struct ByteArrayRef *partition_by;
+  uintptr_t partition_count;
+  struct ByteArrayRef mode;
+  struct ByteArrayRef name;
+  struct ByteArrayRef description;
+  struct Map *configuration;
+  struct Map *storage_options;
+  struct Map *custom_metadata;
+} TableCreatOptions;
+
 typedef void (*TableNewCallback)(struct RawDeltaTable *success, const struct DeltaTableError *fail);
 
 typedef struct TableOptions {
@@ -121,7 +134,7 @@ typedef struct VacuumOptions {
   bool dry_run;
   uint64_t retention_hours;
   bool enforce_retention_duration;
-  const struct Map *custom_metadata;
+  struct Map *custom_metadata;
 } VacuumOptions;
 
 #ifdef __cplusplus
@@ -155,15 +168,7 @@ struct ByteArray *table_uri(const struct RawDeltaTable *table);
 void table_free(struct RawDeltaTable *table);
 
 void create_deltalake(struct Runtime *runtime,
-                      const struct ByteArrayRef *table_uri,
-                      const struct ByteArrayRef *schema,
-                      const struct ByteArrayRef *partition_by,
-                      int32_t mode,
-                      const struct ByteArrayRef *name,
-                      const struct ByteArrayRef *description,
-                      struct Map *configuration,
-                      struct Map *storage_options,
-                      struct Map *custom_metadata,
+                      const struct TableCreatOptions *options,
                       TableNewCallback callback);
 
 void table_new(struct Runtime *runtime,
