@@ -25,10 +25,15 @@ namespace DeltaLake.Table
         /// <param name="runtime"></param>
         /// <param name="location"></param>
         /// <param name="options"></param>
-        /// <returns></returns>
-        public static async Task<DeltaTable> LoadAsync(DeltaRuntime runtime, string location, TableOptions options)
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns>A new delta table loaded at the latest version</returns>
+        public static async Task<DeltaTable> LoadAsync(
+            DeltaRuntime runtime,
+             string location,
+              TableOptions options,
+              CancellationToken cancellationToken)
         {
-            var table = await runtime.Runtime.LoadTableAsync(location, options).ConfigureAwait(false);
+            var table = await runtime.Runtime.LoadTableAsync(location, options, cancellationToken).ConfigureAwait(false);
             return new DeltaTable(runtime, table);
         }
 
@@ -38,10 +43,15 @@ namespace DeltaLake.Table
         /// <param name="runtime"></param>
         /// <param name="uri"></param>
         /// <param name="options"></param>
-        /// <returns></returns>
-        public static async Task<DeltaTable> LoadAsync(DeltaRuntime runtime, Memory<byte> uri, TableOptions options)
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns>A new delta table loaded at the latest version</returns>
+        public static async Task<DeltaTable> LoadAsync(
+            DeltaRuntime runtime,
+             Memory<byte> uri,
+              TableOptions options,
+              CancellationToken cancellationToken)
         {
-            var table = await runtime.Runtime.LoadTableAsync(uri, options).ConfigureAwait(false);
+            var table = await runtime.Runtime.LoadTableAsync(uri, options, cancellationToken).ConfigureAwait(false);
             return new DeltaTable(runtime, table);
         }
 
@@ -50,10 +60,14 @@ namespace DeltaLake.Table
         /// </summary>
         /// <param name="runtime"></param>
         /// <param name="options"></param>
-        /// <returns></returns>
-        public static async Task<DeltaTable> CreateAsync(DeltaRuntime runtime, TableCreateOptions options)
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns>New DeltaTable</returns>
+        public static async Task<DeltaTable> CreateAsync(
+            DeltaRuntime runtime,
+             TableCreateOptions options,
+              CancellationToken cancellationToken)
         {
-            var table = await runtime.Runtime.CreateTableAsync(options).ConfigureAwait(false);
+            var table = await runtime.Runtime.CreateTableAsync(options, cancellationToken).ConfigureAwait(false);
             return new DeltaTable(runtime, table);
         }
 
@@ -99,7 +113,7 @@ namespace DeltaLake.Table
         /// <param name="version">desired version</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
         /// <returns></returns>
-        public Task LoadVersion(long version, CancellationToken cancellationToken)
+        public Task LoadVersionAsync(long version, CancellationToken cancellationToken)
         {
             return _table.LoadVersionAsync(version, cancellationToken);
         }

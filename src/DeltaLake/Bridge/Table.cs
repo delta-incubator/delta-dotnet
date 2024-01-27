@@ -56,6 +56,12 @@ namespace DeltaLake.Bridge
                           scope.CancellationToken(cancellationToken),
                           scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            tsc.TrySetCanceled(cancellationToken);
+                            return;
+                        }
+
                         if (fail != null)
                         {
                             tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
@@ -66,6 +72,7 @@ namespace DeltaLake.Bridge
                         }
                     }));
                 }
+
 
                 await tsc.Task.ConfigureAwait(false);
             }

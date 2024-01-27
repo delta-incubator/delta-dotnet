@@ -22,7 +22,10 @@ public class DeltaTableTests
             fb.DataType(Int32Type.Default);
             fb.Nullable(false);
         });
-        using var table = await DeltaTable.CreateAsync(runtime, new TableCreateOptions(uri, builder.Build()));
+        using var table = await DeltaTable.CreateAsync(
+            runtime,
+            new TableCreateOptions(uri, builder.Build()),
+            CancellationToken.None);
         Assert.NotNull(table);
         var version = table.Version();
         Assert.Equal(0, version);
@@ -39,7 +42,19 @@ public class DeltaTableTests
     {
         var location = Path.Join(Settings.TestRoot, "simple_table");
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions());
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        CancellationToken.None);
+        Assert.Equal(4, table.Version());
+    }
+
+    [Fact]
+    public async Task Load_Table_Memory_Test()
+    {
+        var location = Path.Join(Settings.TestRoot, "simple_table");
+        var memory = System.Text.Encoding.UTF8.GetBytes(location);
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, memory.AsMemory(), new TableOptions(),
+        CancellationToken.None);
         Assert.Equal(4, table.Version());
     }
 
@@ -55,7 +70,8 @@ public class DeltaTableTests
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
         {
             Version = version,
-        });
+        },
+        CancellationToken.None);
         Assert.Equal(version, table.Version());
     }
 
@@ -68,9 +84,10 @@ public class DeltaTableTests
     {
         var location = Path.Join(Settings.TestRoot, "simple_table");
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions());
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        CancellationToken.None);
         Assert.Equal(4, table.Version());
-        await table.LoadVersion(version, CancellationToken.None);
+        await table.LoadVersionAsync(version, CancellationToken.None);
         Assert.Equal(version, table.Version());
     }
 }

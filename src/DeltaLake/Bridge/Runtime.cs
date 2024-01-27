@@ -55,13 +55,16 @@ namespace DeltaLake.Bridge
         /// <inheritdoc />
         public override unsafe bool IsInvalid => false;
 
-        public async Task<Table> LoadTableAsync(string tableUri, DeltaLake.Table.TableOptions options)
+        public async Task<Table> LoadTableAsync(
+            string tableUri,
+             DeltaLake.Table.TableOptions options,
+            System.Threading.CancellationToken cancellationToken)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(tableUri));
             var encodedLength = System.Text.Encoding.UTF8.GetBytes(tableUri, buffer);
             try
             {
-                return await LoadTableAsync(buffer.AsMemory(0, encodedLength), options).ConfigureAwait(false);
+                return await LoadTableAsync(buffer.AsMemory(0, encodedLength), options, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -69,21 +72,35 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> LoadTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
+        internal async Task<Table> LoadTableAsync(
+            Memory<byte> tableUri,
+            DeltaLake.Table.TableOptions options,
+            System.Threading.CancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<Table>();
-            unsafe
+            using (var scope = new Scope())
             {
-                using var byteArrayRef = new ByteArrayRef(tableUri);
-                var handle = GCHandle.Alloc(byteArrayRef.Ref, GCHandleType.Pinned);
-                var funcHandle = default(GCHandle);
-                nint funcPointer = 0;
-                var (nativeOptions, map) = MakeNativeTableOptions(options);
-                var optionsHandle = GCHandle.Alloc(nativeOptions, GCHandleType.Pinned);
-                (funcHandle, funcPointer) = FunctionPointer<Interop.TableNewCallback>((success, fail) =>
+                unsafe
                 {
-                    try
+                    var nativeOptions = new Interop.TableOptions()
                     {
+                        version = options?.Version ?? -1,
+                        without_files = (byte)(options?.WithoutFiles == true ? 1 : 0),
+                        log_buffer_size = options?.LogBufferSize ?? (nuint)0,
+                        storage_options = options != null ? scope.Dictionary(this, options.StorageOptions) : null,
+                    };
+                    Interop.Methods.table_new(
+                        Ptr,
+                        scope.Pointer(scope.ByteArray(tableUri)),
+                        scope.Pointer(nativeOptions),
+                        scope.FunctionPointer<Interop.TableNewCallback>((success, fail) =>
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            tsc.TrySetCanceled(cancellationToken);
+                            return;
+                        }
+
                         if (fail != null)
                         {
                             tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
@@ -92,29 +109,14 @@ namespace DeltaLake.Bridge
                         {
                             tsc.TrySetResult(new Table(this, success));
                         }
-                    }
-                    finally
-                    {
-                        optionsHandle.Free();
-                        handle.Free();
-                        if (funcHandle.IsAllocated)
-                        {
-                            funcHandle.Free();
-                        }
-                    }
-                });
+                    }));
+                }
 
-                Interop.Methods.table_new(
-                    Ptr,
-                    (Interop.ByteArrayRef*)handle.AddrOfPinnedObject(),
-                    (Interop.TableOptions*)optionsHandle.AddrOfPinnedObject(),
-                    funcPointer);
+                return await tsc.Task.ConfigureAwait(false);
             }
-
-            return await tsc.Task.ConfigureAwait(false);
         }
 
-        internal async Task<Table> CreateTableAsync(DeltaLake.Table.TableCreateOptions options)
+        internal async Task<Table> CreateTableAsync(DeltaLake.Table.TableCreateOptions options, System.Threading.CancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<Table>();
             using (var scope = new Scope())
@@ -144,6 +146,12 @@ namespace DeltaLake.Bridge
                             scope.Pointer(nativeOptions),
                             scope.FunctionPointer<Interop.TableNewCallback>((success, fail) =>
                             {
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    tsc.TrySetCanceled(cancellationToken);
+                                    return;
+                                }
+
                                 if (fail != null)
                                 {
                                     tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
@@ -232,78 +240,7 @@ namespace DeltaLake.Bridge
             return true;
         }
 
-        internal static (GCHandle, nint) FunctionPointer<T>(T func)
-        where T : Delegate
-        {
-            var handle = GCHandle.Alloc(func);
-            return (handle, Marshal.GetFunctionPointerForDelegate(handle.Target!));
-        }
-
         private static string LogMessageFormatter(ForwardedLog state, Exception? error) =>
             state.ToString();
-
-
-        private (Interop.TableOptions, Map?) MakeNativeTableOptions(DeltaLake.Table.TableOptions? options)
-        {
-            if (options == null)
-            {
-                return (new Interop.TableOptions()
-                {
-                    version = -1,
-                    storage_options = null,
-                    without_files = 0,
-                    log_buffer_size = UIntPtr.Zero,
-                }, null);
-            }
-
-            unsafe
-            {
-                var map = Map.FromDictionary(this, options.StorageOptions);
-                return (new Interop.TableOptions()
-                {
-                    version = options.Version ?? -1,
-                    storage_options = map.Ref,
-                    without_files = (byte)(options.WithoutFiles ? 1 : 0),
-                    log_buffer_size = options.LogBufferSize ?? (nuint)0,
-                }, map);
-            }
-        }
-
-        /*        private unsafe void OnLog(Interop.ForwardedLogLevel coreLevel, Interop.ForwardedLog* coreLog)
-                {
-                    if (forwardLogger is not { } logger)
-                    {
-                        return;
-                    }
-                    // Fortunately the Core log levels integers match .NET ones
-                    var level = (LogLevel)coreLevel;
-                    // Go no further if not enabled
-                    if (!logger.IsEnabled(level))
-                    {
-                        return;
-                    }
-                    // If the fields are requested, we will try to convert from JSON
-                    IReadOnlyDictionary<string, string>? jsonFields = null;
-                    if (forwardLoggerIncludeFields)
-                    {
-                        try
-                        {
-                            var fieldBytes = Interop.Methods.forwarded_log_fields_json(coreLog);
-                            jsonFields = ReadJsonObjectToRawValues(new(fieldBytes.data, (int)fieldBytes.size));
-                        }
-        #pragma warning disable CA1031 // We are ok swallowing all exceptions
-                        catch
-                        {
-                        }
-        #pragma warning restore CA1031
-                    }
-                    var log = new ForwardedLog(
-                        Level: level,
-                        Target: ByteArrayRef.ToUtf8(Interop.Methods.forwarded_log_target(coreLog)),
-                        Message: ByteArrayRef.ToUtf8(Interop.Methods.forwarded_log_message(coreLog)),
-                        TimestampMilliseconds: Interop.Methods.forwarded_log_timestamp_millis(coreLog),
-                        JsonFields: jsonFields);
-                    logger.Log(level, 0, log, null, ForwardLogMessageFormatter);
-                }*/
     }
 }
