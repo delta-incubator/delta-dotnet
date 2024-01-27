@@ -10,7 +10,7 @@ use libc::c_void;
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
-    ByteArray, ByteArrayRef, DynamicArray, Map, SerializedBuffer,
+    ByteArray, ByteArrayRef, CancellationToken, DynamicArray, Map, SerializedBuffer,
 };
 
 pub struct RawDeltaTable {
@@ -94,7 +94,7 @@ pub extern "C" fn create_deltalake(
     callback: TableNewCallback,
 ) {
     let (runtime, options) = unsafe { (&mut *runtime, &*options) };
-    let table_uri = options.table_uri.to_string();
+    let table_uri = options.table_uri.to_owned_string();
 
     let schema = unsafe { &*(options.schema as *mut arrow::ffi::FFI_ArrowSchema) };
     let schema: Schema = match schema.try_into() {
@@ -116,7 +116,7 @@ pub extern "C" fn create_deltalake(
             std::slice::from_raw_parts(options.partition_by, options.partition_count);
         partition_by
             .iter()
-            .map(|b| b.to_string())
+            .map(|b| b.to_owned_string())
             .collect::<Vec<String>>()
     };
 
@@ -124,7 +124,7 @@ pub extern "C" fn create_deltalake(
         (
             options.name.to_option_string(),
             options.name.to_option_string(),
-            Map::into_hash_map(options.configuration),
+            Map::into_map(options.configuration),
             Map::into_hash_map(options.storage_options),
             Map::into_hash_map(options.custom_metadata),
         )
@@ -154,11 +154,7 @@ pub extern "C" fn create_deltalake(
             save_mode,
             name,
             description,
-            configuration.map(|hm| {
-                hm.into_iter()
-                    .map(|(k, v)| (k, Some(v)))
-                    .collect::<HashMap<String, Option<String>>>()
-            }),
+            configuration,
             storage_options,
             custom_metadata,
         )
@@ -252,18 +248,14 @@ pub extern "C" fn table_file_uris(
     table: *mut RawDeltaTable,
 ) -> GenericOrError {
     do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match tbl.table.get_file_uris() {
-        Ok(file_uris) => unsafe {
-            GenericOrError {
-                bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(file_uris.collect())))
-                    as *const c_void,
-                error: std::ptr::null(),
-            }
+        Ok(file_uris) => GenericOrError {
+            bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(file_uris.collect())))
+                as *const c_void,
+            error: std::ptr::null(),
         },
-        Err(err) => unsafe {
-            GenericOrError {
-                bytes: std::ptr::null(),
-                error: DeltaTableError::from_error(rt, err).into_raw(),
-            }
+        Err(err) => GenericOrError {
+            bytes: std::ptr::null(),
+            error: DeltaTableError::from_error(rt, err).into_raw(),
         },
     })
 }
@@ -271,19 +263,15 @@ pub extern "C" fn table_file_uris(
 #[no_mangle]
 pub extern "C" fn table_files(runtime: *mut Runtime, table: *mut RawDeltaTable) -> GenericOrError {
     do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match tbl.table.get_files_iter() {
-        Ok(paths) => unsafe {
-            GenericOrError {
-                bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                    paths.map(|p| p.to_string()).collect(),
-                ))) as *const c_void,
-                error: std::ptr::null(),
-            }
+        Ok(paths) => GenericOrError {
+            bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                paths.map(|p| p.to_string()).collect(),
+            ))) as *const c_void,
+            error: std::ptr::null(),
         },
-        Err(err) => unsafe {
-            GenericOrError {
-                bytes: std::ptr::null(),
-                error: DeltaTableError::from_error(rt, err).into_raw(),
-            }
+        Err(err) => GenericOrError {
+            bytes: std::ptr::null(),
+            error: DeltaTableError::from_error(rt, err).into_raw(),
         },
     })
 }
@@ -322,17 +310,24 @@ pub extern "C" fn table_load_version(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
     version: i64,
+    cancellation_token: *const CancellationToken,
     callback: TableEmptyCallback,
 ) {
-    do_with_table_and_runtime(runtime, table, move |rt, tbl| async move {
-        match tbl.table.load_version(version).await {
-            Ok(_) => unsafe { callback(std::ptr::null()) },
-            Err(err) => {
-                let error = DeltaTableError::from_error(rt, err);
-                unsafe { callback(Box::into_raw(Box::new(error))) }
-            }
-        };
-    })
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            match tbl.table.load_version(version).await {
+                Ok(_) => unsafe { callback(std::ptr::null()) },
+                Err(err) => {
+                    let error = DeltaTableError::from_error(rt, err);
+                    unsafe { callback(Box::into_raw(Box::new(error))) }
+                }
+            };
+        },
+        move || unsafe { callback(DeltaTableError::from_cancellation().into_raw()) },
+    )
 }
 
 #[no_mangle]
@@ -533,6 +528,33 @@ where
     let runtime_handle = runtime.handle();
     runtime_handle.spawn(async move {
         work(runtime, table).await;
+    });
+}
+
+fn do_with_table_and_runtime_and_cancel<'a, F, Fut>(
+    rt: *mut Runtime,
+    table: *mut RawDeltaTable,
+    cancellation_token: *const CancellationToken,
+    work: F,
+    on_cancel: impl FnOnce() + Send + 'static,
+) where
+    F: FnOnce(&'a mut Runtime, &'a mut RawDeltaTable) -> Fut + Send + 'static,
+    Fut: std::future::Future<Output = ()> + Send + 'static,
+{
+    let runtime = unsafe { &mut *rt };
+    let table = unsafe { &mut *table };
+    let cancel_token = unsafe { cancellation_token.as_ref() }.map(|v| v.token.clone());
+    let runtime_handle = runtime.handle();
+    let call_future = work(runtime, table);
+    runtime_handle.spawn(async move {
+        if let Some(cancel_token) = cancel_token {
+            tokio::select! {
+                _ = cancel_token.cancelled() => on_cancel(),
+                _ = call_future => {},
+            }
+        } else {
+            call_future.await
+        }
     });
 }
 

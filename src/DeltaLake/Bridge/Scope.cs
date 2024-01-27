@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using DeltaLake.Table;
 
 namespace DeltaLake.Bridge
 {
@@ -23,6 +22,18 @@ namespace DeltaLake.Bridge
             {
                 return ByteArrayRef.Empty.Ref;
             }
+            var val = new ByteArrayRef(bytes);
+            toKeepAlive.Add(val);
+            return val.Ref;
+        }
+
+        /// <summary>
+        /// Create a byte array ref.
+        /// </summary>
+        /// <param name="bytes">Bytes to create from.</param>
+        /// <returns>Created byte array ref.</returns>
+        public Interop.ByteArrayRef ByteArray(Memory<byte> bytes)
+        {
             var val = new ByteArrayRef(bytes);
             toKeepAlive.Add(val);
             return val.Ref;
@@ -116,7 +127,7 @@ namespace DeltaLake.Bridge
         /// <param name="runtime">Instance of runtime</param>
         /// <param name="value">Dictionary with nullable values</param>
         /// <returns></returns>
-        public unsafe Interop.Map* OptionalDictionary(Runtime runtime, Dictionary<string, string?> value)
+        public unsafe Interop.Map* OptionalDictionary(Runtime runtime, IReadOnlyCollection<KeyValuePair<string, string?>> value)
         {
             var map = Map.FromOptionalDictionary(runtime, value);
             toKeepAlive.Add(map);
@@ -129,7 +140,7 @@ namespace DeltaLake.Bridge
         /// <param name="runtime">Instance of runtime</param>
         /// <param name="value">Dictionary</param>
         /// <returns></returns>
-        public unsafe Interop.Map* Dictionary(Runtime runtime, Dictionary<string, string> value)
+        public unsafe Interop.Map* Dictionary(Runtime runtime, IReadOnlyCollection<KeyValuePair<string, string>> value)
         {
             var map = Map.FromDictionary(runtime, value);
             toKeepAlive.Add(map);

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
@@ -16,7 +15,7 @@ namespace DeltaLake.Bridge
 
         public unsafe Interop.Map* Ref { get; }
 
-        public static unsafe Map FromDictionary(Runtime runtime, IDictionary<string, string> source)
+        public static unsafe Map FromDictionary(Runtime runtime, IReadOnlyCollection<KeyValuePair<string, string>> source)
         {
             var map = Interop.Methods.map_new(runtime.Ptr, (nuint)source.Count);
             foreach (var (key, value) in source)
@@ -29,7 +28,7 @@ namespace DeltaLake.Bridge
             return new Map(map, runtime);
         }
 
-        public static unsafe Map FromOptionalDictionary(Runtime runtime, IDictionary<string, string?> source)
+        public static unsafe Map FromOptionalDictionary(Runtime runtime, IReadOnlyCollection<KeyValuePair<string, string?>> source)
         {
             var map = Interop.Methods.map_new(runtime.Ptr, (nuint)source.Count);
             foreach (var (key, value) in source)

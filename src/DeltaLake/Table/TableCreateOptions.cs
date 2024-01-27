@@ -22,22 +22,51 @@ namespace DeltaLake.Table
             TableLocation = location;
         }
 
+        /// <summary>
+        /// Arrow Schema for the table
+        /// </summary>
         public Schema Schema { get; } = new Schema(Enumerable.Empty<Field>(), Enumerable.Empty<KeyValuePair<string, string>>());
 
+        /// <summary>
+        /// Location of the delta table
+        /// memory://, s3://, azure://, etc
+        /// </summary>
         public string TableLocation { get; } = String.Empty;
 
-        public List<string> PartitionBy { get; } = new List<string>();
+        /// <summary>
+        /// List of columns to use for partitioning
+        /// </summary>
+        public ICollection<string> PartitionBy { get; init; } = new List<string>();
 
+        /// <summary>
+        /// Save mode
+        /// </summary>
         public SaveMode SaveMode { get; set; }
 
+        /// <summary>
+        /// Optional name for tabe
+        /// </summary>
         public string? Name { get; set; }
 
+        /// <summary>
+        /// Optional description for the  table
+        /// </summary>
         public string? Description { get; set; }
 
-        public Dictionary<string, string?>? Configuration { get; set; }
+        /// <summary>
+        /// Optional configuration
+        /// </summary>
 
-        public Dictionary<string, string>? StorageOptions { get; set; }
+        public Dictionary<string, string?>? Configuration { get; init; }
 
-        public Dictionary<string, string>? CustomMetadata { get; set; }
+        /// <summary>
+        /// Storage options to pass to table builder
+        /// </summary>
+        public Dictionary<string, string>? StorageOptions { get; init; }
+
+        /// <summary>
+        /// Table metadata
+        /// </summary>
+        public Dictionary<string, string>? CustomMetadata { get; init; }
     }
 }

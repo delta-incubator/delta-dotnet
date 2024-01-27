@@ -1,5 +1,8 @@
 namespace DeltaLake.Table
 {
+    /// <summary>
+    /// Save mode for the created delta table
+    /// </summary>
     public enum SaveMode
     {
         /// <summary>

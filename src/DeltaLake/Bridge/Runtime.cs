@@ -55,13 +55,13 @@ namespace DeltaLake.Bridge
         /// <inheritdoc />
         public override unsafe bool IsInvalid => false;
 
-        public async Task<Table> NewTableAsync(string tableUri, DeltaLake.Table.TableOptions options)
+        public async Task<Table> LoadTableAsync(string tableUri, DeltaLake.Table.TableOptions options)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(tableUri));
             var encodedLength = System.Text.Encoding.UTF8.GetBytes(tableUri, buffer);
             try
             {
-                return await NewTableAsync(buffer.AsMemory(0, encodedLength), options).ConfigureAwait(false);
+                return await LoadTableAsync(buffer.AsMemory(0, encodedLength), options).ConfigureAwait(false);
             }
             finally
             {
@@ -69,7 +69,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> NewTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
+        internal async Task<Table> LoadTableAsync(Memory<byte> tableUri, DeltaLake.Table.TableOptions options)
         {
             var tsc = new TaskCompletionSource<Table>();
             unsafe
@@ -86,9 +86,7 @@ namespace DeltaLake.Bridge
                     {
                         if (fail != null)
                         {
-                            var errorMessage = System.Text.Encoding.UTF8.GetString(fail->error.data, (int)fail->error.size);
-                            tsc.TrySetException(new InvalidOperationException(errorMessage));
-                            Interop.Methods.error_free(Ptr, fail);
+                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
                         }
                         else
                         {
@@ -135,6 +133,7 @@ namespace DeltaLake.Bridge
                             partition_by = scope.ArrayPointer(options.PartitionBy.Select(x => scope.ByteArray(x)).ToArray()),
                             partition_count = (nuint)options.PartitionBy.Count,
                             mode = saveMode.Ref,
+                            name = scope.ByteArray(options.Name),
                             description = scope.ByteArray(options.Description),
                             configuration = scope.OptionalDictionary(this, options.Configuration ?? new Dictionary<string, string?>()),
                             custom_metadata = scope.Dictionary(this, options.CustomMetadata ?? new Dictionary<string, string>()),
@@ -147,9 +146,7 @@ namespace DeltaLake.Bridge
                             {
                                 if (fail != null)
                                 {
-                                    var errorMessage = System.Text.Encoding.UTF8.GetString(fail->error.data, (int)fail->error.size);
-                                    tsc.TrySetException(new InvalidOperationException(errorMessage));
-                                    Interop.Methods.error_free(Ptr, fail);
+                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
                                 }
                                 else
                                 {

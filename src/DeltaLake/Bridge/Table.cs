@@ -3,11 +3,12 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Table;
+using ICancellationToken = System.Threading.CancellationToken;
 
 namespace DeltaLake.Bridge
 {
     /// <summary>
-    ///
+    /// Reference to unmanaged delta table
     /// </summary>
     internal sealed class Table : SafeHandle
     {
@@ -41,39 +42,33 @@ namespace DeltaLake.Bridge
         /// Returns the current version of the table
         /// </summary>
         /// <returns></returns>
-        public async Task LoadVersionAsync(long version)
+        public async Task LoadVersionAsync(long version, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
-            unsafe
+            using (var scope = new Scope())
             {
-                var funcHandle = default(GCHandle);
-                object? funcPointer = null;
-                (funcHandle, funcPointer) = Runtime.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                unsafe
                 {
-                    try
+                    Interop.Methods.table_load_version(
+                        _runtime.Ptr,
+                         _ptr,
+                          version,
+                          scope.CancellationToken(cancellationToken),
+                          scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
                         if (fail != null)
                         {
-                            tsc.TrySetException(new InvalidOperationException());
-                            Interop.Methods.error_free(_runtime.Ptr, fail);
+                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
                         }
                         else
                         {
                             tsc.TrySetResult(true);
                         }
-                    }
-                    finally
-                    {
-                        if (funcHandle.IsAllocated)
-                        {
-                            funcHandle.Free();
-                        }
-                    }
-                });
-                Interop.Methods.table_load_version(_runtime.Ptr, _ptr, version, funcHandle.AddrOfPinnedObject());
-            }
+                    }));
+                }
 
-            await tsc.Task.ConfigureAwait(false);
+                await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         /// <summary>
@@ -151,21 +146,13 @@ namespace DeltaLake.Bridge
 
         private unsafe string[] GetStringArray(GenericOrError genericOrError)
         {
+            if (genericOrError.error != null)
+            {
+                throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, genericOrError.error);
+            }
+
             try
             {
-                if (genericOrError.error != null)
-                {
-                    try
-                    {
-                        var errorMessage = System.Text.Encoding.UTF8.GetString(genericOrError.error->error.data, (int)genericOrError.error->error.size);
-                        throw new InvalidOperationException(errorMessage);
-                    }
-                    finally
-                    {
-                        Interop.Methods.error_free(_runtime.Ptr, genericOrError.error);
-                    }
-                }
-
                 if (genericOrError.bytes == null)
                 {
                     return Array.Empty<string>();

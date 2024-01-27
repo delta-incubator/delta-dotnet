@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using DeltaLake.Runtime;
 
@@ -22,12 +23,12 @@ namespace DeltaLake.Table
         ///
         /// </summary>
         /// <param name="runtime"></param>
-        /// <param name="uri"></param>
+        /// <param name="location"></param>
         /// <param name="options"></param>
         /// <returns></returns>
-        public static async Task<DeltaTable> GetAsync(DeltaRuntime runtime, string uri, TableOptions options)
+        public static async Task<DeltaTable> LoadAsync(DeltaRuntime runtime, string location, TableOptions options)
         {
-            var table = await runtime.Runtime.NewTableAsync(uri, options).ConfigureAwait(false);
+            var table = await runtime.Runtime.LoadTableAsync(location, options).ConfigureAwait(false);
             return new DeltaTable(runtime, table);
         }
 
@@ -38,21 +39,9 @@ namespace DeltaLake.Table
         /// <param name="uri"></param>
         /// <param name="options"></param>
         /// <returns></returns>
-        public static Task<DeltaTable> CreateAsync(DeltaRuntime runtime, System.Uri uri, TableOptions options)
+        public static async Task<DeltaTable> LoadAsync(DeltaRuntime runtime, Memory<byte> uri, TableOptions options)
         {
-            return GetAsync(runtime, uri.ToString(), options);
-        }
-
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="runtime"></param>
-        /// <param name="uri"></param>
-        /// <param name="options"></param>
-        /// <returns></returns>
-        public static async Task<DeltaTable> GetAsync(DeltaRuntime runtime, Memory<byte> uri, TableOptions options)
-        {
-            var table = await runtime.Runtime.NewTableAsync(uri, options).ConfigureAwait(false);
+            var table = await runtime.Runtime.LoadTableAsync(uri, options).ConfigureAwait(false);
             return new DeltaTable(runtime, table);
         }
 
@@ -102,6 +91,17 @@ namespace DeltaLake.Table
         public long Version()
         {
             return _table.Version();
+        }
+
+        /// <summary>
+        /// Loads table at specific version
+        /// </summary>
+        /// <param name="version">desired version</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns></returns>
+        public Task LoadVersion(long version, CancellationToken cancellationToken)
+        {
+            return _table.LoadVersionAsync(version, cancellationToken);
         }
 
         /// <inheritdoc />

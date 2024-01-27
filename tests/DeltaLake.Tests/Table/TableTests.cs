@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow.Types;
 using DeltaLake.Runtime;
@@ -20,7 +22,7 @@ public class DeltaTableTests
             fb.DataType(Int32Type.Default);
             fb.Nullable(false);
         });
-        var table = await DeltaTable.CreateAsync(runtime, new TableCreateOptions(uri, builder.Build()));
+        using var table = await DeltaTable.CreateAsync(runtime, new TableCreateOptions(uri, builder.Build()));
         Assert.NotNull(table);
         var version = table.Version();
         Assert.Equal(0, version);
@@ -30,5 +32,45 @@ public class DeltaTableTests
         Assert.Empty(files);
         var fileUris = table.FileUris();
         Assert.Empty(fileUris);
+    }
+
+    [Fact]
+    public async Task Load_Table_Test()
+    {
+        var location = Path.Join(Settings.TestRoot, "simple_table");
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions());
+        Assert.Equal(4, table.Version());
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task Load_Table_At_Version_Test(long version)
+    {
+        var location = Path.Join(Settings.TestRoot, "simple_table");
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        {
+            Version = version,
+        });
+        Assert.Equal(version, table.Version());
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task Table_Load_Version_Test(long version)
+    {
+        var location = Path.Join(Settings.TestRoot, "simple_table");
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions());
+        Assert.Equal(4, table.Version());
+        await table.LoadVersion(version, CancellationToken.None);
+        Assert.Equal(version, table.Version());
     }
 }

@@ -41,6 +41,7 @@ pub enum DeltaTableErrorCode {
     Kernel = 30,
     MetaDataError = 31,
     NotInitialized = 32,
+    OperationCanceled = 33,
 }
 
 impl DeltaTableError {
@@ -54,77 +55,83 @@ impl DeltaTableError {
     pub(crate) fn from_error(_runtime: &mut Runtime, _error: deltalake::DeltaTableError) -> Self {
         let error_string = _error.to_string();
         let code = match _error {
-            deltalake::DeltaTableError::Protocol { source } => DeltaTableErrorCode::Protocol,
-            deltalake::DeltaTableError::ObjectStore { source } => DeltaTableErrorCode::ObjectStore,
-            deltalake::DeltaTableError::Parquet { source } => DeltaTableErrorCode::Parquet,
-            deltalake::DeltaTableError::Arrow { source } => DeltaTableErrorCode::Arrow,
-            deltalake::DeltaTableError::InvalidJsonLog {
-                json_err,
-                line,
-                version,
-            } => DeltaTableErrorCode::InvalidJsonLog,
-            deltalake::DeltaTableError::InvalidStatsJson { json_err } => {
+            deltalake::DeltaTableError::Protocol { .. } => DeltaTableErrorCode::Protocol,
+            deltalake::DeltaTableError::ObjectStore { .. } => DeltaTableErrorCode::ObjectStore,
+            deltalake::DeltaTableError::Parquet { .. } => DeltaTableErrorCode::Parquet,
+            deltalake::DeltaTableError::Arrow { .. } => DeltaTableErrorCode::Arrow,
+            deltalake::DeltaTableError::InvalidJsonLog { .. } => {
+                DeltaTableErrorCode::InvalidJsonLog
+            }
+            deltalake::DeltaTableError::InvalidStatsJson { .. } => {
                 DeltaTableErrorCode::InvalidStatsJson
             }
-            deltalake::DeltaTableError::InvalidInvariantJson { json_err, line } => {
+            deltalake::DeltaTableError::InvalidInvariantJson { .. } => {
                 DeltaTableErrorCode::InvalidInvariantJson
             }
             deltalake::DeltaTableError::InvalidVersion(_) => DeltaTableErrorCode::InvalidVersion,
-            deltalake::DeltaTableError::MissingDataFile { source, path } => {
+            deltalake::DeltaTableError::MissingDataFile { .. } => {
                 DeltaTableErrorCode::MissingDataFile
             }
-            deltalake::DeltaTableError::InvalidDateTimeString { source } => {
+            deltalake::DeltaTableError::InvalidDateTimeString { .. } => {
                 DeltaTableErrorCode::InvalidDateTimeString
             }
-            deltalake::DeltaTableError::InvalidData { violations } => {
-                DeltaTableErrorCode::InvalidData
-            }
+            deltalake::DeltaTableError::InvalidData { .. } => DeltaTableErrorCode::InvalidData,
             deltalake::DeltaTableError::NotATable(_) => DeltaTableErrorCode::NotATable,
             deltalake::DeltaTableError::NoMetadata => DeltaTableErrorCode::NoMetadata,
             deltalake::DeltaTableError::NoSchema => DeltaTableErrorCode::NoSchema,
             deltalake::DeltaTableError::LoadPartitions => DeltaTableErrorCode::LoadPartitions,
-            deltalake::DeltaTableError::SchemaMismatch { msg } => {
+            deltalake::DeltaTableError::SchemaMismatch { .. } => {
                 DeltaTableErrorCode::SchemaMismatch
             }
-            deltalake::DeltaTableError::PartitionError { partition } => {
+            deltalake::DeltaTableError::PartitionError { .. } => {
                 DeltaTableErrorCode::PartitionError
             }
-            deltalake::DeltaTableError::InvalidPartitionFilter { partition_filter } => {
+            deltalake::DeltaTableError::InvalidPartitionFilter { .. } => {
                 DeltaTableErrorCode::InvalidPartitionFilter
             }
-            deltalake::DeltaTableError::ColumnsNotPartitioned {
-                nonpartitioned_columns,
-            } => DeltaTableErrorCode::ColumnsNotPartitioned,
-            deltalake::DeltaTableError::Io { source } => DeltaTableErrorCode::Io,
-            deltalake::DeltaTableError::Transaction { source } => DeltaTableErrorCode::Transaction,
+            deltalake::DeltaTableError::ColumnsNotPartitioned { .. } => {
+                DeltaTableErrorCode::ColumnsNotPartitioned
+            }
+            deltalake::DeltaTableError::Io { .. } => DeltaTableErrorCode::Io,
+            deltalake::DeltaTableError::Transaction { .. } => DeltaTableErrorCode::Transaction,
             deltalake::DeltaTableError::VersionAlreadyExists(_) => {
                 DeltaTableErrorCode::VersionAlreadyExists
             }
             deltalake::DeltaTableError::VersionMismatch(_, _) => {
                 DeltaTableErrorCode::VersionMismatch
             }
-            deltalake::DeltaTableError::MissingFeature { feature, url } => {
+            deltalake::DeltaTableError::MissingFeature { .. } => {
                 DeltaTableErrorCode::MissingFeature
             }
             deltalake::DeltaTableError::InvalidTableLocation(_) => {
                 DeltaTableErrorCode::InvalidTableLocation
             }
-            deltalake::DeltaTableError::SerializeLogJson { json_err } => {
+            deltalake::DeltaTableError::SerializeLogJson { .. } => {
                 DeltaTableErrorCode::SerializeLogJson
             }
-            deltalake::DeltaTableError::SerializeSchemaJson { json_err } => {
+            deltalake::DeltaTableError::SerializeSchemaJson { .. } => {
                 DeltaTableErrorCode::SerializeSchemaJson
             }
             deltalake::DeltaTableError::Generic(_) => DeltaTableErrorCode::Generic,
-            deltalake::DeltaTableError::GenericError { source } => {
-                DeltaTableErrorCode::GenericError
-            }
-            deltalake::DeltaTableError::Kernel { source: _ } => DeltaTableErrorCode::Kernel,
+            deltalake::DeltaTableError::GenericError { .. } => DeltaTableErrorCode::GenericError,
+            deltalake::DeltaTableError::Kernel { .. } => DeltaTableErrorCode::Kernel,
             deltalake::DeltaTableError::MetadataError(_) => DeltaTableErrorCode::MetaDataError,
             deltalake::DeltaTableError::NotInitialized => DeltaTableErrorCode::NotInitialized,
         };
 
         Self::new(_runtime, code, &error_string)
+    }
+
+    pub(crate) fn from_cancellation() -> Self {
+        DeltaTableError {
+            code: DeltaTableErrorCode::OperationCanceled,
+            error: ByteArray {
+                data: std::ptr::null(),
+                size: 0,
+                cap: 0,
+                disable_free: true,
+            },
+        }
     }
 
     pub(crate) fn into_raw(self) -> *mut DeltaTableError {

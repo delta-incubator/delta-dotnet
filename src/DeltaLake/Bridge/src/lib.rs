@@ -70,13 +70,14 @@ pub extern "C" fn map_add(
     if map.is_null() {
         return false;
     }
-    let key = unsafe { (&*key) };
+    let key = unsafe { &*key };
     let map = unsafe { &mut *map };
     if value.is_null() {
-        map.data.insert(key.to_string(), None);
+        map.data.insert(key.to_owned_string(), None);
     } else {
         let value = unsafe { &*value };
-        map.data.insert(key.to_string(), Some(value.to_string()));
+        map.data
+            .insert(key.to_owned_string(), Some(value.to_owned_string()));
     }
 
     true
@@ -123,7 +124,7 @@ impl ByteArrayRef {
         unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.data, self.size)) }
     }
 
-    fn to_string(&self) -> String {
+    fn to_owned_string(&self) -> String {
         self.to_str().to_string()
     }
 
@@ -171,10 +172,6 @@ impl ByteArrayRef {
     }
 }
 
-/// Metadata is <key1>\n<value1>\n<key2>\n<value2>. Metadata keys or
-/// values cannot contain a newline within.
-type MetadataRef = ByteArrayRef;
-
 #[repr(C)]
 pub struct ArrayRef {
     data: *const ByteArrayRef,
@@ -201,15 +198,15 @@ impl DynamicArray {
             .into_iter()
             .map(|path| ByteArray::from_utf8(path.to_string()))
             .collect();
-        let dyn_array = DynamicArray {
+        DynamicArray {
             data: data.as_ptr(),
             size: data.len(),
             cap: data.capacity(),
             disable_free: false,
-        };
-        dyn_array
+        }
     }
 }
+
 #[repr(C)]
 pub struct ByteArray {
     data: *const u8,

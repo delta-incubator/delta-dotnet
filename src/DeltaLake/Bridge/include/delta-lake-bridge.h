@@ -39,6 +39,7 @@ typedef enum DeltaTableErrorCode {
   Kernel = 30,
   MetaDataError = 31,
   NotInitialized = 32,
+  OperationCanceled = 33,
 } DeltaTableErrorCode;
 
 typedef struct CancellationToken CancellationToken;
@@ -192,6 +193,7 @@ void table_update_incremental(struct Runtime *runtime,
 void table_load_version(struct Runtime *runtime,
                         struct RawDeltaTable *table,
                         int64_t version,
+                        const struct CancellationToken *cancellation_token,
                         TableEmptyCallback callback);
 
 void table_load_with_datetime(struct Runtime *runtime,

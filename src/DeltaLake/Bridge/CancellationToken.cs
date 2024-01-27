@@ -7,7 +7,7 @@ namespace DeltaLake.Bridge
     /// <summary>
     /// Core-owned cancellation token.
     /// </summary>
-    internal class CancellationToken : SafeHandle
+    internal sealed class CancellationToken : SafeHandle
     {
         private readonly List<IDisposable> _cancellationRegistrations = new List<IDisposable>();
 
