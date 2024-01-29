@@ -118,6 +118,15 @@ namespace DeltaLake.Table
             return _table.LoadVersionAsync(version, cancellationToken);
         }
 
+        /// <summary>
+        /// Returns the table schema
+        /// </summary>
+        /// <returns></returns>
+        public Apache.Arrow.Schema Schema()
+        {
+            return _table.Schema();
+        }
+
         /// <inheritdoc />
         public void Dispose()
         {

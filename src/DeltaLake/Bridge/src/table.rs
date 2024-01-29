@@ -1,6 +1,6 @@
 use std::{collections::HashMap, str::FromStr};
 
-use chrono::Duration;
+use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use deltalake::{
     arrow::datatypes::Schema, kernel::StructType, operations::vacuum::VacuumBuilder,
     protocol::SaveMode, DeltaOps, DeltaTableBuilder,
@@ -10,11 +10,19 @@ use libc::c_void;
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
+    schema::PartitionFilterList,
     ByteArray, ByteArrayRef, CancellationToken, DynamicArray, Map, SerializedBuffer,
 };
 
 pub struct RawDeltaTable {
     table: deltalake::DeltaTable,
+}
+
+#[repr(C)]
+pub struct ProtocolResponse {
+    min_reader_version: i32,
+    min_writer_version: i32,
+    error: *const DeltaTableError,
 }
 
 #[repr(C)]
@@ -246,33 +254,72 @@ pub extern "C" fn table_new(
 pub extern "C" fn table_file_uris(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
+    filters: *mut PartitionFilterList,
 ) -> GenericOrError {
-    do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match tbl.table.get_file_uris() {
-        Ok(file_uris) => GenericOrError {
-            bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(file_uris.collect())))
-                as *const c_void,
-            error: std::ptr::null(),
+    do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match filters.is_null() {
+        true => match tbl.table.get_file_uris() {
+            Ok(file_uris) => GenericOrError {
+                bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(file_uris.collect())))
+                    as *const c_void,
+                error: std::ptr::null(),
+            },
+            Err(err) => GenericOrError {
+                bytes: std::ptr::null(),
+                error: DeltaTableError::from_error(rt, err).into_raw(),
+            },
         },
-        Err(err) => GenericOrError {
-            bytes: std::ptr::null(),
-            error: DeltaTableError::from_error(rt, err).into_raw(),
-        },
+        false => {
+            let map = unsafe { Box::from_raw(filters) };
+            match tbl.table.get_file_uris_by_partitions(&map.filters) {
+                Ok(file_uris) => GenericOrError {
+                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                        file_uris.into_iter().collect(),
+                    ))) as *const c_void,
+                    error: std::ptr::null(),
+                },
+                Err(err) => GenericOrError {
+                    bytes: std::ptr::null(),
+                    error: DeltaTableError::from_error(rt, err).into_raw(),
+                },
+            }
+        }
     })
 }
 
 #[no_mangle]
-pub extern "C" fn table_files(runtime: *mut Runtime, table: *mut RawDeltaTable) -> GenericOrError {
-    do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match tbl.table.get_files_iter() {
-        Ok(paths) => GenericOrError {
-            bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                paths.map(|p| p.to_string()).collect(),
-            ))) as *const c_void,
-            error: std::ptr::null(),
+pub extern "C" fn table_files(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    filters: *mut PartitionFilterList,
+) -> GenericOrError {
+    do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match filters.is_null() {
+        true => match tbl.table.get_files_iter() {
+            Ok(paths) => GenericOrError {
+                bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                    paths.map(|p| p.to_string()).collect(),
+                ))) as *const c_void,
+                error: std::ptr::null(),
+            },
+            Err(err) => GenericOrError {
+                bytes: std::ptr::null(),
+                error: DeltaTableError::from_error(rt, err).into_raw(),
+            },
         },
-        Err(err) => GenericOrError {
-            bytes: std::ptr::null(),
-            error: DeltaTableError::from_error(rt, err).into_raw(),
-        },
+        false => {
+            let map = unsafe { Box::from_raw(filters) };
+            match tbl.table.get_files_by_partitions(&map.filters) {
+                Ok(paths) => GenericOrError {
+                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                        paths.into_iter().map(|p| p.to_string()).collect(),
+                    ))) as *const c_void,
+                    error: std::ptr::null(),
+                },
+                Err(err) => GenericOrError {
+                    bytes: std::ptr::null(),
+                    error: DeltaTableError::from_error(rt, err).into_raw(),
+                },
+            }
+        }
     })
 }
 
@@ -290,19 +337,26 @@ pub extern "C" fn history(
 pub extern "C" fn table_update_incremental(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
+    cancellation_token: *const CancellationToken,
     callback: TableEmptyCallback,
 ) {
-    do_with_table_and_runtime(runtime, table, move |rt, tbl| async move {
-        match tbl.table.update_incremental(None).await {
-            Ok(_) => unsafe {
-                callback(std::ptr::null());
-            },
-            Err(err) => unsafe {
-                let error = DeltaTableError::from_error(rt, err);
-                callback(Box::into_raw(Box::new(error)))
-            },
-        };
-    });
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            match tbl.table.update_incremental(None).await {
+                Ok(_) => unsafe {
+                    callback(std::ptr::null());
+                },
+                Err(err) => unsafe {
+                    let error = DeltaTableError::from_error(rt, err);
+                    callback(Box::into_raw(Box::new(error)))
+                },
+            };
+        },
+        move || unsafe { callback(std::ptr::null()) },
+    );
 }
 
 #[no_mangle]
@@ -326,7 +380,7 @@ pub extern "C" fn table_load_version(
                 }
             };
         },
-        move || unsafe { callback(DeltaTableError::from_cancellation().into_raw()) },
+        move || unsafe { callback(std::ptr::null()) },
     )
 }
 
@@ -335,9 +389,31 @@ pub extern "C" fn table_load_with_datetime(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
     ts_milliseconds: i64,
+    cancellation_token: *const CancellationToken,
     callback: TableEmptyCallback,
-) {
-    unimplemented!()
+) -> bool {
+    let naive_dt = match NaiveDateTime::from_timestamp_millis(ts_milliseconds) {
+        Some(dt) => dt,
+        None => return false,
+    };
+
+    let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            match tbl.table.load_with_datetime(dt).await {
+                Ok(_) => unsafe { callback(std::ptr::null()) },
+                Err(err) => {
+                    let error = DeltaTableError::from_error(rt, err);
+                    unsafe { callback(Box::into_raw(Box::new(error))) }
+                }
+            };
+        },
+        move || unsafe { callback(std::ptr::null()) },
+    );
+    true
 }
 
 #[no_mangle]
@@ -351,13 +427,22 @@ pub extern "C" fn table_merge(
 }
 
 #[no_mangle]
-pub extern "C" fn table_protocol(
+pub extern "C" fn table_protocol_versions(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
-    version: i64,
-    callback: TableEmptyCallback,
-) {
-    unimplemented!()
+) -> ProtocolResponse {
+    do_with_table_and_runtime_sync(runtime, table, |rt, tbl| match tbl.table.protocol() {
+        Ok(protocol) => ProtocolResponse {
+            min_reader_version: protocol.min_reader_version,
+            min_writer_version: protocol.min_writer_version,
+            error: std::ptr::null(),
+        },
+        Err(err) => ProtocolResponse {
+            min_reader_version: 0,
+            min_writer_version: 0,
+            error: DeltaTableError::from_error(rt, err).into_raw(),
+        },
+    })
 }
 
 #[no_mangle]
@@ -382,28 +467,36 @@ pub extern "C" fn table_update(
 
 /// Must free the error, but there is no need to free the SerializedBuffer
 #[no_mangle]
-pub extern "C" fn table_schema(
-    runtime: *mut Runtime,
-    table: *mut RawDeltaTable,
-    callback: GenericErrorCallback,
-) {
+pub extern "C" fn table_schema(runtime: *mut Runtime, table: *mut RawDeltaTable) -> GenericOrError {
     do_with_table_and_runtime_sync(
         runtime,
         table,
         move |rt, tbl| match crate::schema::get_schema(rt, &tbl.table) {
             Ok(schema) => {
-                let (array, offset) = crate::schema::serialize_schema(rt, &schema);
-                let fb = SerializedBuffer {
-                    data: array.as_ptr(),
-                    size: array.len() - offset,
-                    offset,
+                let schema: arrow::ffi::FFI_ArrowSchema = match schema.try_into() {
+                    Ok(converted) => converted,
+                    Err(err) => {
+                        return GenericOrError {
+                            bytes: std::ptr::null(),
+                            error: DeltaTableError::new(
+                                rt,
+                                DeltaTableErrorCode::Arrow,
+                                &err.to_string(),
+                            )
+                            .into_raw(),
+                        }
+                    }
                 };
-                unsafe {
-                    callback(std::ptr::addr_of!(fb) as *const c_void, std::ptr::null());
+                GenericOrError {
+                    bytes: Box::into_raw(Box::new(schema)) as *const c_void,
+                    error: std::ptr::null(),
                 }
             }
             Err(err) => unsafe {
-                callback(std::ptr::null(), err.into_raw());
+                GenericOrError {
+                    bytes: std::ptr::null(),
+                    error: err.into_raw(),
+                }
             },
         },
     )

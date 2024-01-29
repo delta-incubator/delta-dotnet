@@ -42,9 +42,35 @@ typedef enum DeltaTableErrorCode {
   OperationCanceled = 33,
 } DeltaTableErrorCode;
 
+typedef enum PartitionFilterBinaryOp {
+  Equal = 0,
+  /**
+   * The partition value with the not equal operator
+   */
+  NotEqual = 1,
+  /**
+   * The partition value with the greater than operator
+   */
+  GreaterThan = 2,
+  /**
+   * The partition value with the greater than or equal operator
+   */
+  GreaterThanOrEqual = 3,
+  /**
+   * The partition value with the less than operator
+   */
+  LessThan = 4,
+  /**
+   * The partition value with the less than or equal operator
+   */
+  LessThanOrEqual = 5,
+} PartitionFilterBinaryOp;
+
 typedef struct CancellationToken CancellationToken;
 
 typedef struct Map Map;
+
+typedef struct PartitionFilterList PartitionFilterList;
 
 typedef struct RawDeltaTable RawDeltaTable;
 
@@ -131,6 +157,12 @@ typedef void (*GenericErrorCallback)(const void *success, const struct DeltaTabl
 
 typedef void (*TableEmptyCallback)(const struct DeltaTableError *fail);
 
+typedef struct ProtocolResponse {
+  int32_t min_reader_version;
+  int32_t min_writer_version;
+  const struct DeltaTableError *error;
+} ProtocolResponse;
+
 typedef struct VacuumOptions {
   bool dry_run;
   uint64_t retention_hours;
@@ -164,6 +196,21 @@ void map_free(struct Runtime *_runtime, const struct Map *map);
 
 void dynamic_array_free(struct Runtime *runtime, const struct DynamicArray *array);
 
+struct PartitionFilterList *partition_filter_list_new(uintptr_t capacity);
+
+bool partition_filter_list_add_binary(struct PartitionFilterList *list,
+                                      const struct ByteArrayRef *key,
+                                      enum PartitionFilterBinaryOp op,
+                                      const struct ByteArrayRef *value);
+
+bool partition_filter_list_add_set(struct PartitionFilterList *list,
+                                   const struct ByteArrayRef *key,
+                                   enum PartitionFilterBinaryOp op,
+                                   const struct ByteArrayRef *value,
+                                   uintptr_t value_count);
+
+void partition_filter_list_free(struct PartitionFilterList *list);
+
 struct ByteArray *table_uri(const struct RawDeltaTable *table);
 
 void table_free(struct RawDeltaTable *table);
@@ -177,9 +224,13 @@ void table_new(struct Runtime *runtime,
                const struct TableOptions *table_options,
                TableNewCallback callback);
 
-struct GenericOrError table_file_uris(struct Runtime *runtime, struct RawDeltaTable *table);
+struct GenericOrError table_file_uris(struct Runtime *runtime,
+                                      struct RawDeltaTable *table,
+                                      struct PartitionFilterList *filters);
 
-struct GenericOrError table_files(struct Runtime *runtime, struct RawDeltaTable *table);
+struct GenericOrError table_files(struct Runtime *runtime,
+                                  struct RawDeltaTable *table,
+                                  struct PartitionFilterList *filters);
 
 void history(struct Runtime *runtime,
              struct RawDeltaTable *table,
@@ -188,6 +239,7 @@ void history(struct Runtime *runtime,
 
 void table_update_incremental(struct Runtime *runtime,
                               struct RawDeltaTable *table,
+                              const struct CancellationToken *cancellation_token,
                               TableEmptyCallback callback);
 
 void table_load_version(struct Runtime *runtime,
@@ -196,9 +248,10 @@ void table_load_version(struct Runtime *runtime,
                         const struct CancellationToken *cancellation_token,
                         TableEmptyCallback callback);
 
-void table_load_with_datetime(struct Runtime *runtime,
+bool table_load_with_datetime(struct Runtime *runtime,
                               struct RawDeltaTable *table,
                               int64_t ts_milliseconds,
+                              const struct CancellationToken *cancellation_token,
                               TableEmptyCallback callback);
 
 void table_merge(struct Runtime *runtime,
@@ -206,10 +259,8 @@ void table_merge(struct Runtime *runtime,
                  int64_t version,
                  TableEmptyCallback callback);
 
-void table_protocol(struct Runtime *runtime,
-                    struct RawDeltaTable *table,
-                    int64_t version,
-                    TableEmptyCallback callback);
+struct ProtocolResponse table_protocol_versions(struct Runtime *runtime,
+                                                struct RawDeltaTable *table);
 
 void table_restore(struct Runtime *runtime,
                    struct RawDeltaTable *table,
@@ -224,9 +275,7 @@ void table_update(struct Runtime *runtime,
 /**
  * Must free the error, but there is no need to free the SerializedBuffer
  */
-void table_schema(struct Runtime *runtime,
-                  struct RawDeltaTable *table,
-                  GenericErrorCallback callback);
+struct GenericOrError table_schema(struct Runtime *runtime, struct RawDeltaTable *table);
 
 void table_checkpoint(struct Runtime *runtime,
                       struct RawDeltaTable *table,

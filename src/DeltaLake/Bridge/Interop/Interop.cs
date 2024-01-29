@@ -42,11 +42,26 @@ namespace DeltaLake.Bridge.Interop
         OperationCanceled = 33,
     }
 
+    [NativeTypeName("unsigned int")]
+    internal enum PartitionFilterBinaryOp : uint
+    {
+        Equal = 0,
+        NotEqual = 1,
+        GreaterThan = 2,
+        GreaterThanOrEqual = 3,
+        LessThan = 4,
+        LessThanOrEqual = 5,
+    }
+
     internal partial struct CancellationToken
     {
     }
 
     internal partial struct Map
+    {
+    }
+
+    internal partial struct PartitionFilterList
     {
     }
 
@@ -185,6 +200,18 @@ namespace DeltaLake.Bridge.Interop
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal unsafe delegate void TableEmptyCallback([NativeTypeName("const struct DeltaTableError *")] DeltaTableError* fail);
 
+    internal unsafe partial struct ProtocolResponse
+    {
+        [NativeTypeName("int32_t")]
+        public int min_reader_version;
+
+        [NativeTypeName("int32_t")]
+        public int min_writer_version;
+
+        [NativeTypeName("const struct DeltaTableError *")]
+        public DeltaTableError* error;
+    }
+
     internal unsafe partial struct VacuumOptions
     {
         [NativeTypeName("bool")]
@@ -240,6 +267,21 @@ namespace DeltaLake.Bridge.Interop
         public static extern void dynamic_array_free([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("const struct DynamicArray *")] DynamicArray* array);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("struct PartitionFilterList *")]
+        public static extern PartitionFilterList* partition_filter_list_new([NativeTypeName("uintptr_t")] UIntPtr capacity);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("bool")]
+        public static extern byte partition_filter_list_add_binary([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* value);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("bool")]
+        public static extern byte partition_filter_list_add_set([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* value, [NativeTypeName("uintptr_t")] UIntPtr value_count);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void partition_filter_list_free([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ByteArray *")]
         public static extern ByteArray* table_uri([NativeTypeName("const struct RawDeltaTable *")] RawDeltaTable* table);
 
@@ -254,29 +296,31 @@ namespace DeltaLake.Bridge.Interop
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_file_uris([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
+        public static extern GenericOrError table_file_uris([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_files([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
+        public static extern GenericOrError table_files([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void history([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("uintptr_t")] UIntPtr limit, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_update_incremental([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
+        public static extern void table_update_incremental([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_load_version([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_load_with_datetime([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long ts_milliseconds, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
+        [return: NativeTypeName("bool")]
+        public static extern byte table_load_with_datetime([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long ts_milliseconds, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_merge([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_protocol([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
+        [return: NativeTypeName("struct ProtocolResponse")]
+        public static extern ProtocolResponse table_protocol_versions([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_restore([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
@@ -285,7 +329,8 @@ namespace DeltaLake.Bridge.Interop
         public static extern void table_update([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("int64_t")] long version, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_schema([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
+        [return: NativeTypeName("struct GenericOrError")]
+        public static extern GenericOrError table_schema([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_checkpoint([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("TableEmptyCallback")] IntPtr callback);

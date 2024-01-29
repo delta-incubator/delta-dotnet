@@ -22,9 +22,10 @@ public class DeltaTableTests
             fb.DataType(Int32Type.Default);
             fb.Nullable(false);
         });
+        var schema = builder.Build();
         using var table = await DeltaTable.CreateAsync(
             runtime,
-            new TableCreateOptions(uri, builder.Build()),
+            new TableCreateOptions(uri, schema),
             CancellationToken.None);
         Assert.NotNull(table);
         var version = table.Version();
@@ -35,6 +36,9 @@ public class DeltaTableTests
         Assert.Empty(files);
         var fileUris = table.FileUris();
         Assert.Empty(fileUris);
+        var returnedSchema = table.Schema();
+        Assert.NotNull(returnedSchema);
+        Assert.Equal(schema.FieldsList.Count, returnedSchema.FieldsList.Count);
     }
 
     [Fact]

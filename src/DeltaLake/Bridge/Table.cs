@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Apache.Arrow.C;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Table;
 using ICancellationToken = System.Threading.CancellationToken;
@@ -12,13 +13,13 @@ namespace DeltaLake.Bridge
     /// </summary>
     internal sealed class Table : SafeHandle
     {
-        internal static ByteArrayRef SaveModeAppend = ByteArrayRef.FromUTF8("append");
+        internal static readonly ByteArrayRef SaveModeAppend = ByteArrayRef.FromUTF8("append");
 
-        internal static ByteArrayRef SaveModeOverwrite = ByteArrayRef.FromUTF8("overwrite");
+        internal static readonly ByteArrayRef SaveModeOverwrite = ByteArrayRef.FromUTF8("overwrite");
 
-        internal static ByteArrayRef SaveModeError = ByteArrayRef.FromUTF8("error");
+        internal static readonly ByteArrayRef SaveModeError = ByteArrayRef.FromUTF8("error");
 
-        internal static ByteArrayRef SaveModeIfgnore = ByteArrayRef.FromUTF8("ignore");
+        internal static readonly ByteArrayRef SaveModeIfgnore = ByteArrayRef.FromUTF8("ignore");
 
         private readonly unsafe Interop.RawDeltaTable* _ptr;
 
@@ -120,7 +121,7 @@ namespace DeltaLake.Bridge
         {
             unsafe
             {
-                return GetStringArray(Interop.Methods.table_file_uris(_runtime.Ptr, _ptr));
+                return GetStringArray(Interop.Methods.table_file_uris(_runtime.Ptr, _ptr, null));
             }
         }
 
@@ -128,7 +129,29 @@ namespace DeltaLake.Bridge
         {
             unsafe
             {
-                return GetStringArray(Interop.Methods.table_files(_runtime.Ptr, _ptr));
+                return GetStringArray(Interop.Methods.table_files(_runtime.Ptr, _ptr, null));
+            }
+        }
+
+        public Apache.Arrow.Schema Schema()
+        {
+            unsafe
+            {
+                var result = Methods.table_schema(_runtime.Ptr, _ptr);
+                if (result.error != null)
+                {
+                    throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, result.error);
+                }
+
+                var schemaPointer = (CArrowSchema*)result.bytes;
+                try
+                {
+                    return CArrowSchemaImporter.ImportSchema(schemaPointer);
+                }
+                finally
+                {
+                    CArrowSchema.Free(schemaPointer);
+                }
             }
         }
 
