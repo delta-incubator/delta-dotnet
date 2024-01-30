@@ -1,4 +1,8 @@
-use std::{collections::HashMap, str::FromStr};
+use std::{
+    collections::HashMap,
+    ffi::{c_char, CString},
+    str::FromStr,
+};
 
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use deltalake::{
@@ -9,13 +13,76 @@ use libc::c_void;
 
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
-    runtime::Runtime,
+    runtime::{map_free, Runtime},
     schema::PartitionFilterList,
     ByteArray, ByteArrayRef, CancellationToken, DynamicArray, Map, SerializedBuffer,
 };
 
 pub struct RawDeltaTable {
     table: deltalake::DeltaTable,
+}
+
+#[repr(C)]
+pub struct TableMetadata {
+    /// Unique identifier for this table
+    id: *const c_char,
+    /// User-provided identifier for this table
+    name: *const c_char,
+    /// User-provided description for this table
+    description: *const c_char,
+    /// Specification of the encoding for the files stored in the table
+    format_provider: *const c_char,
+    format_options: *mut Map,
+    /// Schema of the table
+    schema_string: *const c_char,
+    /// Column names by which the data should be partitioned
+    partition_columns: *mut *mut c_char,
+    partition_columns_count: usize,
+    /// The time when this metadata action is created, in milliseconds since the Unix epoch
+    created_time: i64,
+    /// Configuration options for the metadata action
+    configuration: *mut Map,
+
+    release: Option<unsafe extern "C" fn(arg1: *mut TableMetadata)>,
+}
+
+impl Drop for TableMetadata {
+    fn drop(&mut self) {
+        match self.release {
+            None => (),
+            Some(release) => unsafe { release(self) },
+        };
+    }
+}
+
+unsafe extern "C" fn release_metadata(metadata: *mut TableMetadata) {
+    if metadata.is_null() {
+        return;
+    }
+    let metadata = &mut *metadata;
+
+    // take ownership back to release it.
+    drop(CString::from_raw(metadata.id as *mut c_char));
+    if !metadata.name.is_null() {
+        drop(CString::from_raw(metadata.name as *mut c_char));
+    }
+    if !metadata.description.is_null() {
+        drop(CString::from_raw(metadata.description as *mut c_char));
+    }
+
+    drop(CString::from_raw(metadata.format_provider as *mut c_char));
+    drop(Box::from_raw(metadata.format_options));
+    let partition_columns = Vec::from_raw_parts(
+        metadata.partition_columns,
+        metadata.partition_columns_count,
+        metadata.partition_columns_count,
+    );
+    for partition in partition_columns.iter() {
+        drop(CString::from_raw(*partition));
+    }
+    drop(Box::from_raw(metadata.configuration));
+
+    metadata.release = None;
 }
 
 #[repr(C)]
@@ -328,9 +395,27 @@ pub extern "C" fn history(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
     limit: usize,
+    cancellation_token: *const CancellationToken,
     callback: GenericErrorCallback,
 ) {
-    unimplemented!()
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let limit = if limit > 0 { Some(limit) } else { None };
+            match tbl.table.history(limit).await {
+                Ok(history) => todo!(),
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    )
+                },
+            }
+        },
+        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+    )
 }
 
 #[no_mangle]
@@ -423,7 +508,7 @@ pub extern "C" fn table_merge(
     version: i64,
     callback: TableEmptyCallback,
 ) {
-    unimplemented!()
+    todo!()
 }
 
 #[no_mangle]
@@ -452,7 +537,7 @@ pub extern "C" fn table_restore(
     version: i64,
     callback: TableEmptyCallback,
 ) {
-    unimplemented!()
+    todo!()
 }
 
 #[no_mangle]
@@ -462,7 +547,7 @@ pub extern "C" fn table_update(
     version: i64,
     callback: TableEmptyCallback,
 ) {
-    unimplemented!()
+    todo!()
 }
 
 /// Must free the error, but there is no need to free the SerializedBuffer
@@ -604,10 +689,60 @@ pub extern "C" fn table_version(table_handle: *mut RawDeltaTable) -> i64 {
 }
 
 #[no_mangle]
-pub extern "C" fn table_metadata(table_handle: *mut RawDeltaTable, callback: TableEmptyCallback) {
-    do_with_table(table_handle, |table| match table.table.metadata() {
-        Ok(_) => todo!(),
-        Err(_) => todo!(),
+pub extern "C" fn table_metadata(
+    runtime: *mut Runtime,
+    table_handle: *mut RawDeltaTable,
+) -> GenericOrError {
+    do_with_table_and_runtime_sync(runtime, table_handle, |rt, table| {
+        match table.table.metadata() {
+            Ok(metadata) => {
+                let partition_columns = metadata
+                    .partition_columns
+                    .clone()
+                    .into_iter()
+                    .map(|col| CString::new(col).unwrap().into_raw())
+                    .collect::<Box<_>>();
+                let table_meta = TableMetadata {
+                    id: CString::new(metadata.id.clone()).unwrap().into_raw(),
+                    name: metadata
+                        .name
+                        .clone()
+                        .map(|m| CString::new(m).unwrap().into_raw())
+                        .unwrap_or(std::ptr::null_mut()),
+                    description: metadata
+                        .description
+                        .clone()
+                        .map(|m| CString::new(m).unwrap().into_raw())
+                        .unwrap_or(std::ptr::null_mut()),
+                    format_provider: CString::new(metadata.format.provider.clone())
+                        .unwrap()
+                        .into_raw(),
+                    format_options: Box::into_raw(Box::new(Map {
+                        data: metadata.format.options.clone(),
+                        disable_free: true,
+                    })),
+                    schema_string: CString::new(metadata.schema_string.clone())
+                        .unwrap()
+                        .into_raw(),
+                    partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
+                    partition_columns_count: metadata.partition_columns.len(),
+                    created_time: metadata.created_time.unwrap_or(-1),
+                    configuration: Box::into_raw(Box::new(Map {
+                        data: metadata.configuration.clone(),
+                        disable_free: true,
+                    })),
+                    release: Some(release_metadata),
+                };
+                GenericOrError {
+                    bytes: Box::into_raw(Box::new(table_meta)) as *const c_void,
+                    error: std::ptr::null(),
+                }
+            }
+            Err(err) => GenericOrError {
+                bytes: std::ptr::null(),
+                error: DeltaTableError::from_error(rt, err).into_raw(),
+            },
+        }
     })
 }
 

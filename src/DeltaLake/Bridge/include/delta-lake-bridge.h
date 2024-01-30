@@ -235,6 +235,7 @@ struct GenericOrError table_files(struct Runtime *runtime,
 void history(struct Runtime *runtime,
              struct RawDeltaTable *table,
              uintptr_t limit,
+             const struct CancellationToken *cancellation_token,
              GenericErrorCallback callback);
 
 void table_update_incremental(struct Runtime *runtime,
@@ -288,7 +289,7 @@ void table_vacuum(struct Runtime *runtime,
 
 int64_t table_version(struct RawDeltaTable *table_handle);
 
-void table_metadata(struct RawDeltaTable *table_handle, TableEmptyCallback callback);
+struct GenericOrError table_metadata(struct Runtime *runtime, struct RawDeltaTable *table_handle);
 
 #ifdef __cplusplus
 } // extern "C"
