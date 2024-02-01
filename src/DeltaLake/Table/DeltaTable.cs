@@ -1,21 +1,21 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Apache.Arrow;
 using DeltaLake.Runtime;
 
 namespace DeltaLake.Table
 {
     /// <summary>
-    ///
+    /// Represents a deltalake table
     /// </summary>
     public sealed class DeltaTable : IDisposable
     {
-        private readonly DeltaRuntime _runtime;
         private readonly Bridge.Table _table;
 
-        private DeltaTable(DeltaRuntime runtime, Bridge.Table table)
+        private DeltaTable(Bridge.Table table)
         {
-            _runtime = runtime;
             _table = table;
         }
 
@@ -34,7 +34,7 @@ namespace DeltaLake.Table
               CancellationToken cancellationToken)
         {
             var table = await runtime.Runtime.LoadTableAsync(location, options, cancellationToken).ConfigureAwait(false);
-            return new DeltaTable(runtime, table);
+            return new DeltaTable(table);
         }
 
         /// <summary>
@@ -52,7 +52,7 @@ namespace DeltaLake.Table
               CancellationToken cancellationToken)
         {
             var table = await runtime.Runtime.LoadTableAsync(uri, options, cancellationToken).ConfigureAwait(false);
-            return new DeltaTable(runtime, table);
+            return new DeltaTable(table);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace DeltaLake.Table
               CancellationToken cancellationToken)
         {
             var table = await runtime.Runtime.CreateTableAsync(options, cancellationToken).ConfigureAwait(false);
-            return new DeltaTable(runtime, table);
+            return new DeltaTable(table);
         }
 
         /// <summary>
@@ -101,7 +101,7 @@ namespace DeltaLake.Table
         /// <summary>
         /// Retrieves the current table version
         /// </summary>
-        /// <returns>current table version</returns>
+        /// <returns><see cref="long"/></returns>
         public long Version()
         {
             return _table.Version();
@@ -112,7 +112,7 @@ namespace DeltaLake.Table
         /// </summary>
         /// <param name="version">desired version</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
-        /// <returns></returns>
+        /// <returns><see cref="Task"/></returns>
         public Task LoadVersionAsync(long version, CancellationToken cancellationToken)
         {
             return _table.LoadVersionAsync(version, cancellationToken);
@@ -121,10 +121,63 @@ namespace DeltaLake.Table
         /// <summary>
         /// Returns the table schema
         /// </summary>
-        /// <returns></returns>
+        /// <returns><see cref="Schema"/></returns>
         public Apache.Arrow.Schema Schema()
         {
             return _table.Schema();
+        }
+
+        /// <summary>
+        /// Inserts a record batch into the table based upon the provided options
+        /// </summary>
+        /// <param name="records">A collection of <see cref="RecordBatch"/> records to insert</param>
+        /// <param name="schema">The associated <see cref="Schema"/> for the <paramref name="records"/></param>
+        /// <param name="options"><see cref="InsertOptions"/> </param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns><see cref="Task"/></returns>
+        public async Task InsertAsync(
+             IReadOnlyCollection<RecordBatch> records,
+             Schema schema,
+             InsertOptions options,
+             CancellationToken cancellationToken)
+        {
+            await _table.InsertAsync(records, schema, options, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task HistoryAsync(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async Task UpdateIncrementalAsync(CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Loads table at a specific point in time
+        /// </summary>
+        /// <param name="timestamp">desired point in time</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns><see cref="Task"/></returns>
+        public Task LoadDateTimeAsync(DateTimeOffset timestamp, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task MergeAsync(string query, IReadOnlyCollection<RecordBatch> records, Schema schema, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ProtocolInfo ProtocolVersions()
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RestoreAsync()
+        {
+            throw new NotImplementedException();
         }
 
         /// <inheritdoc />

@@ -1,7 +1,10 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Apache.Arrow;
+using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
@@ -93,5 +96,38 @@ public class DeltaTableTests
         Assert.Equal(4, table.Version());
         await table.LoadVersionAsync(version, CancellationToken.None);
         Assert.Equal(version, table.Version());
+    }
+
+    [Fact]
+    public async Task Table_Insert_Test()
+    {
+        var uri = $"memory://{Guid.NewGuid():N}";
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        var builder = new Apache.Arrow.Schema.Builder();
+        builder.Field(fb =>
+        {
+            fb.Name("test");
+            fb.DataType(Int32Type.Default);
+            fb.Nullable(false);
+        });
+        var schema = builder.Build();
+        using var table = await DeltaTable.CreateAsync(
+            runtime,
+            new TableCreateOptions(uri, schema),
+            CancellationToken.None);
+        Assert.NotNull(table);
+        int length = 10;
+        var allocator = new NativeMemoryAllocator();
+        var recordBatchBuilder = new RecordBatch.Builder(allocator)
+            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))));
+
+
+        var options = new InsertOptions([recordBatchBuilder.Build()])
+        {
+            SaveMode = SaveMode.Append,
+        };
+        await table.InsertAsync(options, CancellationToken.None);
+        var version = table.Version();
+        Assert.Equal(1, version);
     }
 }

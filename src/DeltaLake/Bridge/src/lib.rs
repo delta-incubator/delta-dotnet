@@ -11,18 +11,83 @@
 pub mod error;
 pub mod runtime;
 pub mod schema;
+#[macro_use]
+mod sql;
 pub mod table;
-use std::collections::HashMap;
+use std::{collections::HashMap, mem::ManuallyDrop};
 
 use runtime::Runtime;
 
 #[repr(C)]
-pub struct SerializedBuffer {
-    data: *const u8,
-    size: libc::size_t,
-    offset: libc::size_t,
+pub struct KeyValuePair {
+    key: *const u8,
+    key_length: usize,
+    value: *const u8,
+    value_length: usize,
 }
 
+pub type KeyNullableValuePair = KeyValuePair;
+
+impl KeyValuePair {
+    pub(crate) fn from_optional_hash_map(
+        input: HashMap<String, Option<String>>,
+    ) -> *mut *mut KeyNullableValuePair {
+        let mapped = input
+            .into_iter()
+            .map(|(key, value)| {
+                let key = ManuallyDrop::new(key);
+                let (value, value_length) = match value {
+                    Some(value) => {
+                        let value = ManuallyDrop::new(value);
+                        (value.as_ptr(), value.len())
+                    }
+                    None => (std::ptr::null(), 0),
+                };
+
+                Box::into_raw(Box::new(KeyNullableValuePair {
+                    key: key.as_ptr(),
+                    key_length: key.len(),
+                    value,
+                    value_length,
+                }))
+            })
+            .collect::<Box<_>>();
+        ManuallyDrop::new(mapped).as_mut_ptr()
+    }
+
+    pub(crate) fn from_hash_map(input: HashMap<String, String>) -> *mut *mut Self {
+        ManuallyDrop::new(
+            input
+                .into_iter()
+                .map(|(key, value)| {
+                    let (key, value) = (ManuallyDrop::new(key), ManuallyDrop::new(value));
+                    Box::into_raw(Box::new(KeyNullableValuePair {
+                        key: key.as_ptr(),
+                        key_length: key.len(),
+                        value: value.as_ptr(),
+                        value_length: value.len(),
+                    }))
+                })
+                .collect::<Box<_>>(),
+        )
+        .as_mut_ptr()
+    }
+}
+
+impl Drop for KeyValuePair {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = String::from_raw_parts(self.key as *mut u8, self.key_length, self.key_length);
+            if !self.value.is_null() {
+                let _ = String::from_raw_parts(
+                    self.value as *mut u8,
+                    self.value_length,
+                    self.value_length,
+                );
+            }
+        }
+    }
+}
 pub struct Map {
     data: HashMap<String, Option<String>>,
     disable_free: bool,

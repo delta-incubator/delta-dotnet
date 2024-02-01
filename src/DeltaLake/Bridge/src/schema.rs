@@ -1,10 +1,6 @@
-use deltalake::{
-    arrow::{
-        datatypes::Schema as ArrowSchema,
-        ipc::convert::{schema_to_fb, schema_to_fb_offset, try_schema_from_flatbuffer_bytes},
-    },
-    parquet::arrow::ArrowWriter,
-    writer::RecordBatchWriter,
+use deltalake::arrow::{
+    datatypes::Schema as ArrowSchema,
+    ipc::convert::{schema_to_fb_offset, try_schema_from_flatbuffer_bytes},
 };
 use flatbuffers::FlatBufferBuilder;
 

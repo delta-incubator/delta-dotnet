@@ -1,21 +1,40 @@
 use std::{
     collections::HashMap,
     ffi::{c_char, CString},
+    future::IntoFuture,
     str::FromStr,
+    sync::Arc,
 };
 
+use arrow::{
+    ffi_stream::FFI_ArrowArrayStream,
+    record_batch::{RecordBatch, RecordBatchReader},
+};
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use deltalake::{
-    arrow::datatypes::Schema, kernel::StructType, operations::vacuum::VacuumBuilder,
-    protocol::SaveMode, DeltaOps, DeltaTableBuilder,
+    arrow::datatypes::Schema,
+    datafusion::{
+        dataframe::DataFrame,
+        datasource::{MemTable, TableProvider},
+        execution::context::SessionContext,
+    },
+    kernel::StructType,
+    operations::{
+        delete::DeleteBuilder, merge::MergeBuilder, update::UpdateBuilder, vacuum::VacuumBuilder,
+        write::WriteBuilder,
+    },
+    protocol::SaveMode,
+    DeltaOps, DeltaTableBuilder,
 };
 use libc::c_void;
 
 use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
-    runtime::{map_free, Runtime},
+    runtime::Runtime,
     schema::PartitionFilterList,
-    ByteArray, ByteArrayRef, CancellationToken, DynamicArray, Map, SerializedBuffer,
+    sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
+    ByteArray, ByteArrayRef, CancellationToken, DynamicArray, KeyNullableValuePair, KeyValuePair,
+    Map,
 };
 
 pub struct RawDeltaTable {
@@ -32,7 +51,7 @@ pub struct TableMetadata {
     description: *const c_char,
     /// Specification of the encoding for the files stored in the table
     format_provider: *const c_char,
-    format_options: *mut Map,
+    format_options: *mut *mut KeyNullableValuePair,
     /// Schema of the table
     schema_string: *const c_char,
     /// Column names by which the data should be partitioned
@@ -41,7 +60,7 @@ pub struct TableMetadata {
     /// The time when this metadata action is created, in milliseconds since the Unix epoch
     created_time: i64,
     /// Configuration options for the metadata action
-    configuration: *mut Map,
+    configuration: *mut *mut KeyValuePair,
 
     release: Option<unsafe extern "C" fn(arg1: *mut TableMetadata)>,
 }
@@ -405,7 +424,15 @@ pub extern "C" fn history(
         move |rt, tbl| async move {
             let limit = if limit > 0 { Some(limit) } else { None };
             match tbl.table.history(limit).await {
-                Ok(history) => todo!(),
+                Ok(history) => {
+                    let json = serde_json::ser::to_vec(&history).unwrap_or(Vec::new());
+                    unsafe {
+                        callback(
+                            ByteArray::from_vec(json).into_raw() as *const c_void,
+                            std::ptr::null(),
+                        );
+                    }
+                }
                 Err(err) => unsafe {
                     callback(
                         std::ptr::null(),
@@ -504,11 +531,170 @@ pub extern "C" fn table_load_with_datetime(
 #[no_mangle]
 pub extern "C" fn table_merge(
     runtime: *mut Runtime,
-    table: *mut RawDeltaTable,
-    version: i64,
-    callback: TableEmptyCallback,
+    delta_table: *mut RawDeltaTable,
+    query: *const ByteArrayRef,
+    stream: *mut c_void,
+    cancellation_token: *const CancellationToken,
+    callback: GenericErrorCallback,
 ) {
-    todo!()
+    let query = unsafe { &*query };
+    let query_str = query.to_str();
+    let mut parser = match DeltaLakeParser::new(query_str) {
+        Ok(data) => data,
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null(),
+                DeltaTableError::new(
+                    &mut *runtime,
+                    DeltaTableErrorCode::Generic,
+                    &err.to_string(),
+                )
+                .into_raw(),
+            );
+            return;
+        },
+    };
+    let source_df = unsafe {
+        match ffi_to_df(&mut *runtime, stream as *mut FFI_ArrowArrayStream) {
+            Ok(source_df) => source_df,
+            Err(error) => {
+                callback(std::ptr::null(), error.into_raw());
+                return;
+            }
+        }
+    };
+    match parser.parse_merge() {
+        Ok(Statement::MergeStatement {
+            into: _,
+            table,
+            source,
+            on,
+            clauses,
+        }) => do_with_table_and_runtime_and_cancel(
+            runtime,
+            delta_table,
+            cancellation_token,
+            move |rt, tbl| async move {
+                let snapshot = match tbl.table.snapshot() {
+                    Ok(snapshot) => snapshot.clone(),
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, err).into_raw(),
+                        );
+                        return;
+                    },
+                };
+                let mut mb =
+                    MergeBuilder::new(tbl.table.log_store(), snapshot, on.to_string(), source_df);
+                if let Some(target_alias) = extract_table_factor_alias(table) {
+                    mb = mb.with_target_alias(target_alias);
+                }
+
+                if let Some(source_alias) = extract_table_factor_alias(source) {
+                    mb = mb.with_source_alias(source_alias);
+                }
+
+                for clause in clauses {
+                    let res = match clause {
+                        crate::sql::MergeClause::MatchedUpdate {
+                            predicate,
+                            assignments,
+                        } => mb.when_matched_update(|mut update| {
+                            make_update!(update, predicate, assignments)
+                        }),
+                        crate::sql::MergeClause::MatchedDelete(predicate) => mb
+                            .when_not_matched_by_source_delete(|delete| match predicate {
+                                Some(predicate) => delete.predicate(predicate.to_string()),
+                                None => delete,
+                            }),
+                        crate::sql::MergeClause::NotMatched {
+                            predicate,
+                            columns,
+                            values,
+                        } => mb.when_not_matched_insert(|mut insert| {
+                            if let Some(predicate) = predicate {
+                                insert = insert.predicate(predicate.to_string());
+                            }
+
+                            for row in values.rows {
+                                for i in 0..columns.len() {
+                                    insert = insert
+                                        .set(columns[i].value.to_string(), row[i].to_string());
+                                }
+                            }
+                            insert
+                        }),
+                        crate::sql::MergeClause::NotMatchedBySourceUpdate {
+                            predicate,
+                            assignments,
+                        } => mb.when_matched_update(|mut update| {
+                            make_update!(update, predicate, assignments)
+                        }),
+                        crate::sql::MergeClause::NotMatchedBySourceDelete(predicate) => mb
+                            .when_not_matched_by_source_delete(|delete| match predicate {
+                                Some(predicate) => delete.predicate(predicate.to_string()),
+                                None => delete,
+                            }),
+                    };
+                    match res {
+                        Ok(_) => todo!(),
+                        Err(error) => unsafe {
+                            callback(
+                                std::ptr::null(),
+                                DeltaTableError::from_error(rt, error).into_raw(),
+                            );
+                            return;
+                        },
+                    }
+                }
+                match mb.await {
+                    Ok((delta_table, metrics)) => {
+                        tbl.table = delta_table;
+                        let serialized = serde_json::ser::to_vec(&metrics).unwrap_or(Vec::new());
+                        unsafe {
+                            callback(
+                                ByteArray::from_vec(serialized).into_raw() as *const c_void,
+                                std::ptr::null(),
+                            );
+                        }
+                    }
+                    Err(error) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, error).into_raw(),
+                        );
+                    },
+                };
+            },
+            move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+        ),
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null(),
+                DeltaTableError::new(
+                    &mut *runtime,
+                    DeltaTableErrorCode::Generic,
+                    &err.to_string(),
+                )
+                .into_raw(),
+            );
+        },
+        _ => unsafe {
+            callback(
+                std::ptr::null(),
+                DeltaTableError::new(
+                    &mut *runtime,
+                    DeltaTableErrorCode::Generic,
+                    &format!(
+                        "invalid sql statement. expected merge. received: {}",
+                        query_str
+                    ),
+                )
+                .into_raw(),
+            );
+        },
+    };
 }
 
 #[no_mangle]
@@ -534,23 +720,316 @@ pub extern "C" fn table_protocol_versions(
 pub extern "C" fn table_restore(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
-    version: i64,
+    version_or_timestamp: i64,
+    is_timestamp: bool,
+    ignore_missing_files: bool,
+    protocol_downgrade_allowed: bool,
+    custom_metadata: *mut Map,
+    cancellation_token: *const CancellationToken,
     callback: TableEmptyCallback,
 ) {
-    todo!()
+    let json_metadata = if !custom_metadata.is_null() {
+        let metadata = unsafe { Box::from_raw(custom_metadata) };
+        let json_metadata: serde_json::Map<String, serde_json::Value> = metadata
+            .data
+            .into_iter()
+            .map(|(k, v)| (k, v.into()))
+            .collect();
+        Some(json_metadata)
+    } else {
+        None
+    };
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let snapshot = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.clone(),
+                Err(err) => unsafe {
+                    callback(DeltaTableError::from_error(rt, err).into_raw());
+                    return;
+                },
+            };
+            let mut cmd = deltalake::operations::restore::RestoreBuilder::new(
+                tbl.table.log_store(),
+                snapshot,
+            );
+            if version_or_timestamp > 0 {
+                if is_timestamp {
+                    let naive_dt = match NaiveDateTime::from_timestamp_millis(version_or_timestamp)
+                    {
+                        Some(dt) => dt,
+                        None => unsafe {
+                            callback(
+                                DeltaTableError::new(
+                                    rt,
+                                    DeltaTableErrorCode::GenericError,
+                                    "invalid timestamp",
+                                )
+                                .into_raw(),
+                            );
+                            return;
+                        },
+                    };
+
+                    let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
+                    cmd = cmd.with_datetime_to_restore(dt);
+                } else {
+                    cmd = cmd.with_version_to_restore(version_or_timestamp);
+                }
+            }
+            cmd = cmd
+                .with_ignore_missing_files(ignore_missing_files)
+                .with_protocol_downgrade_allowed(protocol_downgrade_allowed);
+
+            if let Some(js) = json_metadata {
+                cmd = cmd.with_metadata(js);
+            }
+
+            match cmd.into_future().await {
+                Ok((table, _metrics)) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null())
+                },
+                Err(err) => {
+                    let error = DeltaTableError::from_error(rt, err);
+                    unsafe { callback(Box::into_raw(Box::new(error))) }
+                }
+            };
+        },
+        move || unsafe { callback(std::ptr::null()) },
+    );
 }
 
 #[no_mangle]
 pub extern "C" fn table_update(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
-    version: i64,
-    callback: TableEmptyCallback,
+    query: *const ByteArrayRef,
+    cancellation_token: *const CancellationToken,
+    callback: GenericErrorCallback,
 ) {
-    todo!()
+    let query = {
+        let query = unsafe { &*query };
+        query.to_str()
+    };
+    let mut parser = match DeltaLakeParser::new(query) {
+        Ok(parser) => parser,
+        Err(error) => unsafe {
+            callback(
+                std::ptr::null(),
+                DeltaTableError::from_parser_error(&mut *runtime, error).into_raw(),
+            );
+            return;
+        },
+    };
+    let (predicate, assignments) = match parser.parse_update(unsafe { &mut *runtime }) {
+        Ok(statement) => statement,
+        Err(error) => unsafe {
+            callback(std::ptr::null(), error.into_raw());
+            return;
+        },
+    };
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let snapshot = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.clone(),
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    );
+                    return;
+                },
+            };
+
+            let mut ub = UpdateBuilder::new(tbl.table.log_store(), snapshot);
+            if let Some(predicate) = predicate {
+                ub = ub.with_predicate(predicate.to_string());
+            }
+
+            for assign in assignments {
+                for col in assign.id {
+                    ub = ub.with_update(col.to_string(), assign.value.to_string());
+                }
+            }
+
+            match ub.await {
+                Ok((delta_table, metrics)) => {
+                    tbl.table = delta_table;
+                    let serialized = serde_json::ser::to_vec(&metrics).unwrap_or(Vec::new());
+                    unsafe {
+                        callback(
+                            ByteArray::from_vec(serialized).into_raw() as *const c_void,
+                            std::ptr::null(),
+                        );
+                    }
+                }
+                Err(error) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, error).into_raw(),
+                    );
+                },
+            };
+        },
+        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+    );
 }
 
-/// Must free the error, but there is no need to free the SerializedBuffer
+#[no_mangle]
+pub extern "C" fn table_delete(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    predicate: *const ByteArrayRef,
+    cancellation_token: *const CancellationToken,
+    callback: GenericErrorCallback,
+) {
+    let predicate = if !predicate.is_null() {
+        let predicate = unsafe { &*predicate };
+        Some(predicate.to_owned_string())
+    } else {
+        None
+    };
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let snapshot = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.clone(),
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    );
+                    return;
+                },
+            };
+            let mut db = DeleteBuilder::new(tbl.table.log_store(), snapshot);
+            if let Some(predicate) = predicate {
+                db = db.with_predicate(predicate);
+            }
+            match db.await {
+                Ok((delta_table, metrics)) => {
+                    tbl.table = delta_table;
+                    let serialized = serde_json::ser::to_vec(&metrics).unwrap_or(Vec::new());
+                    unsafe {
+                        callback(
+                            ByteArray::from_vec(serialized).into_raw() as *const c_void,
+                            std::ptr::null(),
+                        );
+                    }
+                }
+                Err(error) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, error).into_raw(),
+                    );
+                },
+            };
+        },
+        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+    );
+}
+
+#[no_mangle]
+pub extern "C" fn table_insert(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    stream: *mut c_void,
+    predicate: *const ByteArrayRef,
+    mode: *const ByteArrayRef,
+    max_rows_per_group: usize,
+    overwrite_schema: bool,
+    cancellation_token: *const CancellationToken,
+    callback: GenericErrorCallback,
+) {
+    let save_mode = unsafe {
+        match SaveMode::from_str((*mode).to_str()) {
+            Ok(save_mode) => save_mode,
+            Err(err) => {
+                callback(
+                    std::ptr::null_mut(),
+                    DeltaTableError::new(
+                        &mut *runtime,
+                        DeltaTableErrorCode::Utf8,
+                        &err.to_string(),
+                    )
+                    .into_raw(),
+                );
+                return;
+            }
+        }
+    };
+    let predicate = if predicate.is_null() {
+        None
+    } else {
+        let predicate = unsafe { &*predicate };
+        Some(predicate.to_owned_string())
+    };
+
+    let (batches, _) = match ffi_to_batches(
+        unsafe { &mut *runtime },
+        stream as *mut arrow::ffi_stream::FFI_ArrowArrayStream,
+    ) {
+        Ok(batches) => batches,
+        Err(err) => unsafe {
+            callback(std::ptr::null(), err.into_raw());
+            return;
+        },
+    };
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let snapshot = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.clone(),
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    );
+                    return;
+                },
+            };
+            let mut mb = WriteBuilder::new(tbl.table.log_store(), Some(snapshot))
+                .with_write_batch_size(max_rows_per_group)
+                .with_input_batches(batches)
+                .with_save_mode(save_mode)
+                .with_overwrite_schema(overwrite_schema);
+            if let Some(predicate) = predicate {
+                mb = mb.with_replace_where(predicate);
+            }
+
+            if overwrite_schema {
+                mb = mb.with_overwrite_schema(overwrite_schema)
+            }
+            match mb.await {
+                Ok(updated) => {
+                    tbl.table = updated;
+                    unsafe {
+                        callback(std::ptr::null(), std::ptr::null());
+                    }
+                }
+                Err(error) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, error).into_raw(),
+                    );
+                },
+            };
+        },
+        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+    );
+}
+
+/// Must free the error
 #[no_mangle]
 pub extern "C" fn table_schema(runtime: *mut Runtime, table: *mut RawDeltaTable) -> GenericOrError {
     do_with_table_and_runtime_sync(
@@ -577,11 +1056,9 @@ pub extern "C" fn table_schema(runtime: *mut Runtime, table: *mut RawDeltaTable)
                     error: std::ptr::null(),
                 }
             }
-            Err(err) => unsafe {
-                GenericOrError {
-                    bytes: std::ptr::null(),
-                    error: err.into_raw(),
-                }
+            Err(err) => GenericOrError {
+                bytes: std::ptr::null(),
+                error: err.into_raw(),
             },
         },
     )
@@ -717,20 +1194,18 @@ pub extern "C" fn table_metadata(
                     format_provider: CString::new(metadata.format.provider.clone())
                         .unwrap()
                         .into_raw(),
-                    format_options: Box::into_raw(Box::new(Map {
-                        data: metadata.format.options.clone(),
-                        disable_free: true,
-                    })),
+                    format_options: KeyNullableValuePair::from_optional_hash_map(
+                        metadata.format.options.clone(),
+                    ),
                     schema_string: CString::new(metadata.schema_string.clone())
                         .unwrap()
                         .into_raw(),
                     partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
                     partition_columns_count: metadata.partition_columns.len(),
                     created_time: metadata.created_time.unwrap_or(-1),
-                    configuration: Box::into_raw(Box::new(Map {
-                        data: metadata.configuration.clone(),
-                        disable_free: true,
-                    })),
+                    configuration: KeyNullableValuePair::from_optional_hash_map(
+                        metadata.configuration.clone(),
+                    ),
                     release: Some(release_metadata),
                 };
                 GenericOrError {
@@ -860,4 +1335,122 @@ async fn create_delta_table(
         .await
         .map_err(|error| DeltaTableError::from_error(runtime, error))?;
     Ok(table)
+}
+
+fn ffi_to_df(
+    runtime: &mut Runtime,
+    stream: *mut arrow::ffi_stream::FFI_ArrowArrayStream,
+) -> Result<DataFrame, DeltaTableError> {
+    let (read_batches, schema) = ffi_to_batches(runtime, stream)?;
+    let table_provider: Arc<dyn TableProvider> = match MemTable::try_new(schema, vec![read_batches])
+    {
+        Ok(mem_table) => Arc::new(mem_table),
+        Err(error) => {
+            return Err(DeltaTableError::new(
+                runtime,
+                DeltaTableErrorCode::DataFusion,
+                &error.to_string(),
+            ));
+        }
+    };
+    let ctx = SessionContext::new();
+    ctx.read_table(table_provider).map_err(|error| {
+        DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &error.to_string())
+    })
+}
+
+fn ffi_to_batches(
+    runtime: &mut Runtime,
+    stream: *mut arrow::ffi_stream::FFI_ArrowArrayStream,
+) -> Result<(Vec<RecordBatch>, Arc<Schema>), DeltaTableError> {
+    let reader = unsafe {
+        match arrow::ffi_stream::ArrowArrayStreamReader::from_raw(stream) {
+            Ok(reader) => reader,
+            Err(error) => {
+                println!("failed to convert ffi reader");
+                return Err(DeltaTableError::new(
+                    runtime,
+                    DeltaTableErrorCode::Arrow,
+                    &error.to_string(),
+                ));
+            }
+        }
+    };
+    let schema = reader.schema();
+    let mut read_batches: Vec<RecordBatch> = Vec::new();
+    for batch in reader {
+        match batch {
+            Ok(batch) => read_batches.push(batch),
+            Err(error) => {
+                println!("failed to read batch");
+                return Err(DeltaTableError::new(
+                    runtime,
+                    DeltaTableErrorCode::Arrow,
+                    &error.to_string(),
+                ));
+            }
+        }
+    }
+    Ok((read_batches, schema))
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::sql::{DeltaLakeParser, Statement};
+
+    #[test]
+    fn test_parse_merge() {
+        let parser = DeltaLakeParser::new(
+            "MERGE INTO people10m
+        USING people10mupdates
+        ON people10m.id = people10mupdates.id
+        WHEN MATCHED THEN
+          UPDATE SET
+            id = people10mupdates.id,
+            firstName = people10mupdates.firstName,
+            middleName = people10mupdates.middleName,
+            lastName = people10mupdates.lastName,
+            gender = people10mupdates.gender,
+            birthDate = people10mupdates.birthDate,
+            ssn = people10mupdates.ssn,
+            salary = people10mupdates.salary
+        WHEN NOT MATCHED BY SOURCE THEN DELETE
+        WHEN NOT MATCHED BY TARGET
+          THEN INSERT (
+            id,
+            firstName,
+            middleName,
+            lastName,
+            gender,
+            birthDate,
+            ssn,
+            salary
+          )
+          VALUES (
+            people10mupdates.id,
+            people10mupdates.firstName,
+            people10mupdates.middleName,
+            people10mupdates.lastName,
+            people10mupdates.gender,
+            people10mupdates.birthDate,
+            people10mupdates.ssn,
+            people10mupdates.salary
+          )",
+        );
+        let mut res = parser.expect("this should parser");
+        let stmt = res.parse_statement().expect("the statement should parse");
+        // println!("{}", stmt);
+        match stmt {
+            Statement::MergeStatement {
+                into: _,
+                table: _,
+                source: _,
+                on: _,
+                clauses,
+            } => {
+                assert!(!clauses.is_empty());
+            }
+            _ => panic!("expected statement"),
+        }
+    }
 }

@@ -1,3 +1,5 @@
+use deltalake::datafusion::sql::sqlparser::parser::ParserError;
+
 use crate::{runtime::Runtime, ByteArray};
 
 #[repr(C)]
@@ -42,6 +44,8 @@ pub enum DeltaTableErrorCode {
     MetaDataError = 31,
     NotInitialized = 32,
     OperationCanceled = 33,
+    DataFusion = 34,
+    SqlParser = 35,
 }
 
 impl DeltaTableError {
@@ -50,6 +54,10 @@ impl DeltaTableError {
             code,
             error: _runtime.alloc_utf8(error),
         }
+    }
+
+    pub(crate) fn from_parser_error(runtime: &mut Runtime, error: ParserError) -> Self {
+        Self::new(runtime, DeltaTableErrorCode::SqlParser, &error.to_string())
     }
 
     pub(crate) fn from_error(_runtime: &mut Runtime, _error: deltalake::DeltaTableError) -> Self {

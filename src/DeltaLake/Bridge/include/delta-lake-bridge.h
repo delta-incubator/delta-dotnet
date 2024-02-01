@@ -40,6 +40,8 @@ typedef enum DeltaTableErrorCode {
   MetaDataError = 31,
   NotInitialized = 32,
   OperationCanceled = 33,
+  DataFusion = 34,
+  SqlParser = 35,
 } DeltaTableErrorCode;
 
 typedef enum PartitionFilterBinaryOp {
@@ -256,25 +258,49 @@ bool table_load_with_datetime(struct Runtime *runtime,
                               TableEmptyCallback callback);
 
 void table_merge(struct Runtime *runtime,
-                 struct RawDeltaTable *table,
-                 int64_t version,
-                 TableEmptyCallback callback);
+                 struct RawDeltaTable *delta_table,
+                 const struct ByteArrayRef *query,
+                 void *stream,
+                 const struct CancellationToken *cancellation_token,
+                 GenericErrorCallback callback);
 
 struct ProtocolResponse table_protocol_versions(struct Runtime *runtime,
                                                 struct RawDeltaTable *table);
 
 void table_restore(struct Runtime *runtime,
                    struct RawDeltaTable *table,
-                   int64_t version,
+                   int64_t version_or_timestamp,
+                   bool is_timestamp,
+                   bool ignore_missing_files,
+                   bool protocol_downgrade_allowed,
+                   struct Map *custom_metadata,
+                   const struct CancellationToken *cancellation_token,
                    TableEmptyCallback callback);
 
 void table_update(struct Runtime *runtime,
                   struct RawDeltaTable *table,
-                  int64_t version,
-                  TableEmptyCallback callback);
+                  const struct ByteArrayRef *query,
+                  const struct CancellationToken *cancellation_token,
+                  GenericErrorCallback callback);
+
+void table_delete(struct Runtime *runtime,
+                  struct RawDeltaTable *table,
+                  const struct ByteArrayRef *predicate,
+                  const struct CancellationToken *cancellation_token,
+                  GenericErrorCallback callback);
+
+void table_insert(struct Runtime *runtime,
+                  struct RawDeltaTable *table,
+                  void *stream,
+                  const struct ByteArrayRef *predicate,
+                  const struct ByteArrayRef *mode,
+                  uintptr_t max_rows_per_group,
+                  bool overwrite_schema,
+                  const struct CancellationToken *cancellation_token,
+                  GenericErrorCallback callback);
 
 /**
- * Must free the error, but there is no need to free the SerializedBuffer
+ * Must free the error
  */
 struct GenericOrError table_schema(struct Runtime *runtime, struct RawDeltaTable *table);
 

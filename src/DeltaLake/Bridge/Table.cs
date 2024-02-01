@@ -1,7 +1,15 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Apache.Arrow;
 using Apache.Arrow.C;
+using Apache.Arrow.Ipc;
+using Apache.Arrow.Memory;
+using CommunityToolkit.HighPerformance;
+using CommunityToolkit.HighPerformance.Buffers;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Table;
 using ICancellationToken = System.Threading.CancellationToken;
@@ -155,6 +163,84 @@ namespace DeltaLake.Bridge
             }
         }
 
+        public async Task<string> InsertAsync(
+            IReadOnlyCollection<RecordBatch> records,
+            Schema schema,
+            InsertOptions options,
+            ICancellationToken cancellationToken)
+        {
+            if (records.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var tsc = new TaskCompletionSource<string>();
+            using (var scope = new Scope())
+            {
+                using (var stream = new RecordBatchReader(records, schema))
+                {
+                    unsafe
+                    {
+                        var ffiStream = CArrowArrayStream.Create();
+                        CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
+                        Interop.Methods.table_insert(
+                            _runtime.Ptr,
+                             _ptr,
+                             ffiStream,
+                             scope.Pointer(scope.ByteArray(options.Predicate)),
+                             scope.Pointer(ConvertSaveMode(options.SaveMode).Ref),
+                             new UIntPtr(options.MaxRowsPerGroup),
+                             (byte)(options.OverwriteSchema ? 1 : 0),
+                            scope.CancellationToken(cancellationToken),
+                              scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        {
+                            try
+                            {
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    tsc.TrySetCanceled(cancellationToken);
+                                    return;
+                                }
+
+                                if (fail != null)
+                                {
+                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                }
+                                else
+                                {
+                                    if (success != null)
+                                    {
+                                        var byteArray = (Interop.ByteArray*)success;
+                                        if (byteArray == null)
+                                        {
+                                            tsc.TrySetResult("{}");
+                                        }
+                                        else
+                                        {
+                                            using var ba = new ByteArray(_runtime, byteArray);
+                                            tsc.TrySetResult(ba.ToUTF8());
+                                        }
+                                    }
+                                    else
+                                    {
+                                        tsc.TrySetResult("{}");
+                                    }
+                                }
+                            }
+                            finally
+                            {
+                                CArrowArrayStream.Free(ffiStream);
+                                stream.Dispose();
+                            }
+                        }));
+                    }
+
+
+                    return await tsc.Task.ConfigureAwait(false);
+                }
+            }
+        }
+
         internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode)
         {
             return saveMode switch
@@ -185,7 +271,7 @@ namespace DeltaLake.Bridge
             {
                 if (genericOrError.bytes == null)
                 {
-                    return Array.Empty<string>();
+                    return System.Array.Empty<string>();
                 }
 
                 var dynamicArray = (DynamicArray*)genericOrError.bytes;
