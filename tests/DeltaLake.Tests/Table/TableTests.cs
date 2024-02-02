@@ -122,12 +122,20 @@ public class DeltaTableTests
             .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))));
 
 
-        var options = new InsertOptions([recordBatchBuilder.Build()])
+        var options = new InsertOptions
         {
             SaveMode = SaveMode.Append,
         };
-        await table.InsertAsync(options, CancellationToken.None);
+        await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
         var version = table.Version();
         Assert.Equal(1, version);
+        await foreach (var result in table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test = 1")
+        {
+            TableAlias = "test",
+        },
+        CancellationToken.None))
+        {
+            Assert.NotNull(result);
+        }
     }
 }

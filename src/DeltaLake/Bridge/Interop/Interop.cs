@@ -334,6 +334,9 @@ namespace DeltaLake.Bridge.Interop
         public static extern void table_delete([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* predicate, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void table_query([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* query, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* table_name, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_insert([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, void* stream, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* predicate, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* mode, [NativeTypeName("uintptr_t")] UIntPtr max_rows_per_group, [NativeTypeName("bool")] byte overwrite_schema, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]

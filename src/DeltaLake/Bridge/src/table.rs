@@ -16,7 +16,7 @@ use deltalake::{
     datafusion::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
-        execution::context::SessionContext,
+        execution::context::{SQLOptions, SessionContext},
     },
     kernel::StructType,
     operations::{
@@ -32,7 +32,7 @@ use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
     schema::PartitionFilterList,
-    sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
+    sql::{extract_table_factor_alias, DataFrameStreamIterator, DeltaLakeParser, Statement},
     ByteArray, ByteArrayRef, CancellationToken, DynamicArray, KeyNullableValuePair, KeyValuePair,
     Map,
 };
@@ -938,6 +938,101 @@ pub extern "C" fn table_delete(
 }
 
 #[no_mangle]
+pub extern "C" fn table_query(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    query: *const ByteArrayRef,
+    table_name: *const ByteArrayRef,
+    cancellation_token: *const CancellationToken,
+    callback: GenericErrorCallback,
+) {
+    let query = {
+        let query = unsafe { &*query };
+        query.to_str()
+    };
+    let table_name = if table_name.is_null() {
+        None
+    } else {
+        unsafe { (*table_name).to_option_str() }
+    };
+
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let ctx = SessionContext::new();
+            let arc = Arc::new(tbl.table.clone());
+            let name = table_name.unwrap_or("demo");
+            if let Err(err) = ctx.register_table(name, arc) {
+                unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                            .into_raw(),
+                    );
+                }
+                return;
+            }
+
+            println!("the query is {}", query);
+            match ctx
+                .sql_with_options(
+                    query,
+                    SQLOptions::new()
+                        .with_allow_ddl(false)
+                        .with_allow_dml(false)
+                        .with_allow_statements(false),
+                )
+                .await
+            {
+                Ok(data_frame) => {
+                    let schema = Schema::from(data_frame.schema());
+                    let df_stream = match data_frame.execute_stream().await {
+                        Ok(stream) => stream,
+                        Err(error) => unsafe {
+                            callback(
+                                std::ptr::null(),
+                                DeltaTableError::new(
+                                    rt,
+                                    DeltaTableErrorCode::DataFusion,
+                                    &error.to_string(),
+                                )
+                                .into_raw(),
+                            );
+                            return;
+                        },
+                    };
+
+                    let reader =
+                        DataFrameStreamIterator::new(df_stream, Arc::new(schema), rt.handle());
+                    let out_stream = arrow::ffi_stream::FFI_ArrowArrayStream::new(Box::new(reader));
+                    unsafe {
+                        callback(
+                            Box::into_raw(Box::new(out_stream)) as *const c_void,
+                            std::ptr::null(),
+                        );
+                    }
+                }
+                Err(error) => unsafe {
+                    println!("parsing error");
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(
+                            rt,
+                            DeltaTableErrorCode::DataFusion,
+                            &error.to_string(),
+                        )
+                        .into_raw(),
+                    );
+                },
+            };
+        },
+        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+    );
+}
+
+#[no_mangle]
 pub extern "C" fn table_insert(
     runtime: *mut Runtime,
     table: *mut RawDeltaTable,
@@ -970,7 +1065,7 @@ pub extern "C" fn table_insert(
         None
     } else {
         let predicate = unsafe { &*predicate };
-        Some(predicate.to_owned_string())
+        predicate.to_option_string()
     };
 
     let (batches, _) = match ffi_to_batches(

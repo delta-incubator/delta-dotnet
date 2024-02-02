@@ -10,20 +10,6 @@ namespace DeltaLake.Table
     public class InsertOptions
     {
         /// <summary>
-        /// Creates an instance of InsertOptions with required Records property
-        /// </summary>
-        /// <param name="records"><see cref="RecordBatch"/> The records to insert</param>
-        public InsertOptions(IReadOnlyCollection<RecordBatch> records)
-        {
-            Records = records;
-        }
-
-        /// <summary>
-        /// <see cref="Apache.Arrow.RecordBatch">RecordBatch</see> representing records to insert
-        /// </summary>
-        public IReadOnlyCollection<RecordBatch> Records { get; }
-
-        /// <summary>
         /// Predicate for insertion.
         /// Represents the WHERE clause, not including WHERE
         /// </summary>

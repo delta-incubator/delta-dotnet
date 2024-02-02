@@ -175,9 +175,34 @@ namespace DeltaLake.Table
             throw new NotImplementedException();
         }
 
-        public Task RestoreAsync()
+        public Task RestoreAsync(RestoreOptions options, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
+        }
+
+        public Task UpdateAsync(string query, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task DeleteAsync(string predicate, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public async IAsyncEnumerable<RecordBatch> QueryAsync(SelectQuery query, CancellationToken cancellationToken)
+        {
+            var result = await _table.QueryAsync(query.Query, query.TableAlias, cancellationToken).ConfigureAwait(false);
+            while (true)
+            {
+                var rb = await result.ReadNextRecordBatchAsync(cancellationToken).ConfigureAwait(false);
+                if (rb == null)
+                {
+                    yield break;
+                }
+
+                yield return rb;
+            }
         }
 
         /// <inheritdoc />
@@ -185,5 +210,18 @@ namespace DeltaLake.Table
         {
             _table.Dispose();
         }
+    }
+
+    public class SelectQuery
+    {
+
+        public SelectQuery(string query)
+        {
+            Query = query;
+        }
+
+        public string Query { get; }
+
+        public string? TableAlias { get; init; }
     }
 }

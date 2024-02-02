@@ -1,15 +1,25 @@
 use std::collections::VecDeque;
 
-use deltalake::datafusion::sql::{
-    parser::{DFParser, Statement as DFStatement},
-    sqlparser::{
-        ast::{Assignment, Expr, Ident, TableAlias, TableFactor, Values},
-        dialect::{Dialect, GenericDialect},
-        keywords::Keyword,
-        parser::{Parser, ParserError},
-        tokenizer::{Token, TokenWithLocation, Tokenizer},
+use arrow::{
+    datatypes::{Schema, SchemaRef},
+    error::ArrowError,
+    record_batch::{RecordBatch, RecordBatchReader},
+};
+use deltalake::datafusion::{
+    physical_plan::SendableRecordBatchStream,
+    sql::{
+        parser::{DFParser, Statement as DFStatement},
+        sqlparser::{
+            ast::{Assignment, Expr, Ident, TableAlias, TableFactor, Values},
+            dialect::{Dialect, GenericDialect},
+            keywords::Keyword,
+            parser::{Parser, ParserError},
+            tokenizer::{Token, TokenWithLocation, Tokenizer},
+        },
     },
 };
+use futures::{FutureExt, StreamExt};
+use tokio::{runtime::Handle, task::spawn_blocking};
 
 use crate::error::{DeltaTableError, DeltaTableErrorCode};
 
@@ -381,5 +391,50 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<TableAlias> {
             columns: _,
             alias,
         } => alias,
+        TableFactor::JsonTable {
+            json_expr: _,
+            json_path: _,
+            columns: _,
+            alias,
+        } => alias,
+    }
+}
+
+pub(crate) struct DataFrameStreamIterator {
+    stream: SendableRecordBatchStream,
+    schema: SchemaRef,
+    handle: tokio::runtime::Handle,
+}
+
+impl DataFrameStreamIterator {
+    pub(crate) fn new(
+        stream: SendableRecordBatchStream,
+        schema: SchemaRef,
+        handle: Handle,
+    ) -> Self {
+        Self {
+            stream,
+            schema,
+            handle,
+        }
+    }
+}
+impl RecordBatchReader for DataFrameStreamIterator {
+    fn schema(&self) -> arrow::datatypes::SchemaRef {
+        self.schema.clone()
+    }
+}
+
+impl Iterator for DataFrameStreamIterator {
+    type Item = Result<RecordBatch, ArrowError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let result = futures::executor::block_on(self.stream.next());
+        result.map(|result| {
+            result.map_err(|err| match err {
+                deltalake::datafusion::error::DataFusionError::ArrowError(arrow, _) => arrow,
+                _ => ArrowError::ComputeError(err.to_string()),
+            })
+        })
     }
 }

@@ -7,9 +7,6 @@ using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.C;
 using Apache.Arrow.Ipc;
-using Apache.Arrow.Memory;
-using CommunityToolkit.HighPerformance;
-using CommunityToolkit.HighPerformance.Buffers;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Table;
 using ICancellationToken = System.Threading.CancellationToken;
@@ -238,6 +235,50 @@ namespace DeltaLake.Bridge
 
                     return await tsc.Task.ConfigureAwait(false);
                 }
+            }
+        }
+
+        public async Task<IArrowArrayStream> QueryAsync(
+            string query,
+            string? tableName,
+            ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<IArrowArrayStream>();
+            using (var scope = new Scope())
+            {
+
+                unsafe
+                {
+                    Interop.Methods.table_query(
+                        _runtime.Ptr,
+                         _ptr,
+                         scope.Pointer(scope.ByteArray(query)),
+                         scope.Pointer(scope.ByteArray(tableName)),
+                        scope.CancellationToken(cancellationToken),
+                          scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            tsc.TrySetCanceled(cancellationToken);
+                            return;
+                        }
+
+                        if (fail != null)
+                        {
+                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                        }
+                        else
+                        {
+                            var stream = CArrowArrayStreamImporter.ImportArrayStream((CArrowArrayStream*)success);
+                            if (!tsc.TrySetResult(stream))
+                            {
+                                stream.Dispose();
+                            }
+                        }
+                    }));
+                }
+
+                return await tsc.Task.ConfigureAwait(false);
             }
         }
 

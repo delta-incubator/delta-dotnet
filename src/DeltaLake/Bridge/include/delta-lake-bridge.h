@@ -289,6 +289,13 @@ void table_delete(struct Runtime *runtime,
                   const struct CancellationToken *cancellation_token,
                   GenericErrorCallback callback);
 
+void table_query(struct Runtime *runtime,
+                 struct RawDeltaTable *table,
+                 const struct ByteArrayRef *query,
+                 const struct ByteArrayRef *table_name,
+                 const struct CancellationToken *cancellation_token,
+                 GenericErrorCallback callback);
+
 void table_insert(struct Runtime *runtime,
                   struct RawDeltaTable *table,
                   void *stream,

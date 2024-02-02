@@ -1,11 +1,26 @@
 use deltalake::datafusion::sql::sqlparser::parser::ParserError;
 
-use crate::{runtime::Runtime, ByteArray};
+use crate::{runtime::Runtime, ByteArray, ByteArrayRef};
 
 #[repr(C)]
 pub struct DeltaTableError {
     code: DeltaTableErrorCode,
     error: ByteArray,
+}
+
+#[repr(C)]
+pub struct DeltaTableErrorRef {
+    code: DeltaTableErrorCode,
+    error: ByteArrayRef,
+}
+
+impl DeltaTableErrorRef {
+    pub(crate) fn new(code: DeltaTableErrorCode, error: &str) -> Self {
+        Self {
+            code,
+            error: ByteArrayRef::from_str(error),
+        }
+    }
 }
 
 #[repr(C)]
