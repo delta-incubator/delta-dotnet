@@ -190,6 +190,12 @@ namespace DeltaLake.Table
             throw new NotImplementedException();
         }
 
+        /// <summary>
+        /// Issue a select query against a delta table
+        /// </summary>
+        /// <param name="query">A select query</param>
+        /// <param name="cancellationToken"></param>
+        /// <returns><see cref="IAsyncEnumerable{RecordBatch}"/>A collection of record batches representing the query results</returns>
         public async IAsyncEnumerable<RecordBatch> QueryAsync(SelectQuery query, CancellationToken cancellationToken)
         {
             var result = await _table.QueryAsync(query.Query, query.TableAlias, cancellationToken).ConfigureAwait(false);
@@ -210,18 +216,5 @@ namespace DeltaLake.Table
         {
             _table.Dispose();
         }
-    }
-
-    public class SelectQuery
-    {
-
-        public SelectQuery(string query)
-        {
-            Query = query;
-        }
-
-        public string Query { get; }
-
-        public string? TableAlias { get; init; }
     }
 }

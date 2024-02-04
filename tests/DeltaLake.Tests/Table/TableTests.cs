@@ -128,7 +128,31 @@ public class DeltaTableTests
         };
         await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
         var version = table.Version();
+        var queryResult = table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test > 1")
+        {
+            TableAlias = "test",
+        },
+        CancellationToken.None).ToBlockingEnumerable().ToList();
         Assert.Equal(1, version);
+        var resultCount = 0;
+        foreach (var batch in queryResult)
+        {
+            Assert.Equal(1, batch.ColumnCount);
+            var column = batch.Column(0);
+            if (column is not Int32Array integers)
+            {
+                throw new Exception("expected int32 array and got " + column.GetType());
+            }
+
+            foreach (var intValue in integers)
+            {
+                Assert.NotNull(intValue);
+                Assert.True(intValue.Value > 1);
+                ++resultCount;
+            }
+        }
+
+        Assert.Equal(8, resultCount);
         await foreach (var result in table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test = 1")
         {
             TableAlias = "test",
