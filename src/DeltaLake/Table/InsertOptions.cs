@@ -1,7 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
-using Apache.Arrow;
-
 namespace DeltaLake.Table
 {
     /// <summary>

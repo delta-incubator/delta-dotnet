@@ -31,6 +31,6 @@ namespace DeltaLake.Table
         /// <summary>
         /// Custom metadata
         /// </summary>
-        public Dictionary<string, string> CustomMetadata { get; set; }
+        public Dictionary<string, string> CustomMetadata { get; init; } = new Dictionary<string, string>();
     }
 }

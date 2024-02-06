@@ -7,7 +7,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Metadata for the table
     /// </summary>
-    public class Metadata
+    public class TableMetadata
     {
         private static readonly Dictionary<string, string?> EmptySettings = new();
 
@@ -56,9 +56,9 @@ namespace DeltaLake.Table
         /// </summary>
         public IReadOnlyDictionary<string, string?> Configuration { get; init; } = EmptySettings;
 
-        internal unsafe static Metadata FromUnmanaged(Bridge.Interop.TableMetadata* metadata)
+        internal unsafe static TableMetadata FromUnmanaged(Bridge.Interop.TableMetadata* metadata)
         {
-            return new DeltaLake.Table.Metadata
+            return new DeltaLake.Table.TableMetadata
             {
                 Id = Marshal.PtrToStringUTF8(new IntPtr(metadata->id)) ?? string.Empty,
                 Name = Marshal.PtrToStringUTF8(new IntPtr(metadata->name)),

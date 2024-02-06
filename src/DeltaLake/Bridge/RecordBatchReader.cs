@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Apache.Arrow;
@@ -6,15 +5,13 @@ using Apache.Arrow.Ipc;
 
 namespace DeltaLake.Bridge
 {
-    internal class RecordBatchReader : IArrowArrayStream
+    internal sealed class RecordBatchReader : IArrowArrayStream
     {
-        private readonly IEnumerable<RecordBatch> _recordBatches;
         private readonly IEnumerator<RecordBatch> _enumerator;
 
         public RecordBatchReader(IEnumerable<RecordBatch> recordBatches, Schema schema)
         {
-            _recordBatches = recordBatches;
-            _enumerator = _recordBatches.GetEnumerator();
+            _enumerator = recordBatches.GetEnumerator();
             Schema = schema;
         }
 
@@ -32,7 +29,9 @@ namespace DeltaLake.Bridge
                 return ValueTask.FromResult(_enumerator.Current);
             }
 
-            return ValueTask.FromResult<RecordBatch>(default(RecordBatch));
+#pragma warning disable CS8625 // Cannot convert null literal to non-nullable reference type.
+            return ValueTask.FromResult<RecordBatch>(default);
+#pragma warning restore CS8625 // Cannot convert null literal to non-nullable reference type.
         }
     }
 }

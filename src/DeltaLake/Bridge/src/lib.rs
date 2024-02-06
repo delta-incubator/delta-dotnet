@@ -66,6 +66,7 @@ impl KeyValuePair {
         ManuallyDrop::new(mapped).as_mut_ptr()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn from_hash_map(input: HashMap<String, String>) -> *mut *mut Self {
         ManuallyDrop::new(
             input
@@ -90,13 +91,9 @@ impl KeyValuePair {
 impl Drop for KeyValuePair {
     fn drop(&mut self) {
         unsafe {
-            let _ = String::from_raw_parts(self.key as *mut u8, self.key_length, self.key_length);
+            let _ = String::from_raw_parts(self.key, self.key_length, self.key_length);
             if !self.value.is_null() {
-                let _ = String::from_raw_parts(
-                    self.value as *mut u8,
-                    self.value_length,
-                    self.value_length,
-                );
+                let _ = String::from_raw_parts(self.value, self.value_length, self.value_length);
             }
         }
     }
@@ -168,31 +165,8 @@ pub struct ByteArrayRef {
 }
 
 impl ByteArrayRef {
-    fn from_str(s: &str) -> ByteArrayRef {
-        ByteArrayRef {
-            data: s.as_ptr(),
-            size: s.len(),
-        }
-    }
-
-    fn from_string(s: &String) -> ByteArrayRef {
-        ByteArrayRef {
-            data: s.as_ptr(),
-            size: s.len(),
-        }
-    }
-
     fn to_slice(&self) -> &[u8] {
         unsafe { std::slice::from_raw_parts(self.data, self.size) }
-    }
-
-    #[allow(clippy::mut_from_ref)]
-    fn to_slice_mut(&self) -> &mut [u8] {
-        unsafe { std::slice::from_raw_parts_mut(self.data as *mut u8, self.size) }
-    }
-
-    fn to_vec(&self) -> Vec<u8> {
-        self.to_slice().to_vec()
     }
 
     fn to_str(&self) -> &str {
@@ -215,14 +189,6 @@ impl ByteArrayRef {
         }
     }
 
-    fn to_option_vec(&self) -> Option<Vec<u8>> {
-        if self.size == 0 {
-            None
-        } else {
-            Some(self.to_vec())
-        }
-    }
-
     fn to_option_str(&self) -> Option<&str> {
         if self.size == 0 {
             None
@@ -233,20 +199,6 @@ impl ByteArrayRef {
 
     fn to_option_string(&self) -> Option<String> {
         self.to_option_str().map(str::to_string)
-    }
-
-    fn to_str_map_on_newlines(&self) -> HashMap<&str, &str> {
-        let strs: Vec<&str> = self.to_str().split('\n').collect();
-        strs.chunks_exact(2)
-            .map(|pair| (pair[0], pair[1]))
-            .collect()
-    }
-
-    fn to_string_map_on_newlines(&self) -> HashMap<String, String> {
-        self.to_str_map_on_newlines()
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect()
     }
 }
 

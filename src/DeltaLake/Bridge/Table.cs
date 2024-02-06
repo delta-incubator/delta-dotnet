@@ -448,7 +448,7 @@ namespace DeltaLake.Bridge
                     Methods.history(
                         _runtime.Ptr,
                         _ptr,
-                        (UIntPtr)limit,
+                        new UIntPtr(limit),
                         scope.CancellationToken(cancellationToken),
                         scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
                         {
@@ -506,7 +506,7 @@ namespace DeltaLake.Bridge
             await tsc.Task.ConfigureAwait(false);
         }
 
-        public Metadata Metadata()
+        public DeltaLake.Table.TableMetadata Metadata()
         {
             unsafe
             {
@@ -518,11 +518,11 @@ namespace DeltaLake.Bridge
 
                 try
                 {
-                    return DeltaLake.Table.Metadata.FromUnmanaged(result.metadata);
+                    return DeltaLake.Table.TableMetadata.FromUnmanaged(result.metadata);
                 }
                 finally
                 {
-                    var release = (delegate* unmanaged<TableMetadata*, void>)result.metadata->release;
+                    var release = (delegate* unmanaged<Interop.TableMetadata*, void>)result.metadata->release;
                     release(result.metadata);
                 }
             }

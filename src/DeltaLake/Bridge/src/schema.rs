@@ -26,6 +26,7 @@ pub enum PartitionFilterSetOp {
 }
 pub struct PartitionFilterList {
     pub(crate) filters: Vec<deltalake::PartitionFilter>,
+    #[allow(dead_code)]
     disable_free: bool,
 }
 
@@ -39,21 +40,21 @@ pub extern "C" fn partition_filter_list_new(capacity: usize) -> *mut PartitionFi
 
 #[no_mangle]
 pub extern "C" fn partition_filter_list_add_binary(
-    list: *mut PartitionFilterList,
-    key: *const ByteArrayRef,
-    op: PartitionFilterBinaryOp,
-    value: *const ByteArrayRef,
+    _list: *mut PartitionFilterList,
+    _key: *const ByteArrayRef,
+    _op: PartitionFilterBinaryOp,
+    _value: *const ByteArrayRef,
 ) -> bool {
-    unimplemented!()
+    todo!()
 }
 
 #[no_mangle]
 pub extern "C" fn partition_filter_list_add_set(
-    list: *mut PartitionFilterList,
-    key: *const ByteArrayRef,
-    op: PartitionFilterBinaryOp,
-    value: *const ByteArrayRef,
-    value_count: usize,
+    _list: *mut PartitionFilterList,
+    _key: *const ByteArrayRef,
+    _op: PartitionFilterBinaryOp,
+    _value: *const ByteArrayRef,
+    _value_count: usize,
 ) -> bool {
     unimplemented!()
 }

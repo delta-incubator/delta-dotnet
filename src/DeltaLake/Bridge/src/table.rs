@@ -34,7 +34,7 @@ use crate::{
     schema::PartitionFilterList,
     sql::{extract_table_factor_alias, DataFrameStreamIterator, DeltaLakeParser, Statement},
     ByteArray, ByteArrayRef, CancellationToken, Dictionary, DynamicArray, KeyNullableValuePair,
-    KeyValuePair, Map,
+    Map,
 };
 
 pub struct RawDeltaTable {
@@ -703,20 +703,6 @@ pub extern "C" fn table_merge(
                     &mut *runtime,
                     DeltaTableErrorCode::Generic,
                     &err.to_string(),
-                )
-                .into_raw(),
-            );
-        },
-        _ => unsafe {
-            callback(
-                std::ptr::null(),
-                DeltaTableError::new(
-                    &mut *runtime,
-                    DeltaTableErrorCode::Generic,
-                    &format!(
-                        "invalid sql statement. expected merge. received: {}",
-                        query_str
-                    ),
                 )
                 .into_raw(),
             );
@@ -1563,7 +1549,7 @@ mod tests {
           )",
         );
         let mut res = parser.expect("this should parser");
-        let stmt = res.parse_statement().expect("the statement should parse");
+        let stmt = res.parse_merge().expect("the statement should parse");
         match stmt {
             Statement::MergeStatement {
                 into: _,
@@ -1574,7 +1560,6 @@ mod tests {
             } => {
                 assert!(!clauses.is_empty());
             }
-            _ => panic!("expected statement"),
         }
     }
 }

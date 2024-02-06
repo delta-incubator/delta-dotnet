@@ -258,16 +258,16 @@ void dynamic_array_free(struct Runtime *runtime, const struct DynamicArray *arra
 
 struct PartitionFilterList *partition_filter_list_new(uintptr_t capacity);
 
-bool partition_filter_list_add_binary(struct PartitionFilterList *list,
-                                      const struct ByteArrayRef *key,
-                                      enum PartitionFilterBinaryOp op,
-                                      const struct ByteArrayRef *value);
+bool partition_filter_list_add_binary(struct PartitionFilterList *_list,
+                                      const struct ByteArrayRef *_key,
+                                      enum PartitionFilterBinaryOp _op,
+                                      const struct ByteArrayRef *_value);
 
-bool partition_filter_list_add_set(struct PartitionFilterList *list,
-                                   const struct ByteArrayRef *key,
-                                   enum PartitionFilterBinaryOp op,
-                                   const struct ByteArrayRef *value,
-                                   uintptr_t value_count);
+bool partition_filter_list_add_set(struct PartitionFilterList *_list,
+                                   const struct ByteArrayRef *_key,
+                                   enum PartitionFilterBinaryOp _op,
+                                   const struct ByteArrayRef *_value,
+                                   uintptr_t _value_count);
 
 void partition_filter_list_free(struct PartitionFilterList *list);
 

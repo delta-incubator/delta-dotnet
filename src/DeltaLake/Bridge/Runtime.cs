@@ -6,7 +6,6 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Apache.Arrow.C;
-using Microsoft.Extensions.Logging;
 
 namespace DeltaLake.Bridge
 {
@@ -15,15 +14,6 @@ namespace DeltaLake.Bridge
     /// </summary>
     internal sealed class Runtime : SafeHandle
     {
-        /*
-        private static readonly Func<ForwardedLog, Exception?, string> ForwardLogMessageFormatter =
-            LogMessageFormatter;
-
-        private readonly bool forwardLoggerIncludeFields;*/
-        private readonly GCHandle? forwardLoggerCallback;
-
-        private ILogger? forwardLogger;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="Runtime"/> class.
         /// </summary>
@@ -234,13 +224,8 @@ namespace DeltaLake.Bridge
         /// <inheritdoc />
         protected override unsafe bool ReleaseHandle()
         {
-            forwardLogger = null;
-            forwardLoggerCallback?.Free();
             Interop.Methods.runtime_free(Ptr);
             return true;
         }
-
-        private static string LogMessageFormatter(ForwardedLog state, Exception? error) =>
-            state.ToString();
     }
 }

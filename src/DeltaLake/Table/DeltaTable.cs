@@ -154,7 +154,6 @@ namespace DeltaLake.Table
         public async Task HistoryAsync(ulong? limit, CancellationToken cancellationToken)
         {
             await _table.HistoryAsync(limit ?? 0, cancellationToken).ConfigureAwait(false);
-            // TODO: Deserialize the results
         }
 
         /// <summary>
@@ -195,8 +194,8 @@ namespace DeltaLake.Table
         /// <summary>
         /// Returns table metadata
         /// </summary>
-        /// <returns><see cref="DeltaLake.Table.Metadata"/></returns>
-        public Metadata Metadata()
+        /// <returns><see cref="DeltaLake.Table.TableMetadata"/></returns>
+        public TableMetadata Metadata()
         {
             return _table.Metadata();
         }

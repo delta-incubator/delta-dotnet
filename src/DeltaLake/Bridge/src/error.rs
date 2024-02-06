@@ -1,26 +1,11 @@
 use deltalake::datafusion::sql::sqlparser::parser::ParserError;
 
-use crate::{runtime::Runtime, ByteArray, ByteArrayRef};
+use crate::{runtime::Runtime, ByteArray};
 
 #[repr(C)]
 pub struct DeltaTableError {
     code: DeltaTableErrorCode,
     error: ByteArray,
-}
-
-#[repr(C)]
-pub struct DeltaTableErrorRef {
-    code: DeltaTableErrorCode,
-    error: ByteArrayRef,
-}
-
-impl DeltaTableErrorRef {
-    pub(crate) fn new(code: DeltaTableErrorCode, error: &str) -> Self {
-        Self {
-            code,
-            error: ByteArrayRef::from_str(error),
-        }
-    }
 }
 
 #[repr(C)]
@@ -143,18 +128,6 @@ impl DeltaTableError {
         };
 
         Self::new(_runtime, code, &error_string)
-    }
-
-    pub(crate) fn from_cancellation() -> Self {
-        DeltaTableError {
-            code: DeltaTableErrorCode::OperationCanceled,
-            error: ByteArray {
-                data: std::ptr::null(),
-                size: 0,
-                cap: 0,
-                disable_free: true,
-            },
-        }
     }
 
     pub(crate) fn into_raw(self) -> *mut DeltaTableError {

@@ -1,33 +1,21 @@
-use std::collections::VecDeque;
-
 use arrow::{
-    datatypes::{Schema, SchemaRef},
+    datatypes::SchemaRef,
     error::ArrowError,
     record_batch::{RecordBatch, RecordBatchReader},
 };
 use deltalake::datafusion::{
     physical_plan::SendableRecordBatchStream,
-    sql::{
-        parser::{DFParser, Statement as DFStatement},
-        sqlparser::{
-            ast::{Assignment, Expr, Ident, TableAlias, TableFactor, Values},
-            dialect::{Dialect, GenericDialect},
-            keywords::Keyword,
-            parser::{Parser, ParserError},
-            tokenizer::{Token, TokenWithLocation, Tokenizer},
-        },
+    sql::sqlparser::{
+        ast::{Assignment, Expr, Ident, TableAlias, TableFactor, Values},
+        dialect::{Dialect, GenericDialect},
+        keywords::Keyword,
+        parser::{Parser, ParserError},
+        tokenizer::{Token, Tokenizer},
     },
 };
-use futures::{FutureExt, StreamExt};
-use tokio::{runtime::Handle, task::spawn_blocking};
+use futures::StreamExt;
 
 use crate::error::{DeltaTableError, DeltaTableErrorCode};
-
-macro_rules! parser_err {
-    ($MSG:expr) => {
-        Err(ParserError::ParserError($MSG.to_string()))
-    };
-}
 
 macro_rules! make_update {
     ($update:ident, $predicate:ident, $assignments:ident) => {{
@@ -45,7 +33,6 @@ macro_rules! make_update {
 }
 
 pub struct DeltaLakeParser<'a> {
-    sql: &'a str,
     parser: Parser<'a>,
 }
 
@@ -63,80 +50,8 @@ impl<'a> DeltaLakeParser<'a> {
         let tokens = tokenizer.tokenize()?;
 
         Ok(Self {
-            sql,
             parser: Parser::new(dialect).with_tokens(tokens),
         })
-    }
-    /// Parse a sql string into one or [`Statement`]s using the
-    /// [`GenericDialect`].
-    pub fn parse_sql(sql: impl AsRef<str>) -> Result<VecDeque<Statement>, ParserError> {
-        let dialect: &GenericDialect = &GenericDialect {};
-        DeltaLakeParser::parse_sql_with_dialect(sql.as_ref(), dialect)
-    }
-
-    /// Parse a SQL string and produce one or more [`Statement`]s with
-    /// with the specified dialect.
-    pub fn parse_sql_with_dialect(
-        sql: &str,
-        dialect: &dyn Dialect,
-    ) -> Result<VecDeque<Statement>, ParserError> {
-        let mut parser = DeltaLakeParser::new_with_dialect(sql, dialect)?;
-        let mut stmts = VecDeque::new();
-        let mut expecting_statement_delimiter = false;
-        loop {
-            // ignore empty statements (between successive statement delimiters)
-            while parser.parser.consume_token(&Token::SemiColon) {
-                expecting_statement_delimiter = false;
-            }
-
-            if parser.parser.peek_token() == Token::EOF {
-                break;
-            }
-            if expecting_statement_delimiter {
-                return parser.expected("end of statement", parser.parser.peek_token());
-            }
-
-            let statement = parser.parse_statement()?;
-            stmts.push_back(statement);
-            expecting_statement_delimiter = true;
-        }
-
-        Ok(stmts)
-    }
-
-    /// Report an unexpected token
-    fn expected<T>(&self, expected: &str, found: TokenWithLocation) -> Result<T, ParserError> {
-        parser_err!(format!("Expected {expected}, found: {found}"))
-    }
-
-    /// Parse a new expression
-    pub fn parse_statement(&mut self) -> Result<Statement, ParserError> {
-        match self.parser.peek_token().token {
-            Token::Word(w) => {
-                match w.keyword {
-                    Keyword::MERGE => {
-                        self.parser.next_token();
-                        self.parse_merge()
-                    }
-                    _ => {
-                        // use the native parser
-                        // TODO fix for multiple statememnts and keeping parsers in sync
-                        let mut df = DFParser::new(self.sql)?;
-                        let stmt = df.parse_statement()?;
-                        self.parser.parse_statement()?;
-                        Ok(Statement::Datafusion(stmt))
-                    }
-                }
-            }
-            _ => {
-                // use the native parser
-                // TODO fix for multiple statememnts and keeping parsers in sync
-                let mut df = DFParser::new(self.sql)?;
-                let stmt = df.parse_statement()?;
-                self.parser.parse_statement()?;
-                Ok(Statement::Datafusion(stmt))
-            }
-        }
     }
 
     pub fn parse_merge(&mut self) -> Result<Statement, ParserError> {
@@ -311,7 +226,6 @@ impl<'a> DeltaLakeParser<'a> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
     /// Datafusion AST node (from datafusion-sql)
-    Datafusion(DFStatement),
     MergeStatement {
         into: bool,
         // Specifies the table to merge
