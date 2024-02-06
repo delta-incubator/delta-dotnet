@@ -15,7 +15,10 @@
       "noRestore": false,
       "namespaceLayout": "nested",
       "memberLayout": "samePage",
-      "allowCompilationErrors": false
+      "allowCompilationErrors": false,
+      "properties": {
+        "TargetFramework": "net8.0"
+      }
     }
   ],
   "build": {
