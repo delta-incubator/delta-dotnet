@@ -229,6 +229,84 @@ namespace DeltaLake.Bridge.Interop
         public Map* custom_metadata;
     }
 
+    internal unsafe partial struct KeyValuePair
+    {
+        [NativeTypeName("uint8_t *")]
+        public byte* key;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr key_length;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr key_capacity;
+
+        [NativeTypeName("uint8_t *")]
+        public byte* value;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr value_length;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr value_capacity;
+    }
+
+    internal unsafe partial struct Dictionary
+    {
+        [NativeTypeName("struct KeyValuePair **")]
+        public KeyValuePair** values;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr length;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr capacity;
+    }
+
+    internal unsafe partial struct TableMetadata
+    {
+        [NativeTypeName("const char *")]
+        public sbyte* id;
+
+        [NativeTypeName("const char *")]
+        public sbyte* name;
+
+        [NativeTypeName("const char *")]
+        public sbyte* description;
+
+        [NativeTypeName("const char *")]
+        public sbyte* format_provider;
+
+        [NativeTypeName("struct Dictionary")]
+        public Dictionary format_options;
+
+        [NativeTypeName("const char *")]
+        public sbyte* schema_string;
+
+        [NativeTypeName("char **")]
+        public sbyte** partition_columns;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr partition_columns_count;
+
+        [NativeTypeName("int64_t")]
+        public long created_time;
+
+        [NativeTypeName("struct Dictionary")]
+        public Dictionary configuration;
+
+        [NativeTypeName("void (*)(struct TableMetadata *)")]
+        public IntPtr release;
+    }
+
+    internal unsafe partial struct MetadataOrError
+    {
+        [NativeTypeName("const struct TableMetadata *")]
+        public TableMetadata* metadata;
+
+        [NativeTypeName("const struct DeltaTableError *")]
+        public DeltaTableError* error;
+    }
+
     internal static unsafe partial class Methods
     {
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -354,7 +432,7 @@ namespace DeltaLake.Bridge.Interop
         public static extern long table_version([NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_metadata([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle);
+        [return: NativeTypeName("struct MetadataOrError")]
+        public static extern MetadataOrError table_metadata([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle);
     }
 }

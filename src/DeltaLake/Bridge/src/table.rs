@@ -33,8 +33,8 @@ use crate::{
     runtime::Runtime,
     schema::PartitionFilterList,
     sql::{extract_table_factor_alias, DataFrameStreamIterator, DeltaLakeParser, Statement},
-    ByteArray, ByteArrayRef, CancellationToken, DynamicArray, KeyNullableValuePair, KeyValuePair,
-    Map,
+    ByteArray, ByteArrayRef, CancellationToken, Dictionary, DynamicArray, KeyNullableValuePair,
+    KeyValuePair, Map,
 };
 
 pub struct RawDeltaTable {
@@ -51,7 +51,7 @@ pub struct TableMetadata {
     description: *const c_char,
     /// Specification of the encoding for the files stored in the table
     format_provider: *const c_char,
-    format_options: *mut *mut KeyNullableValuePair,
+    format_options: Dictionary,
     /// Schema of the table
     schema_string: *const c_char,
     /// Column names by which the data should be partitioned
@@ -60,7 +60,7 @@ pub struct TableMetadata {
     /// The time when this metadata action is created, in milliseconds since the Unix epoch
     created_time: i64,
     /// Configuration options for the metadata action
-    configuration: *mut *mut KeyValuePair,
+    configuration: Dictionary,
 
     release: Option<unsafe extern "C" fn(arg1: *mut TableMetadata)>,
 }
@@ -90,7 +90,19 @@ unsafe extern "C" fn release_metadata(metadata: *mut TableMetadata) {
     }
 
     drop(CString::from_raw(metadata.format_provider as *mut c_char));
-    drop(Box::from_raw(metadata.format_options));
+    let format_options = Vec::from_raw_parts(
+        metadata.format_options.values,
+        metadata.format_options.length,
+        metadata.format_options.capacity,
+    );
+    for fo in format_options.into_iter() {
+        let kv = Box::from_raw(fo);
+        String::from_raw_parts(kv.key, kv.key_length, kv.key_capacity);
+        if !kv.value.is_null() {
+            String::from_raw_parts(kv.value, kv.value_length, kv.value_capacity);
+        }
+    }
+
     let partition_columns = Vec::from_raw_parts(
         metadata.partition_columns,
         metadata.partition_columns_count,
@@ -99,7 +111,19 @@ unsafe extern "C" fn release_metadata(metadata: *mut TableMetadata) {
     for partition in partition_columns.iter() {
         drop(CString::from_raw(*partition));
     }
-    drop(Box::from_raw(metadata.configuration));
+
+    let configuration = Vec::from_raw_parts(
+        metadata.configuration.values,
+        metadata.configuration.length,
+        metadata.configuration.capacity,
+    );
+    for opt in configuration.into_iter() {
+        let kv = Box::from_raw(opt);
+        String::from_raw_parts(kv.key, kv.key_length, kv.key_capacity);
+        if !kv.value.is_null() {
+            String::from_raw_parts(kv.value, kv.value_length, kv.value_capacity);
+        }
+    }
 
     metadata.release = None;
 }
@@ -148,6 +172,12 @@ pub struct BytesOrError {
 #[repr(C)]
 pub struct GenericOrError {
     bytes: *const c_void,
+    error: *const DeltaTableError,
+}
+
+#[repr(C)]
+pub struct MetadataOrError {
+    metadata: *const TableMetadata,
     error: *const DeltaTableError,
 }
 
@@ -260,10 +290,7 @@ pub extern "C" fn create_deltalake(
                     std::ptr::null(),
                 );
             },
-            Err(err) => unsafe {
-                println!("calling on error");
-                callback(std::ptr::null_mut(), err.into_raw())
-            },
+            Err(err) => unsafe { callback(std::ptr::null_mut(), err.into_raw()) },
         }
     });
 }
@@ -975,7 +1002,6 @@ pub extern "C" fn table_query(
                 return;
             }
 
-            println!("the query is {}", query);
             match ctx
                 .sql_with_options(
                     query,
@@ -1004,8 +1030,7 @@ pub extern "C" fn table_query(
                         },
                     };
 
-                    let reader =
-                        DataFrameStreamIterator::new(df_stream, Arc::new(schema), rt.handle());
+                    let reader = DataFrameStreamIterator::new(df_stream, Arc::new(schema));
                     let out_stream = arrow::ffi_stream::FFI_ArrowArrayStream::new(Box::new(reader));
                     unsafe {
                         callback(
@@ -1015,7 +1040,6 @@ pub extern "C" fn table_query(
                     }
                 }
                 Err(error) => unsafe {
-                    println!("parsing error");
                     callback(
                         std::ptr::null(),
                         DeltaTableError::new(
@@ -1264,7 +1288,7 @@ pub extern "C" fn table_version(table_handle: *mut RawDeltaTable) -> i64 {
 pub extern "C" fn table_metadata(
     runtime: *mut Runtime,
     table_handle: *mut RawDeltaTable,
-) -> GenericOrError {
+) -> MetadataOrError {
     do_with_table_and_runtime_sync(runtime, table_handle, |rt, table| {
         match table.table.metadata() {
             Ok(metadata) => {
@@ -1289,27 +1313,35 @@ pub extern "C" fn table_metadata(
                     format_provider: CString::new(metadata.format.provider.clone())
                         .unwrap()
                         .into_raw(),
-                    format_options: KeyNullableValuePair::from_optional_hash_map(
-                        metadata.format.options.clone(),
-                    ),
+                    format_options: Dictionary {
+                        values: KeyNullableValuePair::from_optional_hash_map(
+                            metadata.format.options.clone(),
+                        ),
+                        length: metadata.format.options.len(),
+                        capacity: metadata.format.options.len(),
+                    },
                     schema_string: CString::new(metadata.schema_string.clone())
                         .unwrap()
                         .into_raw(),
                     partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
                     partition_columns_count: metadata.partition_columns.len(),
                     created_time: metadata.created_time.unwrap_or(-1),
-                    configuration: KeyNullableValuePair::from_optional_hash_map(
-                        metadata.configuration.clone(),
-                    ),
+                    configuration: Dictionary {
+                        values: KeyNullableValuePair::from_optional_hash_map(
+                            metadata.configuration.clone(),
+                        ),
+                        length: metadata.configuration.len(),
+                        capacity: metadata.configuration.len(),
+                    },
                     release: Some(release_metadata),
                 };
-                GenericOrError {
-                    bytes: Box::into_raw(Box::new(table_meta)) as *const c_void,
+                MetadataOrError {
+                    metadata: Box::into_raw(Box::new(table_meta)),
                     error: std::ptr::null(),
                 }
             }
-            Err(err) => GenericOrError {
-                bytes: std::ptr::null(),
+            Err(err) => MetadataOrError {
+                metadata: std::ptr::null(),
                 error: DeltaTableError::from_error(rt, err).into_raw(),
             },
         }
@@ -1462,7 +1494,6 @@ fn ffi_to_batches(
         match arrow::ffi_stream::ArrowArrayStreamReader::from_raw(stream) {
             Ok(reader) => reader,
             Err(error) => {
-                println!("failed to convert ffi reader");
                 return Err(DeltaTableError::new(
                     runtime,
                     DeltaTableErrorCode::Arrow,
@@ -1477,7 +1508,6 @@ fn ffi_to_batches(
         match batch {
             Ok(batch) => read_batches.push(batch),
             Err(error) => {
-                println!("failed to read batch");
                 return Err(DeltaTableError::new(
                     runtime,
                     DeltaTableErrorCode::Arrow,
@@ -1534,7 +1564,6 @@ mod tests {
         );
         let mut res = parser.expect("this should parser");
         let stmt = res.parse_statement().expect("the statement should parse");
-        // println!("{}", stmt);
         match stmt {
             Statement::MergeStatement {
                 into: _,

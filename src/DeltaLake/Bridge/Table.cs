@@ -1,7 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Apache.Arrow;
@@ -84,6 +82,41 @@ namespace DeltaLake.Bridge
             }
         }
 
+        public async Task LoadDateTimeAsync(DateTimeOffset when, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Interop.Methods.table_load_with_datetime(
+                        _runtime.Ptr,
+                         _ptr,
+                         when.ToUnixTimeMilliseconds(),
+                          scope.CancellationToken(cancellationToken),
+                          scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                    {
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            tsc.TrySetCanceled(cancellationToken);
+                            return;
+                        }
+
+                        if (fail != null)
+                        {
+                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                        }
+                        else
+                        {
+                            tsc.TrySetResult(true);
+                        }
+                    }));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
         /// <summary>
         /// Returns the current version of the table
         /// </summary>
@@ -138,7 +171,20 @@ namespace DeltaLake.Bridge
             }
         }
 
-        public Apache.Arrow.Schema Schema()
+        public ProtocolInfo ProtocolVersions()
+        {
+            unsafe
+            {
+                var response = Methods.table_protocol_versions(_runtime.Ptr, _ptr);
+                return new ProtocolInfo
+                {
+                    MinimumReaderVersion = response.min_reader_version,
+                    MinimumWriterVersion = response.min_writer_version,
+                };
+            }
+        }
+
+        public Schema Schema()
         {
             unsafe
             {
@@ -205,23 +251,65 @@ namespace DeltaLake.Bridge
                                 }
                                 else
                                 {
-                                    if (success != null)
-                                    {
-                                        var byteArray = (Interop.ByteArray*)success;
-                                        if (byteArray == null)
-                                        {
-                                            tsc.TrySetResult("{}");
-                                        }
-                                        else
-                                        {
-                                            using var ba = new ByteArray(_runtime, byteArray);
-                                            tsc.TrySetResult(ba.ToUTF8());
-                                        }
-                                    }
-                                    else
-                                    {
-                                        tsc.TrySetResult("{}");
-                                    }
+                                    tsc.TrySetResult("{}");
+                                }
+                            }
+                            finally
+                            {
+                                CArrowArrayStream.Free(ffiStream);
+                                stream.Dispose();
+                            }
+                        }));
+                    }
+
+
+                    return await tsc.Task.ConfigureAwait(false);
+                }
+            }
+        }
+
+        public async Task<string> MergeAsync(
+            string query,
+            IReadOnlyCollection<RecordBatch> records,
+            Schema schema,
+            ICancellationToken cancellationToken)
+        {
+            if (records.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var tsc = new TaskCompletionSource<string>();
+            using (var scope = new Scope())
+            {
+                using (var stream = new RecordBatchReader(records, schema))
+                {
+                    unsafe
+                    {
+                        var ffiStream = CArrowArrayStream.Create();
+                        CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
+                        Interop.Methods.table_merge(
+                            _runtime.Ptr,
+                             _ptr,
+                             scope.Pointer(scope.ByteArray(query)),
+                             ffiStream,
+                            scope.CancellationToken(cancellationToken),
+                              scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        {
+                            try
+                            {
+                                if (cancellationToken.IsCancellationRequested)
+                                {
+                                    tsc.TrySetCanceled(cancellationToken);
+                                }
+                                else if (fail != null)
+                                {
+                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                }
+                                else
+                                {
+                                    using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
+                                    tsc.TrySetResult(content.ToUTF8());
                                 }
                             }
                             finally
@@ -282,6 +370,203 @@ namespace DeltaLake.Bridge
             }
         }
 
+        public async Task<string> DeleteAsync(string predicate, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<string>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_delete(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.Pointer(scope.ByteArray(predicate)),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
+                                tsc.TrySetResult(content.ToUTF8());
+                            }
+                        }));
+
+                }
+            }
+            return await tsc.Task.ConfigureAwait(false);
+        }
+
+        public async Task<string> UpdateAsync(string query, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<string>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_update(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.Pointer(scope.ByteArray(query)),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
+                                tsc.TrySetResult(content.ToUTF8());
+                            }
+                        }));
+
+                }
+            }
+            return await tsc.Task.ConfigureAwait(false);
+        }
+
+        public async Task<string> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<string>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.history(
+                        _runtime.Ptr,
+                        _ptr,
+                        (UIntPtr)limit,
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
+                                tsc.TrySetResult(content.ToUTF8());
+                            }
+                        }));
+
+                }
+            }
+
+            return await tsc.Task.ConfigureAwait(false);
+        }
+
+        public async Task UpdateIncrementalAsync(ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_update_incremental(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                tsc.TrySetResult(true);
+                            }
+                        }));
+
+                }
+            }
+
+            await tsc.Task.ConfigureAwait(false);
+        }
+
+        public Metadata Metadata()
+        {
+            unsafe
+            {
+                var result = Methods.table_metadata(_runtime.Ptr, _ptr);
+                if (result.error != null)
+                {
+                    throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, result.error);
+                }
+
+                try
+                {
+                    return DeltaLake.Table.Metadata.FromUnmanaged(result.metadata);
+                }
+                finally
+                {
+                    var release = (delegate* unmanaged<TableMetadata*, void>)result.metadata->release;
+                    release(result.metadata);
+                }
+            }
+        }
+
+
+        public async Task RestoreAsync(RestoreOptions options, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_restore(
+                        _runtime.Ptr,
+                        _ptr,
+                        options.Timestamp?.ToUnixTimeMilliseconds() ?? (long?)options.Version ?? 0,
+                        BoolAsByte(options.Timestamp.HasValue),
+                        BoolAsByte(options.IgnoreMissingFiles),
+                        BoolAsByte(options.ProtocolDowngradeAllowed),
+                        scope.Dictionary(_runtime, options.CustomMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                tsc.TrySetResult(true);
+                            }
+                        }));
+
+                }
+            }
+
+            await tsc.Task.ConfigureAwait(false);
+        }
+
         internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode)
         {
             return saveMode switch
@@ -299,6 +584,15 @@ namespace DeltaLake.Bridge
         {
             Interop.Methods.table_free(_ptr);
             return true;
+        }
+
+        private static byte BoolAsByte(bool input)
+        {
+            return input switch
+            {
+                true => 0,
+                false => 1,
+            };
         }
 
         private unsafe string[] GetStringArray(GenericOrError genericOrError)

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow;
@@ -144,14 +145,26 @@ namespace DeltaLake.Table
             await _table.InsertAsync(records, schema, options, cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task HistoryAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Returns the table history
+        /// </summary>
+        /// <param name="limit">Optional maximum amount of history to return</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
+        /// <returns></returns>
+        public async Task HistoryAsync(ulong? limit, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            await _table.HistoryAsync(limit ?? 0, cancellationToken).ConfigureAwait(false);
+            // TODO: Deserialize the results
         }
 
-        public async Task UpdateIncrementalAsync(CancellationToken cancellationToken)
+        /// <summary>
+        /// Updates table to latest version
+        /// </summary>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
+        /// <returns></returns>
+        public Task UpdateIncrementalAsync(CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _table.UpdateIncrementalAsync(cancellationToken);
         }
 
         /// <summary>
@@ -162,32 +175,72 @@ namespace DeltaLake.Table
         /// <returns><see cref="Task"/></returns>
         public Task LoadDateTimeAsync(DateTimeOffset timestamp, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _table.LoadDateTimeAsync(timestamp, cancellationToken);
         }
 
-        public Task MergeAsync(string query, IReadOnlyCollection<RecordBatch> records, Schema schema, CancellationToken cancellationToken)
+        /// <summary>
+        /// Merges a collection of <see cref="RecordBatch"/> into the delta table
+        /// </summary>
+        /// <param name="query">A SQL MERGE statement</param>
+        /// <param name="records">A collection of record batches</param>
+        /// <param name="schema">The schema of the collection</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
+        /// <returns></returns>
+        /// <exception cref="NotImplementedException"></exception>
+        public async Task MergeAsync(string query, IReadOnlyCollection<RecordBatch> records, Schema schema, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            await _table.MergeAsync(query, records, schema, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Returns table metadata
+        /// </summary>
+        /// <returns><see cref="DeltaLake.Table.Metadata"/></returns>
+        public Metadata Metadata()
+        {
+            return _table.Metadata();
+        }
+
+        /// <summary>
+        /// Returns minimum reader and writer versions
+        /// </summary>
+        /// <returns><see cref="DeltaLake.Table.ProtocolInfo"/></returns>
         public ProtocolInfo ProtocolVersions()
         {
-            throw new NotImplementedException();
+            return _table.ProtocolVersions();
         }
 
+        /// <summary>
+        /// Restores a table using the options provided
+        /// </summary>
+        /// <param name="options">Restore options</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
+        /// <returns><see cref="Task"/></returns>
         public Task RestoreAsync(RestoreOptions options, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _table.RestoreAsync(options, cancellationToken);
         }
 
-        public Task UpdateAsync(string query, CancellationToken cancellationToken)
+        /// <summary>
+        /// Returns json serialized statistics about the update issued against the table
+        /// </summary>
+        /// <param name="query">Sql UPDATE statement against the table</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns>json data</returns>
+        public Task<string> UpdateAsync(string query, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _table.UpdateAsync(query, cancellationToken);
         }
 
+        /// <summary>
+        /// Accepts a predicate and deletes matching items from the table
+        /// </summary>
+        /// <param name="predicate">The criteria for deletion... ex color = 'Blue' AND ts > 10000</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns></returns>
         public Task DeleteAsync(string predicate, CancellationToken cancellationToken)
         {
-            throw new NotImplementedException();
+            return _table.DeleteAsync(predicate, cancellationToken);
         }
 
         /// <summary>
@@ -196,7 +249,9 @@ namespace DeltaLake.Table
         /// <param name="query">A select query</param>
         /// <param name="cancellationToken"></param>
         /// <returns><see cref="IAsyncEnumerable{RecordBatch}"/>A collection of record batches representing the query results</returns>
-        public async IAsyncEnumerable<RecordBatch> QueryAsync(SelectQuery query, CancellationToken cancellationToken)
+        public async IAsyncEnumerable<RecordBatch> QueryAsync(
+            SelectQuery query,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
         {
             var result = await _table.QueryAsync(query.Query, query.TableAlias, cancellationToken).ConfigureAwait(false);
             while (true)

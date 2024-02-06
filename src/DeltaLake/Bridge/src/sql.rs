@@ -403,20 +403,11 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<TableAlias> {
 pub(crate) struct DataFrameStreamIterator {
     stream: SendableRecordBatchStream,
     schema: SchemaRef,
-    handle: tokio::runtime::Handle,
 }
 
 impl DataFrameStreamIterator {
-    pub(crate) fn new(
-        stream: SendableRecordBatchStream,
-        schema: SchemaRef,
-        handle: Handle,
-    ) -> Self {
-        Self {
-            stream,
-            schema,
-            handle,
-        }
+    pub(crate) fn new(stream: SendableRecordBatchStream, schema: SchemaRef) -> Self {
+        Self { stream, schema }
     }
 }
 impl RecordBatchReader for DataFrameStreamIterator {

@@ -172,6 +172,64 @@ typedef struct VacuumOptions {
   struct Map *custom_metadata;
 } VacuumOptions;
 
+typedef struct KeyValuePair {
+  uint8_t *key;
+  uintptr_t key_length;
+  uintptr_t key_capacity;
+  uint8_t *value;
+  uintptr_t value_length;
+  uintptr_t value_capacity;
+} KeyValuePair;
+
+typedef struct Dictionary {
+  struct KeyValuePair **values;
+  uintptr_t length;
+  uintptr_t capacity;
+} Dictionary;
+
+typedef struct TableMetadata {
+  /**
+   * Unique identifier for this table
+   */
+  const char *id;
+  /**
+   * User-provided identifier for this table
+   */
+  const char *name;
+  /**
+   * User-provided description for this table
+   */
+  const char *description;
+  /**
+   * Specification of the encoding for the files stored in the table
+   */
+  const char *format_provider;
+  struct Dictionary format_options;
+  /**
+   * Schema of the table
+   */
+  const char *schema_string;
+  /**
+   * Column names by which the data should be partitioned
+   */
+  char **partition_columns;
+  uintptr_t partition_columns_count;
+  /**
+   * The time when this metadata action is created, in milliseconds since the Unix epoch
+   */
+  int64_t created_time;
+  /**
+   * Configuration options for the metadata action
+   */
+  struct Dictionary configuration;
+  void (*release)(struct TableMetadata *arg1);
+} TableMetadata;
+
+typedef struct MetadataOrError {
+  const struct TableMetadata *metadata;
+  const struct DeltaTableError *error;
+} MetadataOrError;
+
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
@@ -322,7 +380,7 @@ void table_vacuum(struct Runtime *runtime,
 
 int64_t table_version(struct RawDeltaTable *table_handle);
 
-struct GenericOrError table_metadata(struct Runtime *runtime, struct RawDeltaTable *table_handle);
+struct MetadataOrError table_metadata(struct Runtime *runtime, struct RawDeltaTable *table_handle);
 
 #ifdef __cplusplus
 } // extern "C"

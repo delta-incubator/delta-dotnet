@@ -19,11 +19,20 @@ use std::{collections::HashMap, mem::ManuallyDrop};
 use runtime::Runtime;
 
 #[repr(C)]
+pub struct Dictionary {
+    values: *mut *mut KeyValuePair,
+    length: usize,
+    capacity: usize,
+}
+
+#[repr(C)]
 pub struct KeyValuePair {
-    key: *const u8,
+    key: *mut u8,
     key_length: usize,
-    value: *const u8,
+    key_capacity: usize,
+    value: *mut u8,
     value_length: usize,
+    value_capacity: usize,
 }
 
 pub type KeyNullableValuePair = KeyValuePair;
@@ -35,20 +44,22 @@ impl KeyValuePair {
         let mapped = input
             .into_iter()
             .map(|(key, value)| {
-                let key = ManuallyDrop::new(key);
-                let (value, value_length) = match value {
+                let mut key = ManuallyDrop::new(key);
+                let (value, value_length, value_capacity) = match value {
                     Some(value) => {
-                        let value = ManuallyDrop::new(value);
-                        (value.as_ptr(), value.len())
+                        let mut value = ManuallyDrop::new(value);
+                        (value.as_mut_ptr(), value.len(), value.capacity())
                     }
-                    None => (std::ptr::null(), 0),
+                    None => (std::ptr::null_mut(), 0, 0),
                 };
 
                 Box::into_raw(Box::new(KeyNullableValuePair {
-                    key: key.as_ptr(),
+                    key: key.as_mut_ptr(),
                     key_length: key.len(),
+                    key_capacity: key.capacity(),
                     value,
                     value_length,
+                    value_capacity,
                 }))
             })
             .collect::<Box<_>>();
@@ -60,12 +71,14 @@ impl KeyValuePair {
             input
                 .into_iter()
                 .map(|(key, value)| {
-                    let (key, value) = (ManuallyDrop::new(key), ManuallyDrop::new(value));
+                    let (mut key, mut value) = (ManuallyDrop::new(key), ManuallyDrop::new(value));
                     Box::into_raw(Box::new(KeyNullableValuePair {
-                        key: key.as_ptr(),
+                        key: key.as_mut_ptr(),
                         key_length: key.len(),
-                        value: value.as_ptr(),
+                        key_capacity: key.capacity(),
+                        value: value.as_mut_ptr(),
                         value_length: value.len(),
+                        value_capacity: value.capacity(),
                     }))
                 })
                 .collect::<Box<_>>(),
