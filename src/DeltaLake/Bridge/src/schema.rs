@@ -1,10 +1,6 @@
-use deltalake::arrow::{
-    datatypes::Schema as ArrowSchema,
-    ipc::convert::{schema_to_fb_offset, try_schema_from_flatbuffer_bytes},
-};
-use flatbuffers::FlatBufferBuilder;
+use deltalake::arrow::datatypes::Schema as ArrowSchema;
 
-use crate::{error::DeltaTableError, runtime::Runtime, ByteArray, ByteArrayRef};
+use crate::{error::DeltaTableError, ByteArrayRef};
 
 #[repr(C)]
 pub enum PartitionFilterBinaryOp {
@@ -84,27 +80,4 @@ pub(crate) fn get_schema(
         )
     })?;
     Ok(arrow_schema)
-}
-
-pub(crate) fn serialize_schema(runtime: &mut Runtime, schema: &ArrowSchema) -> (Vec<u8>, usize) {
-    let buffer = runtime.borrow_buf();
-    let mut fbb = FlatBufferBuilder::from_vec(buffer);
-    let root = schema_to_fb_offset(&mut fbb, schema);
-    fbb.finish(root, None);
-
-    let (buffer, offset) = fbb.collapse();
-    (buffer, offset)
-}
-
-pub(crate) fn deserialize_schema(
-    runtime: &mut Runtime,
-    bytes: &[u8],
-) -> Result<ArrowSchema, DeltaTableError> {
-    try_schema_from_flatbuffer_bytes(bytes).map_err(|err| {
-        DeltaTableError::new(
-            runtime,
-            crate::error::DeltaTableErrorCode::Arrow,
-            &err.to_string(),
-        )
-    })
 }

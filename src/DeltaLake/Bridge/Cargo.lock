@@ -979,7 +979,6 @@ dependencies = [
  "cbindgen",
  "chrono",
  "deltalake",
- "flatbuffers",
  "futures",
  "libc",
  "serde_json",
