@@ -352,11 +352,11 @@ namespace DeltaLake.Bridge.Interop
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("bool")]
-        public static extern byte partition_filter_list_add_binary([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* value);
+        public static extern byte partition_filter_list_add_binary([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* _list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* _key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp _op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* _value);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("bool")]
-        public static extern byte partition_filter_list_add_set([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* value, [NativeTypeName("uintptr_t")] UIntPtr value_count);
+        public static extern byte partition_filter_list_add_set([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* _list, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* _key, [NativeTypeName("enum PartitionFilterBinaryOp")] PartitionFilterBinaryOp _op, [NativeTypeName("const struct ByteArrayRef *")] ByteArrayRef* _value, [NativeTypeName("uintptr_t")] UIntPtr _value_count);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void partition_filter_list_free([NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* list);
@@ -434,5 +434,8 @@ namespace DeltaLake.Bridge.Interop
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct MetadataOrError")]
         public static extern MetadataOrError table_metadata([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table_handle);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void table_add_constraints([NativeTypeName("struct Runtime *")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable *")] RawDeltaTable* table, [NativeTypeName("struct Map *")] Map* constraints, [NativeTypeName("struct Map *")] Map* custom_metadata, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
     }
 }

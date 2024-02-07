@@ -20,8 +20,8 @@ use deltalake::{
     },
     kernel::StructType,
     operations::{
-        delete::DeleteBuilder, merge::MergeBuilder, update::UpdateBuilder, vacuum::VacuumBuilder,
-        write::WriteBuilder,
+        constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
+        update::UpdateBuilder, vacuum::VacuumBuilder, write::WriteBuilder,
     },
     protocol::SaveMode,
     DeltaOps, DeltaTableBuilder,
@@ -1332,6 +1332,74 @@ pub extern "C" fn table_metadata(
             },
         }
     })
+}
+
+#[no_mangle]
+pub extern "C" fn table_add_constraints(
+    runtime: *mut Runtime,
+    table: *mut RawDeltaTable,
+    constraints: *mut Map,
+    custom_metadata: *mut Map,
+    cancellation_token: *const CancellationToken,
+    callback: TableEmptyCallback,
+) {
+    let constraints: HashMap<String, String> = unsafe {
+        Box::from_raw(constraints)
+            .data
+            .into_iter()
+            .map(|(k, v)| (k, v.unwrap_or_default()))
+            .collect()
+    };
+    let custom_metadata: Option<HashMap<String, String>> = unsafe {
+        if custom_metadata.is_null() {
+            None
+        } else {
+            Some(
+                Box::from_raw(custom_metadata)
+                    .data
+                    .into_iter()
+                    .map(|(k, v)| (k, v.unwrap_or_default()))
+                    .collect(),
+            )
+        }
+    };
+
+    do_with_table_and_runtime_and_cancel(
+        runtime,
+        table,
+        cancellation_token,
+        move |rt, tbl| async move {
+            let snapshot = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.clone(),
+                Err(err) => unsafe {
+                    callback(DeltaTableError::from_error(rt, err).into_raw());
+                    return;
+                },
+            };
+            let mut cmd = ConstraintBuilder::new(tbl.table.log_store(), snapshot);
+
+            for (col_name, expression) in constraints {
+                cmd = cmd.with_constraint(col_name.clone(), expression.clone());
+            }
+
+            if let Some(metadata) = custom_metadata {
+                let json_metadata: serde_json::Map<String, serde_json::Value> =
+                    metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
+                cmd = cmd.with_metadata(json_metadata);
+            };
+
+            match cmd.into_future().await {
+                Ok(table) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null());
+                },
+                Err(error) => unsafe {
+                    callback(DeltaTableError::from_error(rt, error).into_raw());
+                },
+            }
+        },
+        move || unsafe { callback(std::ptr::null()) },
+    );
 }
 
 fn do_with_table_and_runtime<'a, F, Fut>(rt: *mut Runtime, table: *mut RawDeltaTable, work: F)

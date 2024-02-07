@@ -473,6 +473,41 @@ namespace DeltaLake.Bridge
             return await tsc.Task.ConfigureAwait(false);
         }
 
+        public async Task AddConstraintAsync(IReadOnlyDictionary<string, string> constraints, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_add_constraints(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.Dictionary(_runtime, constraints),
+                        customMetadata == null ? null : scope.Dictionary(_runtime, customMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                tsc.TrySetResult(true);
+                            }
+                        }));
+
+                }
+            }
+
+            await tsc.Task.ConfigureAwait(false);
+        }
+
         public async Task UpdateIncrementalAsync(ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();

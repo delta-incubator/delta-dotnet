@@ -157,6 +157,34 @@ namespace DeltaLake.Table
         }
 
         /// <summary>
+        /// Adds constraints and custom metadata to a table
+        /// </summary>
+        /// <param name="constraints">A collection of key and values representing columns and constraints</param>
+        /// <param name="customMetadata">A collection of key and values representing columns and metadata</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns><see cref="Task"/> </returns>
+        public async Task AddConstraintsAsync(
+            IReadOnlyDictionary<string, string> constraints,
+            IReadOnlyDictionary<string, string>? customMetadata,
+            CancellationToken cancellationToken)
+        {
+            await _table.AddConstraintAsync(constraints, customMetadata, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Adds constraints and custom metadata to a table
+        /// </summary>
+        /// <param name="constraints">A collection of key and values representing columns and constraints</param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns><see cref="Task"/> </returns>
+        public Task AddConstraintsAsync(
+            IReadOnlyDictionary<string, string> constraints,
+            CancellationToken cancellationToken)
+        {
+            return AddConstraintsAsync(constraints, null, cancellationToken);
+        }
+
+        /// <summary>
         /// Updates table to latest version
         /// </summary>
         /// <param name="cancellationToken"><see cref="CancellationToken"/></param>

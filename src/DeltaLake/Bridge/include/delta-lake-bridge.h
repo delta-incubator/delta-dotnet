@@ -382,6 +382,13 @@ int64_t table_version(struct RawDeltaTable *table_handle);
 
 struct MetadataOrError table_metadata(struct Runtime *runtime, struct RawDeltaTable *table_handle);
 
+void table_add_constraints(struct Runtime *runtime,
+                           struct RawDeltaTable *table,
+                           struct Map *constraints,
+                           struct Map *custom_metadata,
+                           const struct CancellationToken *cancellation_token,
+                           TableEmptyCallback callback);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif // __cplusplus
