@@ -275,58 +275,58 @@ struct ByteArray *table_uri(const struct RawDeltaTable *table);
 
 void table_free(struct RawDeltaTable *table);
 
-void create_deltalake(struct Runtime *runtime,
-                      const struct TableCreatOptions *options,
+void create_deltalake(struct Runtime *_Nonnull runtime,
+                      struct TableCreatOptions *_Nonnull options,
                       TableNewCallback callback);
 
-void table_new(struct Runtime *runtime,
-               const struct ByteArrayRef *table_uri,
-               const struct TableOptions *table_options,
+void table_new(struct Runtime *_Nonnull runtime,
+               struct ByteArrayRef *_Nonnull table_uri,
+               struct TableOptions *_Nonnull table_options,
                TableNewCallback callback);
 
-struct GenericOrError table_file_uris(struct Runtime *runtime,
-                                      struct RawDeltaTable *table,
+struct GenericOrError table_file_uris(struct Runtime *_Nonnull runtime,
+                                      struct RawDeltaTable *_Nonnull table,
                                       struct PartitionFilterList *filters);
 
-struct GenericOrError table_files(struct Runtime *runtime,
-                                  struct RawDeltaTable *table,
+struct GenericOrError table_files(struct Runtime *_Nonnull runtime,
+                                  struct RawDeltaTable *_Nonnull table,
                                   struct PartitionFilterList *filters);
 
-void history(struct Runtime *runtime,
-             struct RawDeltaTable *table,
+void history(struct Runtime *_Nonnull runtime,
+             struct RawDeltaTable *_Nonnull table,
              uintptr_t limit,
              const struct CancellationToken *cancellation_token,
              GenericErrorCallback callback);
 
-void table_update_incremental(struct Runtime *runtime,
-                              struct RawDeltaTable *table,
+void table_update_incremental(struct Runtime *_Nonnull runtime,
+                              struct RawDeltaTable *_Nonnull table,
                               const struct CancellationToken *cancellation_token,
                               TableEmptyCallback callback);
 
-void table_load_version(struct Runtime *runtime,
-                        struct RawDeltaTable *table,
+void table_load_version(struct Runtime *_Nonnull runtime,
+                        struct RawDeltaTable *_Nonnull table,
                         int64_t version,
                         const struct CancellationToken *cancellation_token,
                         TableEmptyCallback callback);
 
-bool table_load_with_datetime(struct Runtime *runtime,
-                              struct RawDeltaTable *table,
+bool table_load_with_datetime(struct Runtime *_Nonnull runtime,
+                              struct RawDeltaTable *_Nonnull table,
                               int64_t ts_milliseconds,
                               const struct CancellationToken *cancellation_token,
                               TableEmptyCallback callback);
 
-void table_merge(struct Runtime *runtime,
-                 struct RawDeltaTable *delta_table,
+void table_merge(struct Runtime *_Nonnull runtime,
+                 struct RawDeltaTable *_Nonnull delta_table,
                  const struct ByteArrayRef *query,
                  void *stream,
                  const struct CancellationToken *cancellation_token,
                  GenericErrorCallback callback);
 
-struct ProtocolResponse table_protocol_versions(struct Runtime *runtime,
-                                                struct RawDeltaTable *table);
+struct ProtocolResponse table_protocol_versions(struct Runtime *_Nonnull runtime,
+                                                struct RawDeltaTable *_Nonnull table);
 
-void table_restore(struct Runtime *runtime,
-                   struct RawDeltaTable *table,
+void table_restore(struct Runtime *_Nonnull runtime,
+                   struct RawDeltaTable *_Nonnull table,
                    int64_t version_or_timestamp,
                    bool is_timestamp,
                    bool ignore_missing_files,
@@ -335,20 +335,20 @@ void table_restore(struct Runtime *runtime,
                    const struct CancellationToken *cancellation_token,
                    TableEmptyCallback callback);
 
-void table_update(struct Runtime *runtime,
-                  struct RawDeltaTable *table,
+void table_update(struct Runtime *_Nonnull runtime,
+                  struct RawDeltaTable *_Nonnull table,
                   const struct ByteArrayRef *query,
                   const struct CancellationToken *cancellation_token,
                   GenericErrorCallback callback);
 
-void table_delete(struct Runtime *runtime,
-                  struct RawDeltaTable *table,
+void table_delete(struct Runtime *_Nonnull runtime,
+                  struct RawDeltaTable *_Nonnull table,
                   const struct ByteArrayRef *predicate,
                   const struct CancellationToken *cancellation_token,
                   GenericErrorCallback callback);
 
-void table_query(struct Runtime *runtime,
-                 struct RawDeltaTable *table,
+void table_query(struct Runtime *_Nonnull runtime,
+                 struct RawDeltaTable *_Nonnull table,
                  const struct ByteArrayRef *query,
                  const struct ByteArrayRef *table_name,
                  const struct CancellationToken *cancellation_token,
@@ -367,23 +367,25 @@ void table_insert(struct Runtime *_Nonnull runtime,
 /**
  * Must free the error
  */
-struct GenericOrError table_schema(struct Runtime *runtime, struct RawDeltaTable *table);
+struct GenericOrError table_schema(struct Runtime *_Nonnull runtime,
+                                   struct RawDeltaTable *_Nonnull table);
 
-void table_checkpoint(struct Runtime *runtime,
-                      struct RawDeltaTable *table,
+void table_checkpoint(struct Runtime *_Nonnull runtime,
+                      struct RawDeltaTable *_Nonnull table,
                       TableEmptyCallback callback);
 
-void table_vacuum(struct Runtime *runtime,
-                  struct RawDeltaTable *table,
+void table_vacuum(struct Runtime *_Nonnull runtime,
+                  struct RawDeltaTable *_Nonnull table,
                   const struct VacuumOptions *options,
                   GenericErrorCallback callback);
 
-int64_t table_version(struct RawDeltaTable *table_handle);
+int64_t table_version(struct RawDeltaTable *_Nonnull table_handle);
 
-struct MetadataOrError table_metadata(struct Runtime *runtime, struct RawDeltaTable *table_handle);
+struct MetadataOrError table_metadata(struct Runtime *_Nonnull runtime,
+                                      struct RawDeltaTable *_Nonnull table_handle);
 
-void table_add_constraints(struct Runtime *runtime,
-                           struct RawDeltaTable *table,
+void table_add_constraints(struct Runtime *_Nonnull runtime,
+                           struct RawDeltaTable *_Nonnull table,
                            struct Map *constraints,
                            struct Map *custom_metadata,
                            const struct CancellationToken *cancellation_token,
