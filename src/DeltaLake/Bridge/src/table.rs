@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     ffi::{c_char, CString},
     future::IntoFuture,
+    ptr::NonNull,
     str::FromStr,
     sync::Arc,
 };
@@ -37,6 +38,23 @@ use crate::{
     Map,
 };
 
+macro_rules! run_async_with_cancellation {
+    ($runtime: expr, $table:expr, $cancellation_token: expr, $rt:ident, $tbl:ident, $work: block, $on_cancel: block ) => {{
+        let ($rt, $tbl) = unsafe { ($runtime.as_mut(), $table.as_mut()) };
+        let runtime_handle = $rt.handle();
+        let cancel_token = unsafe { $cancellation_token.as_ref() }.map(|v| v.token.clone());
+        runtime_handle.spawn(async move {
+            if let Some(cancel_token) = cancel_token {
+                tokio::select! {
+                    _ = cancel_token.cancelled() => unsafe {$on_cancel},
+                    _ = async $work => {},
+                }
+            } else {
+                (async $work).await
+            }
+        });
+    }};
+}
 pub struct RawDeltaTable {
     table: deltalake::DeltaTable,
 }
@@ -1044,11 +1062,11 @@ pub extern "C" fn table_query(
 
 #[no_mangle]
 pub extern "C" fn table_insert(
-    runtime: *mut Runtime,
-    table: *mut RawDeltaTable,
-    stream: *mut c_void,
-    predicate: *const ByteArrayRef,
-    mode: *const ByteArrayRef,
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    stream: NonNull<c_void>,
+    predicate: Option<&ByteArrayRef>,
+    mode: &ByteArrayRef,
     max_rows_per_group: usize,
     overwrite_schema: bool,
     cancellation_token: *const CancellationToken,
@@ -1061,7 +1079,7 @@ pub extern "C" fn table_insert(
                 callback(
                     std::ptr::null_mut(),
                     DeltaTableError::new(
-                        &mut *runtime,
+                        runtime.as_mut(),
                         DeltaTableErrorCode::Utf8,
                         &err.to_string(),
                     )
@@ -1071,16 +1089,13 @@ pub extern "C" fn table_insert(
             }
         }
     };
-    let predicate = if predicate.is_null() {
-        None
-    } else {
-        let predicate = unsafe { &*predicate };
-        predicate.to_option_string()
-    };
+    let predicate = predicate.and_then(|b| b.to_option_string());
 
     let (batches, _) = match ffi_to_batches(
-        unsafe { &mut *runtime },
-        stream as *mut arrow::ffi_stream::FFI_ArrowArrayStream,
+        unsafe { runtime.as_mut() },
+        stream
+            .cast::<arrow::ffi_stream::FFI_ArrowArrayStream>()
+            .as_ptr(),
     ) {
         Ok(batches) => batches,
         Err(err) => unsafe {
@@ -1088,11 +1103,13 @@ pub extern "C" fn table_insert(
             return;
         },
     };
-    do_with_table_and_runtime_and_cancel(
+    run_async_with_cancellation!(
         runtime,
         table,
         cancellation_token,
-        move |rt, tbl| async move {
+        rt,
+        tbl,
+        {
             let snapshot = match tbl.table.snapshot() {
                 Ok(snapshot) => snapshot.clone(),
                 Err(err) => unsafe {
@@ -1130,7 +1147,7 @@ pub extern "C" fn table_insert(
                 },
             };
         },
-        move || unsafe { callback(std::ptr::null(), std::ptr::null()) },
+        { callback(std::ptr::null(), std::ptr::null()) }
     );
 }
 

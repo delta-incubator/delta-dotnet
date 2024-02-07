@@ -1,15 +1,14 @@
 extern crate cbindgen;
 
-use std::env;
+use std::{env, path::Path};
 
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-
+    let root = Path::new(crate_dir.as_str());
+    let mut config = cbindgen::Config::from_file(root.join("cbindgen.toml").as_path()).unwrap();
+    config.cpp_compat = true;
     let changed = cbindgen::Builder::new()
-        .with_config(cbindgen::Config {
-            cpp_compat: true,
-            ..Default::default()
-        })
+        .with_config(config)
         .with_crate(crate_dir)
         .with_pragma_once(true)
         .with_language(cbindgen::Language::C)
