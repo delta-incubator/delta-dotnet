@@ -82,6 +82,7 @@ namespace DeltaLake.Bridge
                         Ptr,
                         scope.Pointer(scope.ByteArray(tableUri)),
                         scope.Pointer(nativeOptions),
+                        scope.CancellationToken(cancellationToken),
                         scope.FunctionPointer<Interop.TableNewCallback>((success, fail) =>
                     {
                         if (cancellationToken.IsCancellationRequested)
@@ -133,6 +134,7 @@ namespace DeltaLake.Bridge
                         Interop.Methods.create_deltalake(
                             Ptr,
                             scope.Pointer(nativeOptions),
+                            scope.CancellationToken(cancellationToken),
                             scope.FunctionPointer<Interop.TableNewCallback>((success, fail) =>
                             {
                                 if (cancellationToken.IsCancellationRequested)
