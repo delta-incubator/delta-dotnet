@@ -17,10 +17,16 @@
         <PackageReference Include="Apache.Arrow" Version="15.0.0" />
     </ItemGroup>
 
+    <ItemGroup>
+        <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+            <_Parameter1>DeltaLake.Tests</_Parameter1>
+        </AssemblyAttribute>
+    </ItemGroup>
+
     <!-- Build/copy debug/release bridge DLL -->
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
-        <BridgeLibraryFile>deltalake.dll</BridgeLibraryFile>
+        <BridgeLibraryFile>delta_rs_bridge.dll</BridgeLibraryFile>
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
         <BridgeLibraryFile>libdelta_rs_bridge.so</BridgeLibraryFile>
