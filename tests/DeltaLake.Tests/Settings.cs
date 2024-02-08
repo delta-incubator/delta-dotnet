@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace DeltaLake.Tests
 {
     public static class Settings
