@@ -9,7 +9,7 @@ use std::{
 
 use arrow::{
     ffi_stream::FFI_ArrowArrayStream,
-    record_batch::{RecordBatch, RecordBatchReader},
+    record_batch::{RecordBatch, RecordBatchIterator, RecordBatchReader},
 };
 use chrono::{DateTime, Duration, NaiveDateTime, Utc};
 use deltalake::{
@@ -33,7 +33,7 @@ use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
     schema::PartitionFilterList,
-    sql::{extract_table_factor_alias, DataFrameStreamIterator, DeltaLakeParser, Statement},
+    sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
     ByteArray, ByteArrayRef, CancellationToken, Dictionary, DynamicArray, KeyNullableValuePair,
     Map,
 };
@@ -1066,8 +1066,8 @@ pub extern "C" fn table_query(
             {
                 Ok(data_frame) => {
                     let schema = Schema::from(data_frame.schema());
-                    let df_stream = match data_frame.execute_stream().await {
-                        Ok(stream) => stream,
+                    let records = match data_frame.collect().await {
+                        Ok(records) => records,
                         Err(error) => unsafe {
                             callback(
                                 std::ptr::null(),
@@ -1082,7 +1082,9 @@ pub extern "C" fn table_query(
                         },
                     };
 
-                    let reader = DataFrameStreamIterator::new(df_stream, Arc::new(schema));
+                    let reader =
+                        RecordBatchIterator::new(records.into_iter().map(Ok), Arc::new(schema));
+                    // let reader = DataFrameStreamIterator::new(df_stream, Arc::new(schema));
                     let out_stream = arrow::ffi_stream::FFI_ArrowArrayStream::new(Box::new(reader));
                     unsafe {
                         callback(

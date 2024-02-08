@@ -334,16 +334,15 @@ namespace DeltaLake.Bridge
             var tsc = new TaskCompletionSource<IArrowArrayStream>();
             using (var scope = new Scope())
             {
-
                 unsafe
                 {
-                    Interop.Methods.table_query(
+                    Methods.table_query(
                         _runtime.Ptr,
                          _ptr,
                          scope.Pointer(scope.ByteArray(query)),
                          scope.Pointer(scope.ByteArray(tableName)),
                         scope.CancellationToken(cancellationToken),
-                          scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                          scope.FunctionPointer<GenericErrorCallback>((success, fail) =>
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {

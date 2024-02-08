@@ -320,6 +320,7 @@ pub(crate) struct DataFrameStreamIterator {
 }
 
 impl DataFrameStreamIterator {
+    #[allow(dead_code)]
     pub(crate) fn new(stream: SendableRecordBatchStream, schema: SchemaRef) -> Self {
         Self { stream, schema }
     }
