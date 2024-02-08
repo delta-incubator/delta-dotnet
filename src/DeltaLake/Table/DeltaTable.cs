@@ -271,6 +271,16 @@ namespace DeltaLake.Table
         }
 
         /// <summary>
+        /// Accepts a predicate and deletes matching items from the table
+        /// </summary>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns></returns>
+        public Task DeleteAsync(CancellationToken cancellationToken)
+        {
+            return _table.DeleteAsync(string.Empty, cancellationToken);
+        }
+
+        /// <summary>
         /// Issue a select query against a delta table
         /// </summary>
         /// <param name="query">A select query</param>

@@ -1,3 +1,9 @@
+using Apache.Arrow;
+using Apache.Arrow.Memory;
+using Apache.Arrow.Types;
+using DeltaLake.Runtime;
+using DeltaLake.Table;
+
 namespace DeltaLake.Tests.Table;
 
 public enum TableIdentifier
@@ -87,5 +93,46 @@ public static class TableHelpers
     public static string TablePath(this TableIdentifier tid, string? pathRoot = null)
     {
         return Path.Join(pathRoot ?? Settings.TestRoot, Tables[tid]);
+    }
+
+    public async static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(string path, int length)
+    {
+        var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        var builder = new Schema.Builder();
+        builder.Field(fb =>
+        {
+            fb.Name("test");
+            fb.DataType(Int32Type.Default);
+            fb.Nullable(false);
+        })
+        .Field(fb =>
+        {
+            fb.Name("second");
+            fb.DataType(StringType.Default);
+            fb.Nullable(false);
+        })
+        .Field(fb =>
+        {
+            fb.Name("third");
+            fb.DataType(Int64Type.Default);
+            fb.Nullable(false);
+        });
+        var schema = builder.Build();
+        var table = await DeltaTable.CreateAsync(
+            runtime,
+            new TableCreateOptions(path, schema),
+            CancellationToken.None);
+        Assert.NotNull(table);
+        var allocator = new NativeMemoryAllocator();
+        var recordBatchBuilder = new RecordBatch.Builder(allocator)
+            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))))
+            .Append("second", false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => x.ToString()))))
+            .Append("third", false, col => col.Int64(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => (long)x))));
+        var options = new InsertOptions
+        {
+            SaveMode = SaveMode.Append,
+        };
+        await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+        return (runtime, table);
     }
 }

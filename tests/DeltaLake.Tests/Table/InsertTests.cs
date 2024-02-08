@@ -1,7 +1,3 @@
-using Apache.Arrow;
-using Apache.Arrow.Memory;
-using Apache.Arrow.Types;
-using DeltaLake.Runtime;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -12,45 +8,34 @@ public class InsertTests
     [InlineData(2)]
     [InlineData(10)]
     [InlineData(100)]
-    public async Task Insert_Variable_Record_Count_Test(int length)
+    public async Task Memory_Insert_Variable_Record_Count_Test(int length)
     {
-        var uri = $"memory://{Guid.NewGuid():N}";
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        var builder = new Apache.Arrow.Schema.Builder();
-        builder.Field(fb =>
+        await BaseInsertTest($"memory://{Guid.NewGuid():N}", length);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(10)]
+    [InlineData(100)]
+    public async Task File_System_Insert_Variable_Record_Count_Test(int length)
+    {
+        var info = Directory.CreateTempSubdirectory();
+        try
         {
-            fb.Name("test");
-            fb.DataType(Int32Type.Default);
-            fb.Nullable(false);
-        })
-        .Field(fb =>
+            await BaseInsertTest($"file://{info.FullName}", length);
+        }
+        finally
         {
-            fb.Name("second");
-            fb.DataType(StringType.Default);
-            fb.Nullable(false);
-        })
-        .Field(fb =>
-        {
-            fb.Name("third");
-            fb.DataType(Int64Type.Default);
-            fb.Nullable(false);
-        });
-        var schema = builder.Build();
-        using var table = await DeltaTable.CreateAsync(
-            runtime,
-            new TableCreateOptions(uri, schema),
-            CancellationToken.None);
-        Assert.NotNull(table);
-        var allocator = new NativeMemoryAllocator();
-        var recordBatchBuilder = new RecordBatch.Builder(allocator)
-            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))))
-            .Append("second", false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => x.ToString()))))
-            .Append("third", false, col => col.Int64(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => (long)x))));
-        var options = new InsertOptions
-        {
-            SaveMode = SaveMode.Append,
-        };
-        await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+            info.Delete(true);
+        }
+    }
+
+    private async Task BaseInsertTest(string path, int length)
+    {
+        var data = await TableHelpers.SetupTable(path, length);
+        using var runtime = data.runtime;
+        using var table = data.table;
         var queryResult = table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test > 1")
         {
             TableAlias = "test",

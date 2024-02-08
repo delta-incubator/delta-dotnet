@@ -979,7 +979,7 @@ pub extern "C" fn table_delete(
     cancellation_token: Option<&CancellationToken>,
     callback: GenericErrorCallback,
 ) {
-    let predicate = predicate.map(|p| p.to_owned_string());
+    let predicate = predicate.and_then(|p| p.to_option_string());
     run_async_with_cancellation!(
         runtime,
         table,
