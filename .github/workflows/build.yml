@@ -11,15 +11,13 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-arm]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         include:
           - os: windows-latest
             checkTarget: true
           - os: ubuntu-latest
             docsTarget: true
             cloudTestTarget: true
-          - os: ubuntu-arm
-            runsOn: buildjet-4vcpu-ubuntu-2204-arm
     runs-on: ${{ matrix.runsOn || matrix.os }}
     steps:
       - name: Checkout repository
