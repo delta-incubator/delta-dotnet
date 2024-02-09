@@ -6,7 +6,7 @@ use arrow::{
 use deltalake::datafusion::{
     physical_plan::SendableRecordBatchStream,
     sql::sqlparser::{
-        ast::{Assignment, Expr, Ident, TableAlias, TableFactor, Values},
+        ast::{Assignment, Expr, Ident, TableFactor, Values},
         dialect::{Dialect, GenericDialect},
         keywords::Keyword,
         parser::{Parser, ParserError},
@@ -55,6 +55,7 @@ impl<'a> DeltaLakeParser<'a> {
     }
 
     pub fn parse_merge(&mut self) -> Result<Statement, ParserError> {
+        let _ = self.parser.parse_keyword(Keyword::MERGE);
         let into = self.parser.parse_keyword(Keyword::INTO);
 
         let table = self.parser.parse_table_factor()?;
@@ -259,58 +260,58 @@ pub enum MergeClause {
     NotMatchedBySourceDelete(Option<Expr>),
 }
 
-pub fn extract_table_factor_alias(table: TableFactor) -> Option<TableAlias> {
+pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
     match table {
         TableFactor::Table {
-            name: _,
+            name,
             alias,
             args: _,
             with_hints: _,
             version: _,
             partitions: _,
-        } => alias,
+        } => alias.map(|a| a.to_string()).or(Some(name.to_string())),
         TableFactor::Derived {
             lateral: _,
             subquery: _,
             alias,
-        } => alias,
-        TableFactor::TableFunction { expr: _, alias } => alias,
+        } => alias.map(|a| a.to_string()),
+        TableFactor::TableFunction { expr: _, alias } => alias.map(|a| a.to_string()),
         TableFactor::Function {
             lateral: _,
             name: _,
             args: _,
             alias,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
         TableFactor::UNNEST {
             alias,
             array_exprs: _,
             with_offset: _,
             with_offset_alias: _,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
         TableFactor::NestedJoin {
             table_with_joins: _,
             alias,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
         TableFactor::Pivot {
             table: _,
             aggregate_function: _,
             value_column: _,
             pivot_values: _,
             alias,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
         TableFactor::Unpivot {
             table: _,
             value: _,
             name: _,
             columns: _,
             alias,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
         TableFactor::JsonTable {
             json_expr: _,
             json_path: _,
             columns: _,
             alias,
-        } => alias,
+        } => alias.map(|a| a.to_string()),
     }
 }
 

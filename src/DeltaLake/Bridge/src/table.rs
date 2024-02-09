@@ -735,8 +735,8 @@ pub extern "C" fn table_merge(
                                 None => delete,
                             }),
                     };
-                    match res {
-                        Ok(_) => todo!(),
+                    mb = match res {
+                        Ok(mb) => mb,
                         Err(error) => unsafe {
                             callback(
                                 std::ptr::null(),

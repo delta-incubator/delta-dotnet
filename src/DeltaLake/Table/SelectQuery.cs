@@ -8,11 +8,13 @@ namespace DeltaLake.Table
         /// <summary>
         /// Create a query with the provided query and default table alias 'deltatable'
         /// </summary>
-        /// <param name="query"></param>
+        /// <param name="query">A SQL SELECT query</param>
+        /// <param name="tableAlias">Alias for the table used in the select query</param>
 
-        public SelectQuery(string query)
+        public SelectQuery(string query, string tableAlias = "deltatable")
         {
             Query = query;
+            TableAlias = tableAlias;
         }
 
         /// <summary>
@@ -23,6 +25,6 @@ namespace DeltaLake.Table
         /// <summary>
         /// The name for the table used in the select query
         /// </summary>
-        public string TableAlias { get; init; } = "deltatable";
+        public string TableAlias { get; init; }
     }
 }
