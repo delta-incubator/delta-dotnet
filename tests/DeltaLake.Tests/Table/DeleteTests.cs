@@ -66,6 +66,12 @@ public class DeleteTests
             info.Delete(true);
         }
     }
+    [Fact]
+    public async Task Memory_Invalid_Delete_Predicate_Test()
+    {
+        await Assert.ThrowsAsync<DeltaLakeException>(async () =>
+        await BaseDeleteTest($"memory://{Guid.NewGuid():N}", 10, "invalid_property > 100", 10));
+    }
 
     private async Task BaseDeleteTest(
         string path,

@@ -5,12 +5,9 @@ namespace DeltaLake.Bridge
 {
     internal sealed class Map
     {
-        private readonly Runtime _runtime;
-
-        private unsafe Map(Interop.Map* inner, Runtime runtime)
+        private unsafe Map(Interop.Map* inner)
         {
             Ref = inner;
-            _runtime = runtime;
         }
 
         public unsafe Interop.Map* Ref { get; }
@@ -25,7 +22,7 @@ namespace DeltaLake.Bridge
                 WriteTuple(map, keyRef.Ref, valueRef.Ref);
             }
 
-            return new Map(map, runtime);
+            return new Map(map);
         }
 
         public static unsafe Map FromOptionalDictionary(Runtime runtime, IReadOnlyCollection<KeyValuePair<string, string?>> source)
@@ -46,7 +43,7 @@ namespace DeltaLake.Bridge
 
             }
 
-            return new Map(map, runtime);
+            return new Map(map);
         }
 
         private static unsafe void WriteTuple(Interop.Map* map, ByteArrayRef keyRef, ByteArrayRef valueRef)

@@ -1,6 +1,4 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 using Apache.Arrow;
 
 namespace DeltaLake.Table
@@ -25,13 +23,13 @@ namespace DeltaLake.Table
         /// <summary>
         /// Arrow Schema for the table
         /// </summary>
-        public Schema Schema { get; } = new Schema(Enumerable.Empty<Field>(), Enumerable.Empty<KeyValuePair<string, string>>());
+        public Schema Schema { get; }
 
         /// <summary>
         /// Location of the delta table
         /// memory://, s3://, azure://, etc
         /// </summary>
-        public string TableLocation { get; } = String.Empty;
+        public string TableLocation { get; }
 
         /// <summary>
         /// List of columns to use for partitioning

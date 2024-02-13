@@ -48,6 +48,13 @@ public class UpdateTests
         await BaseUpdateTest($"memory://{Guid.NewGuid():N}", length, predicate, totalValue);
     }
 
+    [Fact]
+    public async Task Memory_Update_Invalid_Predicate__Test()
+    {
+        await Assert.ThrowsAsync<DeltaLakeException>(() =>
+        BaseUpdateTest($"memory://{Guid.NewGuid():N}", 10, "predicate", 0));
+    }
+
     private async static Task BaseUpdateTest(
         string path,
         int length,

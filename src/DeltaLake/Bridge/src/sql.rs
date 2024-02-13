@@ -55,8 +55,8 @@ impl<'a> DeltaLakeParser<'a> {
     }
 
     pub fn parse_merge(&mut self) -> Result<Statement, ParserError> {
-        let _ = self.parser.parse_keyword(Keyword::MERGE);
-        let into = self.parser.parse_keyword(Keyword::INTO);
+        self.parser.expect_keyword(Keyword::MERGE)?;
+        self.parser.expect_keyword(Keyword::INTO)?;
 
         let table = self.parser.parse_table_factor()?;
 
@@ -67,7 +67,7 @@ impl<'a> DeltaLakeParser<'a> {
         let clauses = self.parse_merge_clauses()?;
 
         Ok(Statement::MergeStatement {
-            into,
+            into: true,
             table,
             source,
             on: Box::new(on),

@@ -3,7 +3,6 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Text.Json;
 using System.Threading.Tasks;
 using Apache.Arrow.C;
 
@@ -167,45 +166,6 @@ namespace DeltaLake.Bridge
         /// Gets the pointer to the runtime.
         /// </summary>
         internal unsafe Interop.Runtime* Ptr { get; private init; }
-
-        /// <summary>
-        /// Read a JSON object into string keys and raw JSON values.
-        /// </summary>
-        /// <param name="bytes">Byte span.</param>
-        /// <returns>Keys and raw values or null.</returns>
-        internal static unsafe IReadOnlyDictionary<string, string>? ReadJsonObjectToRawValues(
-            ReadOnlySpan<byte> bytes)
-        {
-            var reader = new Utf8JsonReader(bytes);
-            // Expect start object
-            if (!reader.Read() || reader.TokenType != JsonTokenType.StartObject)
-            {
-                return null;
-            }
-            // Property names one at a time
-            var ret = new Dictionary<string, string>();
-            fixed (byte* ptr = bytes)
-            {
-                while (reader.Read() && reader.TokenType != JsonTokenType.EndObject)
-                {
-                    if (reader.TokenType != JsonTokenType.PropertyName)
-                    {
-                        return null;
-                    }
-                    var propertyName = reader.GetString()!;
-                    // Read and skip and capture
-                    if (!reader.Read())
-                    {
-                        return null;
-                    }
-                    var beginIndex = (int)reader.TokenStartIndex;
-                    reader.Skip();
-                    ret[propertyName] = ByteArrayRef.StrictUTF8.GetString(
-                        ptr + beginIndex, (int)reader.BytesConsumed - beginIndex);
-                }
-            }
-            return ret;
-        }
 
         /// <summary>
         /// Free a byte array.

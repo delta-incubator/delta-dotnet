@@ -58,7 +58,7 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test
-        run: dotnet test --logger "console;verbosity=detailed" --blame-crash -v n
+        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.inf --logger "console;verbosity=detailed" --blame-crash -v n
 
       - name: Upload test failure
         if: ${{ failure() }}

@@ -1,7 +1,5 @@
 using System;
 using System.Buffers;
-using System.Collections.Generic;
-using System.IO;
 using System.Text;
 
 namespace DeltaLake.Bridge
@@ -117,81 +115,5 @@ namespace DeltaLake.Bridge
         /// <returns>String.</returns>
         public static unsafe string ToUtf8(Interop.ByteArrayRef byteArray) =>
             StrictUTF8.GetString(byteArray.data, (int)byteArray.size);
-
-        /// <summary>
-        /// Convert an enumerable set of metadata pairs to a byte array. No key or value may contain
-        /// a newline.
-        /// </summary>
-        /// <param name="metadata">Metadata to convert.</param>
-        /// <returns>Converted byte array.</returns>
-        public static ByteArrayRef FromMetadata(IEnumerable<KeyValuePair<string, string>> metadata)
-        {
-            using (var stream = new MemoryStream())
-            using (var writer = new StreamWriter(stream, StrictUTF8) { AutoFlush = true })
-            {
-                foreach (var pair in metadata)
-                {
-                    // If either have a newline, we error since it would make an invalid set
-                    if (pair.Key.Contains("\n") || pair.Value.Contains("\n"))
-                    {
-                        throw new ArgumentException("Metadata keys/values cannot have newlines");
-                    }
-
-                    // If the stream already has data, add another newline
-                    if (stream.Length > 0)
-                    {
-                        writer.Write('\n');
-                    }
-
-                    writer.Write(pair.Key);
-                    writer.Write('\n');
-                    writer.Write(pair.Value);
-                }
-
-                if (stream.Length == 0)
-                {
-                    return Empty;
-                }
-
-                return new ByteArrayRef(stream.GetBuffer(), (int)stream.Length);
-            }
-        }
-
-        /// <summary>
-        /// Convert an enumerable set of strings to a newline-delimited byte array. No value can
-        /// contain a newline.
-        /// </summary>
-        /// <param name="values">Values to convert.</param>
-        /// <returns>Converted byte array.</returns>
-        public static ByteArrayRef FromNewlineDelimited(IEnumerable<string> values)
-        {
-            using (var stream = new MemoryStream())
-            using (var writer = new StreamWriter(stream, StrictUTF8) { AutoFlush = true })
-            {
-                foreach (var value in values)
-                {
-                    // If has a newline, we error since it would make an invalid set
-                    if (value.Contains("\n"))
-                    {
-                        throw new ArgumentException("Value cannot have newline");
-                    }
-
-                    // If the stream already has data, add another newline
-                    if (stream.Length > 0)
-                    {
-                        writer.Write('\n');
-                    }
-
-                    writer.Write(value);
-                }
-
-                if (stream.Length == 0)
-                {
-                    return Empty;
-                }
-
-                return new ByteArrayRef(stream.GetBuffer(), (int)stream.Length);
-            }
-        }
     }
 }

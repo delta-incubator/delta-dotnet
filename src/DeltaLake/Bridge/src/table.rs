@@ -2,6 +2,7 @@ use std::{
     collections::HashMap,
     ffi::{c_char, CString},
     future::IntoFuture,
+    io::Write,
     ptr::NonNull,
     str::FromStr,
     sync::Arc,
@@ -131,38 +132,38 @@ unsafe extern "C" fn release_metadata(metadata: *mut TableMetadata) {
     }
 
     drop(CString::from_raw(metadata.format_provider as *mut c_char));
-    let format_options = Vec::from_raw_parts(
-        metadata.format_options.values,
-        metadata.format_options.length,
-        metadata.format_options.capacity,
-    );
-    for fo in format_options.into_iter() {
-        let kv = Box::from_raw(fo);
-        String::from_raw_parts(kv.key, kv.key_length, kv.key_capacity);
-        if !kv.value.is_null() {
-            String::from_raw_parts(kv.value, kv.value_length, kv.value_capacity);
+    if !metadata.format_options.values.is_null() {
+        let format_options = Vec::from_raw_parts(
+            metadata.format_options.values,
+            metadata.format_options.length,
+            metadata.format_options.capacity,
+        );
+
+        for fo in format_options.into_iter() {
+            let _ = Box::from_raw(fo);
         }
     }
 
-    let partition_columns = Vec::from_raw_parts(
-        metadata.partition_columns,
-        metadata.partition_columns_count,
-        metadata.partition_columns_count,
-    );
-    for partition in partition_columns.iter() {
-        drop(CString::from_raw(*partition));
+    if !metadata.partition_columns.is_null() {
+        let partition_columns = Vec::from_raw_parts(
+            metadata.partition_columns,
+            metadata.partition_columns_count,
+            metadata.partition_columns_count,
+        );
+
+        for partition in partition_columns.iter() {
+            drop(CString::from_raw(*partition));
+        }
     }
 
-    let configuration = Vec::from_raw_parts(
-        metadata.configuration.values,
-        metadata.configuration.length,
-        metadata.configuration.capacity,
-    );
-    for opt in configuration.into_iter() {
-        let kv = Box::from_raw(opt);
-        String::from_raw_parts(kv.key, kv.key_length, kv.key_capacity);
-        if !kv.value.is_null() {
-            String::from_raw_parts(kv.value, kv.value_length, kv.value_capacity);
+    if !metadata.configuration.values.is_null() {
+        let configuration = Vec::from_raw_parts(
+            metadata.configuration.values,
+            metadata.configuration.length,
+            metadata.configuration.capacity,
+        );
+        for opt in configuration.into_iter() {
+            let _ = Box::from_raw(opt);
         }
     }
 
@@ -289,7 +290,7 @@ pub extern "C" fn create_deltalake(
     let (name, description, configuration, storage_options, custom_metadata) = unsafe {
         (
             options.name.to_option_string(),
-            options.name.to_option_string(),
+            options.description.to_option_string(),
             Map::into_map(options.configuration),
             Map::into_hash_map(options.storage_options),
             Map::into_hash_map(options.custom_metadata),
@@ -370,7 +371,16 @@ pub extern "C" fn table_new(
         }
     };
 
-    let mut builder = DeltaTableBuilder::from_uri(table_uri);
+    let mut builder = match DeltaTableBuilder::from_valid_uri(table_uri) {
+        Ok(builder) => builder,
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null_mut(),
+                DeltaTableError::from_error(runtime.as_mut(), err).into_raw(),
+            );
+            return;
+        },
+    };
 
     if options.version > 0 {
         builder = builder.with_version(options.version)
@@ -1509,7 +1519,8 @@ async fn create_delta_table(
     storage_options: Option<HashMap<String, String>>,
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
-    let table = DeltaTableBuilder::from_uri(table_uri)
+    let table = DeltaTableBuilder::from_valid_uri(table_uri)
+        .map_err(|err| DeltaTableError::from_error(runtime, err))?
         .with_storage_options(storage_options.unwrap_or_default())
         .build()
         .map_err(|error| DeltaTableError::from_error(runtime, error))?;

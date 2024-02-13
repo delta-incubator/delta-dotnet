@@ -58,6 +58,7 @@ namespace DeltaLake.Table
 
         internal unsafe static TableMetadata FromUnmanaged(Bridge.Interop.TableMetadata* metadata)
         {
+            var partitionColumns = StringArrayFromPointer(metadata->partition_columns, (int)metadata->partition_columns_count);
             return new DeltaLake.Table.TableMetadata
             {
                 Id = Marshal.PtrToStringUTF8(new IntPtr(metadata->id)) ?? string.Empty,
@@ -67,7 +68,7 @@ namespace DeltaLake.Table
                 SchemaString = Marshal.PtrToStringUTF8(new IntPtr(metadata->schema_string)) ?? string.Empty,
                 CreatedTime = DateTimeOffset.FromUnixTimeMilliseconds(metadata->created_time),
                 FormatOptions = KeyValueToDictionaryNullable(metadata->format_options),
-                PartitionColumns = StringArrayFromPointer(metadata->partition_columns, (int)metadata->partition_columns_count),
+                PartitionColumns = partitionColumns,
                 Configuration = KeyValueToDictionaryNullable(metadata->configuration),
             };
         }
@@ -92,7 +93,7 @@ namespace DeltaLake.Table
         private unsafe static Dictionary<string, string?> KeyValueToDictionaryNullable(Bridge.Interop.Dictionary kvs)
         {
             var dictionary = new Dictionary<string, string?>();
-            if (kvs.values == null)
+            if (kvs.length.ToUInt32() <= 0)
             {
                 return dictionary;
             }

@@ -41,7 +41,7 @@ impl KeyValuePair {
     pub(crate) fn from_optional_hash_map(
         input: HashMap<String, Option<String>>,
     ) -> *mut *mut KeyNullableValuePair {
-        let mapped = input
+        let mapped: Vec<*mut KeyValuePair> = input
             .into_iter()
             .map(|(key, value)| {
                 let mut key = ManuallyDrop::new(key);
@@ -62,7 +62,7 @@ impl KeyValuePair {
                     value_capacity,
                 }))
             })
-            .collect::<Box<_>>();
+            .collect();
         ManuallyDrop::new(mapped).as_mut_ptr()
     }
 

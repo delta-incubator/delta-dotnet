@@ -58,38 +58,6 @@ namespace DeltaLake.Bridge
         }
 
         /// <summary>
-        /// Create a metadata byte array ref.
-        /// </summary>
-        /// <param name="metadata">Metadata to create from.</param>
-        /// <returns>Created byte array ref.</returns>
-        public Interop.ByteArrayRef Metadata(IEnumerable<KeyValuePair<string, string>>? metadata)
-        {
-            if (metadata == null)
-            {
-                return ByteArrayRef.Empty.Ref;
-            }
-            var val = ByteArrayRef.FromMetadata(metadata);
-            toKeepAlive.Add(val);
-            return val.Ref;
-        }
-
-        /// <summary>
-        /// Create a newline-delimited byte array ref.
-        /// </summary>
-        /// <param name="values">Values to create from.</param>
-        /// <returns>Created byte array ref.</returns>
-        public Interop.ByteArrayRef NewlineDelimited(IEnumerable<string>? values)
-        {
-            if (values == null)
-            {
-                return ByteArrayRef.Empty.Ref;
-            }
-            var val = ByteArrayRef.FromNewlineDelimited(values);
-            toKeepAlive.Add(val);
-            return val.Ref;
-        }
-
-        /// <summary>
         /// Create a cancellation token.
         /// </summary>
         /// <param name="token">Cancellation token to create from.</param>

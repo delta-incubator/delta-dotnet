@@ -23,7 +23,14 @@ public class DeltaTableTests
         var schema = builder.Build();
         using var table = await DeltaTable.CreateAsync(
             runtime,
-            new TableCreateOptions(uri, schema),
+            new TableCreateOptions(uri, schema)
+            {
+                Configuration = new Dictionary<string, string?>
+                {
+                    ["delta.dataSkippingNumIndexedCols"] = "32",
+                    ["delta.setTransactionRetentionDuration"] = null,
+                }
+            },
             CancellationToken.None);
         Assert.NotNull(table);
         var version = table.Version();
@@ -37,6 +44,54 @@ public class DeltaTableTests
         var returnedSchema = table.Schema();
         Assert.NotNull(returnedSchema);
         Assert.Equal(schema.FieldsList.Count, returnedSchema.FieldsList.Count);
+    }
+
+    [Fact]
+    public async Task Create_InMemory_With_Partitions_Test()
+    {
+        var uri = $"memory://{Guid.NewGuid():N}";
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        var builder = new Apache.Arrow.Schema.Builder();
+        builder.Field(fb =>
+        {
+            fb.Name("test");
+            fb.DataType(Int32Type.Default);
+            fb.Nullable(false);
+        })
+        .Field(fb =>
+        {
+            fb.Name("second");
+            fb.DataType(Int32Type.Default);
+            fb.Nullable(false);
+        });
+        var schema = builder.Build();
+        var createOptions = new TableCreateOptions(uri, schema)
+        {
+            Configuration = new Dictionary<string, string?>
+            {
+                ["delta.dataSkippingNumIndexedCols"] = "32",
+                ["delta.setTransactionRetentionDuration"] = null,
+            },
+            PartitionBy = { "test" },
+            Name = "table",
+            Description = "this table has a description",
+            CustomMetadata = new Dictionary<string, string> { ["test"] = "something" },
+            StorageOptions = new Dictionary<string, string> { ["something"] = "here" },
+        };
+        using var table = await DeltaTable.CreateAsync(
+            runtime,
+            createOptions,
+            CancellationToken.None);
+        Assert.NotNull(table);
+        var version = table.Version();
+        Assert.Equal(0, version);
+        var location = table.Location();
+        Assert.Equal(uri, location);
+        var metadata = table.Metadata();
+        Assert.Single(metadata.PartitionColumns);
+        Assert.Equal("test", metadata.PartitionColumns[0]);
+        Assert.Equal(createOptions.Name, metadata.Name);
+        Assert.Equal(createOptions.Description, metadata.Description);
     }
 
     [Fact]
