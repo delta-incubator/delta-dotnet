@@ -2,7 +2,6 @@ use std::{
     collections::HashMap,
     ffi::{c_char, CString},
     future::IntoFuture,
-    io::Write,
     ptr::NonNull,
     str::FromStr,
     sync::Arc,

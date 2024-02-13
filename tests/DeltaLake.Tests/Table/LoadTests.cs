@@ -74,24 +74,23 @@ public partial class LoadTests
         Assert.Equal(expectedVersion, table.Version());
     }
 
-    // This will crash until https://github.com/delta-io/delta-rs/pull/2185 is merged
-    /*
-        [Fact]
-        public async Task Table_Load_Invalid_path_Test()
-        {
-            await Assert.ThrowsAsync<DeltaLakeException>(async () =>
-            {
-                using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-                using var table = await DeltaTable.LoadAsync(runtime, "invalid://invalid.uri", new TableOptions
-                {
-                    Version = 50,
-                },
-            CancellationToken.None);
-            });
-        }*/
 
     [Fact]
-    public async Task Table_Load_Invalid_path_Test()
+    public async Task Table_Load_Invalid_Uri_Type_Test()
+    {
+        await Assert.ThrowsAsync<DeltaLakeException>(async () =>
+        {
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(runtime, "invalid://invalid.uri", new TableOptions
+            {
+                Version = 50,
+            },
+        CancellationToken.None);
+        });
+    }
+
+    [Fact]
+    public async Task Table_Load_Invalid_Path_Test()
     {
         await Assert.ThrowsAsync<DeltaLakeException>(async () =>
         {
