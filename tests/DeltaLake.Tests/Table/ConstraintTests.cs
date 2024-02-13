@@ -42,22 +42,31 @@ namespace DeltaLake.Tests.Table
 
         public static IEnumerable<object[]> TestCases()
         {
-            yield return [1, "hello", 0, new Dictionary<string, string>{
-                ["first"] = "first > 0",
-            },
-            false];
-            yield return [0, "hello", 0, new Dictionary<string, string>{
-                ["first"] = "first > 0",
-            },
-            true];
-            yield return [0, "hello", 1, new Dictionary<string, string>{
-                ["third"] = "third > 0",
-            },
-            false];
-            yield return [0, "hello", 0, new Dictionary<string, string>{
-                ["third"] = "third > 0",
-            },
-            true];
+            yield return [1, "hello", 0, new Dictionary<string, string> { ["first"] = "first > 0" }, false];
+            yield return [0,
+                "hello",
+                0,
+                new Dictionary<string, string>
+                {
+                    ["first"] = "first > 0",
+                },
+                true];
+            yield return [0,
+                "hello",
+                1,
+                new Dictionary<string, string>
+                {
+                    ["third"] = "third > 0",
+                },
+                false];
+            yield return [0,
+                "hello",
+                0,
+                new Dictionary<string, string>
+                {
+                    ["third"] = "third > 0",
+                },
+                true];
         }
 
         private async Task BaseConstraintTest(
