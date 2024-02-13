@@ -150,10 +150,11 @@ namespace DeltaLake.Table
         /// </summary>
         /// <param name="limit">Optional maximum amount of history to return</param>
         /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
-        /// <returns></returns>
-        public async Task HistoryAsync(ulong? limit, CancellationToken cancellationToken)
+        /// <returns>An array of <see cref="CommitInfo"/> </returns>
+        public async Task<CommitInfo[]> HistoryAsync(ulong? limit, CancellationToken cancellationToken)
         {
-            await _table.HistoryAsync(limit ?? 0, cancellationToken).ConfigureAwait(false);
+            var content = await _table.HistoryAsync(limit ?? 0, cancellationToken).ConfigureAwait(false);
+            return System.Text.Json.JsonSerializer.Deserialize<CommitInfo[]>(content) ?? System.Array.Empty<CommitInfo>();
         }
 
         /// <summary>

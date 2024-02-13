@@ -123,5 +123,9 @@ public class DeltaTableTests
         {
             Assert.NotNull(result);
         }
+        var history = await table.HistoryAsync(1, CancellationToken.None);
+        Assert.Single(history);
+        history = await table.HistoryAsync(default, CancellationToken.None);
+        Assert.Equal(2, history.Length);
     }
 }

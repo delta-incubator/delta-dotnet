@@ -128,7 +128,6 @@ public class MergeTests
             .Append("third", false, col => col.Int64(arr => arr.AppendRange(enumerable.Select(_ => 100L))));
         using var rb = recordBatchBuilder.Build();
         await table.MergeAsync(query, [rb], rb.Schema, CancellationToken.None);
-        Console.WriteLine("merged!");
         var batches = table.QueryAsync(new SelectQuery("select * from deltatable"), CancellationToken.None).ToBlockingEnumerable().ToList();
         assertions(batches);
     }

@@ -77,7 +77,6 @@ namespace DeltaLake.Bridge
                     }));
                 }
 
-
                 await tsc.Task.ConfigureAwait(false);
             }
         }
@@ -320,7 +319,6 @@ namespace DeltaLake.Bridge
                         }));
                     }
 
-
                     return await tsc.Task.ConfigureAwait(false);
                 }
             }
@@ -399,8 +397,9 @@ namespace DeltaLake.Bridge
                         }));
 
                 }
+
+                return await tsc.Task.ConfigureAwait(false);
             }
-            return await tsc.Task.ConfigureAwait(false);
         }
 
         public async Task<string> UpdateAsync(string query, ICancellationToken cancellationToken)
@@ -433,13 +432,14 @@ namespace DeltaLake.Bridge
                         }));
 
                 }
+
+                return await tsc.Task.ConfigureAwait(false);
             }
-            return await tsc.Task.ConfigureAwait(false);
         }
 
-        public async Task<string> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
+        public async Task<byte[]> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<string>();
+            var tsc = new TaskCompletionSource<byte[]>();
             using (var scope = new Scope())
             {
                 unsafe
@@ -462,14 +462,14 @@ namespace DeltaLake.Bridge
                             else
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
-                                tsc.TrySetResult(content.ToUTF8());
+                                tsc.TrySetResult(content.ToByteArray());
                             }
                         }));
 
                 }
-            }
 
-            return await tsc.Task.ConfigureAwait(false);
+                return await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         public async Task AddConstraintAsync(IReadOnlyDictionary<string, string> constraints, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
@@ -500,11 +500,10 @@ namespace DeltaLake.Bridge
                                 tsc.TrySetResult(true);
                             }
                         }));
-
                 }
-            }
 
-            await tsc.Task.ConfigureAwait(false);
+                await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         public async Task UpdateIncrementalAsync(ICancellationToken cancellationToken)
@@ -535,9 +534,9 @@ namespace DeltaLake.Bridge
                         }));
 
                 }
-            }
 
-            await tsc.Task.ConfigureAwait(false);
+                await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         public DeltaLake.Table.TableMetadata Metadata()
@@ -594,11 +593,10 @@ namespace DeltaLake.Bridge
                                 tsc.TrySetResult(true);
                             }
                         }));
-
                 }
-            }
 
-            await tsc.Task.ConfigureAwait(false);
+                await tsc.Task.ConfigureAwait(false);
+            }
         }
 
         internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode)

@@ -19,3 +19,6 @@ tests/data/action_reconciliation/
 tests/data/simple_table_with_no_checkpoint/
 tests/data/simple_table_with_no_checkpoint_2/
 .DS_Store
+TestResults/
+lcov.info
+coveragereport
