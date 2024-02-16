@@ -74,6 +74,45 @@ public partial class LoadTests
         Assert.Equal(expectedVersion, table.Version());
     }
 
+    [Theory]
+    [InlineData(TableIdentifier.Checkpoints, 1, 12)]
+    [InlineData(TableIdentifier.CheckpointsVacuumed, 5, 12)]
+    [InlineData(TableIdentifier.Delta020, 1, 3)]
+    public async Task Table_Load_Update_Incremental(TableIdentifier identifier, int minVersion, int expectedVersion)
+    {
+        var location = identifier.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        {
+            Version = minVersion,
+        },
+        CancellationToken.None);
+        Assert.Equal(minVersion, table.Version());
+        for (var version = minVersion; version <= expectedVersion; version++)
+        {
+            await table.UpdateIncrementalAsync(version, CancellationToken.None);
+            Assert.Equal(version, table.Version());
+        }
+    }
+
+    [Theory]
+    [InlineData(TableIdentifier.Checkpoints, 1, 12)]
+    [InlineData(TableIdentifier.CheckpointsVacuumed, 5, 12)]
+    [InlineData(TableIdentifier.Delta020, 1, 3)]
+    public async Task Table_Load_Update_Incremental_Latest(TableIdentifier identifier, int minVersion, int expectedVersion)
+    {
+        var location = identifier.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        {
+            Version = minVersion,
+        },
+        CancellationToken.None);
+        Assert.Equal(minVersion, table.Version());
+        await table.UpdateIncrementalAsync(100, CancellationToken.None);
+        Assert.Equal(expectedVersion, table.Version());
+    }
+
 
     [Fact]
     public async Task Table_Load_Invalid_Uri_Type_Test()

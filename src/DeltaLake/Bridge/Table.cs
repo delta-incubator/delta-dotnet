@@ -474,6 +474,11 @@ namespace DeltaLake.Bridge
 
         public async Task AddConstraintAsync(IReadOnlyDictionary<string, string> constraints, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
         {
+            if (constraints.Count == 0)
+            {
+                return;
+            }
+
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
             {
@@ -506,7 +511,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        public async Task UpdateIncrementalAsync(ICancellationToken cancellationToken)
+        public async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -516,6 +521,7 @@ namespace DeltaLake.Bridge
                     Methods.table_update_incremental(
                         _runtime.Ptr,
                         _ptr,
+                        maxVersion ?? -1L,
                         scope.CancellationToken(cancellationToken),
                         scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                         {

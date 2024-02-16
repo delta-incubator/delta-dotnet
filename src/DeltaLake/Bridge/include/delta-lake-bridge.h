@@ -302,6 +302,7 @@ void history(struct Runtime *_Nonnull runtime,
 
 void table_update_incremental(struct Runtime *_Nonnull runtime,
                               struct RawDeltaTable *_Nonnull table,
+                              int64_t max_version,
                               const struct CancellationToken *cancellation_token,
                               TableEmptyCallback callback);
 

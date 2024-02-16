@@ -31,6 +31,17 @@ public class InsertTests
         }
     }
 
+    [Fact]
+    public async Task Memory_Insert_Zero_Record_Count_Test()
+    {
+        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        using var runtime = tableParts.runtime;
+        using var table = tableParts.table;
+        var version = table.Version();
+        await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
+        Assert.Equal(version, table.Version());
+    }
+
     private async Task BaseInsertTest(string path, int length)
     {
         var data = await TableHelpers.SetupTable(path, length);

@@ -44,6 +44,9 @@ public class DeltaTableTests
         var returnedSchema = table.Schema();
         Assert.NotNull(returnedSchema);
         Assert.Equal(schema.FieldsList.Count, returnedSchema.FieldsList.Count);
+        var protocol = table.ProtocolVersions();
+        Assert.True(protocol.MinimumReaderVersion > 0);
+        Assert.True(protocol.MinimumWriterVersion > 0);
     }
 
     [Fact]

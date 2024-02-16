@@ -138,6 +138,29 @@ public class MergeTests
         });
     }
 
+    [Fact]
+    public async Task Merge_Zero_Record_Count_Test()
+    {
+        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        using var runtime = tableParts.runtime;
+        using var table = tableParts.table;
+        var version = table.Version();
+        await table.MergeAsync(@"MERGE INTO mytable USING newdata
+        ON newdata.test = mytable.test
+        WHEN NOT MATCHED BY TARGET
+          THEN INSERT (
+            test,
+            second,
+            third
+          )
+          VALUES (
+            newdata.test,
+            'inserted data',
+            99
+          )", [], table.Schema(), CancellationToken.None);
+        Assert.Equal(version, table.Version());
+    }
+
     private async Task BaseMergeTest(string query, Action<IReadOnlyList<RecordBatch>> assertions)
     {
         var pair = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);

@@ -40,6 +40,35 @@ namespace DeltaLake.Tests.Table
             }
         }
 
+        [Fact]
+        public async Task Invalid_Constraint_Test()
+        {
+            var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+            using var runtime = tableParts.runtime;
+            using var table = tableParts.table;
+            await Assert.ThrowsAsync<DeltaLakeException>(() => table.AddConstraintsAsync(
+                new Dictionary<string, string>
+                {
+                    ["something isn't right"] = "invalid constraint",
+                },
+                new Dictionary<string, string>(),
+                CancellationToken.None));
+        }
+
+        [Fact]
+        public async Task Empty_Constraint_Test()
+        {
+            var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+            using var runtime = tableParts.runtime;
+            using var table = tableParts.table;
+            var version = table.Version();
+            await table.AddConstraintsAsync(
+                new Dictionary<string, string>(),
+            new Dictionary<string, string>(),
+            CancellationToken.None);
+            Assert.Equal(version, table.Version());
+        }
+
         public static IEnumerable<object[]> TestCases()
         {
             yield return [1, "hello", 0, new Dictionary<string, string> { ["first"] = "first > 0" }, false];

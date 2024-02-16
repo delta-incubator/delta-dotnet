@@ -18,6 +18,7 @@ use deltalake::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
         execution::context::{SQLOptions, SessionContext},
+        logical_expr::max,
     },
     kernel::StructType,
     operations::{
@@ -546,9 +547,15 @@ pub extern "C" fn history(
 pub extern "C" fn table_update_incremental(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
+    max_version: i64,
     cancellation_token: Option<&CancellationToken>,
     callback: TableEmptyCallback,
 ) {
+    let max_version = if max_version > 0 {
+        Some(max_version)
+    } else {
+        None
+    };
     run_async_with_cancellation!(
         runtime,
         table,
@@ -556,7 +563,7 @@ pub extern "C" fn table_update_incremental(
         rt,
         tbl,
         {
-            match tbl.table.update_incremental(None).await {
+            match tbl.table.update_incremental(max_version).await {
                 Ok(_) => unsafe {
                     callback(std::ptr::null());
                 },

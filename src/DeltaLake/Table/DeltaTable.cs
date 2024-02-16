@@ -186,13 +186,14 @@ namespace DeltaLake.Table
         }
 
         /// <summary>
-        /// Updates table to latest version
+        /// Updates table to specific or latest version
         /// </summary>
+        /// <param name="maxVersion">Optional maximum version</param>
         /// <param name="cancellationToken"><see cref="CancellationToken"/></param>
         /// <returns></returns>
-        public Task UpdateIncrementalAsync(CancellationToken cancellationToken)
+        public Task UpdateIncrementalAsync(long? maxVersion, CancellationToken cancellationToken)
         {
-            return _table.UpdateIncrementalAsync(cancellationToken);
+            return _table.UpdateIncrementalAsync(maxVersion, cancellationToken);
         }
 
         /// <summary>
