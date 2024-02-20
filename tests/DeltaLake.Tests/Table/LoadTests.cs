@@ -113,7 +113,6 @@ public partial class LoadTests
         Assert.Equal(expectedVersion, table.Version());
     }
 
-
     [Fact]
     public async Task Table_Load_Invalid_Uri_Type_Test()
     {

@@ -271,7 +271,7 @@ bool partition_filter_list_add_set(struct PartitionFilterList *_list,
 
 void partition_filter_list_free(struct PartitionFilterList *list);
 
-struct ByteArray *table_uri(const struct RawDeltaTable *table);
+struct ByteArray *table_uri(struct RawDeltaTable *_Nonnull table);
 
 void table_free(struct RawDeltaTable *_Nonnull table);
 
@@ -340,7 +340,7 @@ void table_restore(struct Runtime *_Nonnull runtime,
 
 void table_update(struct Runtime *_Nonnull runtime,
                   struct RawDeltaTable *_Nonnull table,
-                  const struct ByteArrayRef *query,
+                  struct ByteArrayRef *_Nonnull query,
                   const struct CancellationToken *cancellation_token,
                   GenericErrorCallback callback);
 
@@ -380,7 +380,7 @@ void table_checkpoint(struct Runtime *_Nonnull runtime,
 
 void table_vacuum(struct Runtime *_Nonnull runtime,
                   struct RawDeltaTable *_Nonnull table,
-                  const struct VacuumOptions *options,
+                  struct VacuumOptions *_Nonnull options,
                   GenericErrorCallback callback);
 
 int64_t table_version(struct RawDeltaTable *_Nonnull table_handle);

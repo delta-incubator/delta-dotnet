@@ -18,7 +18,6 @@ use deltalake::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
         execution::context::{SQLOptions, SessionContext},
-        logical_expr::max,
     },
     kernel::StructType,
     operations::{
@@ -240,8 +239,8 @@ type GenericErrorCallback =
     unsafe extern "C" fn(success: *const c_void, fail: *const DeltaTableError);
 
 #[no_mangle]
-pub extern "C" fn table_uri(table: *const RawDeltaTable) -> *mut ByteArray {
-    let table = unsafe { &*table };
+pub extern "C" fn table_uri(table: NonNull<RawDeltaTable>) -> *mut ByteArray {
+    let table = unsafe { table.as_ref() };
     let uri = table.table.table_uri();
     ByteArray::from_utf8(uri).into_raw()
 }
@@ -910,12 +909,12 @@ pub extern "C" fn table_restore(
 pub extern "C" fn table_update(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
-    query: *const ByteArrayRef,
+    query: NonNull<ByteArrayRef>,
     cancellation_token: Option<&CancellationToken>,
     callback: GenericErrorCallback,
 ) {
     let query = {
-        let query = unsafe { &*query };
+        let query = unsafe { query.as_ref() };
         query.to_str()
     };
     let mut parser = match DeltaLakeParser::new(query) {
@@ -1286,11 +1285,11 @@ pub extern "C" fn table_checkpoint(
 pub extern "C" fn table_vacuum(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
-    options: *const VacuumOptions,
+    options: NonNull<VacuumOptions>,
     callback: GenericErrorCallback,
 ) {
     let (dry_run, retention_hours, enforce_retention_duration, custom_metadata) = unsafe {
-        let options = &*options;
+        let options = options.as_ref();
         let retention_hours = if options.retention_hours > 0 {
             Some(options.retention_hours)
         } else {
