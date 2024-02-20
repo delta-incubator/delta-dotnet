@@ -17,6 +17,7 @@ jobs:
             checkTarget: true
           - os: ubuntu-latest
             docsTarget: true
+            coverageTarget: true
             cloudTestTarget: true
     runs-on: ${{ matrix.runsOn || matrix.os }}
     steps:
@@ -58,7 +59,7 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test
-        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.inf --logger "console;verbosity=detailed" --blame-crash -v n
+        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info --logger "console;verbosity=detailed" --blame-crash -v n
 
       - name: Upload test failure
         if: ${{ failure() }}
@@ -68,11 +69,11 @@ jobs:
           path: tests/DeltaLake.Tests/TestResults
 
       - name: Setup LCOV
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.coverageTarget
         uses: hrishikesh-kadam/setup-lcov@v1
 
       - name: Report code coverage
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && matrix.coverageTarget
         uses: zgosalvez/github-actions-report-lcov@v3
         with:
           coverage-files: tests/DeltaLake.Tests/lcov.info
