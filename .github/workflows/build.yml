@@ -72,3 +72,15 @@ jobs:
         run: |
           dotnet tool update -g docfx
           docfx src/DeltaLake.ApiDoc/docfx.json --warningsAsErrors
+
+      - name: Upload artifact
+        if: ${{ github.ref == 'refs/heads/main' && matrix.docsTarget }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: "src/DeltaLake.ApiDoc/_site"
+
+      - name: Deploy to GitHub Pages
+        if: ${{ github.ref == 'refs/heads/main' && matrix.docsTarget }}
+        id: deployment
+        uses: actions/deploy-pages@v4
