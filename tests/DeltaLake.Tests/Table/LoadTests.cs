@@ -133,12 +133,12 @@ public partial class LoadTests
     {
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
         {
-            await Assert.ThrowsAsync<DeltaLakeException>(TestBodyAsync);
+            await Assert.ThrowsAsync<SEHException>(TestBodyAsync);
         }
         else
         {
 
-            await Assert.ThrowsAsync<SEHException>(TestBodyAsync);
+            await Assert.ThrowsAsync<DeltaLakeException>(TestBodyAsync);
         }
 
         static async Task TestBodyAsync()
