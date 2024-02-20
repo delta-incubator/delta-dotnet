@@ -48,7 +48,7 @@ jobs:
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
           dotnet tool install --global --version 16.0.0 ClangSharpPInvokeGenerator
-          ClangSharpPInvokeGenerator @src/Temporalio/Bridge/GenerateInterop.rsp
+          ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code

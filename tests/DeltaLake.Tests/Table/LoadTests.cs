@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
 
@@ -130,7 +131,17 @@ public partial class LoadTests
     [Fact]
     public async Task Table_Load_Invalid_Path_Test()
     {
-        await Assert.ThrowsAsync<DeltaLakeException>(async () =>
+        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+        {
+            await Assert.ThrowsAsync<DeltaLakeException>(TestBodyAsync);
+        }
+        else
+        {
+
+            await Assert.ThrowsAsync<SEHException>(TestBodyAsync);
+        }
+
+        static async Task TestBodyAsync()
         {
             using var runtime = new DeltaRuntime(RuntimeOptions.Default);
             using var table = await DeltaTable.LoadAsync(runtime, "file://invalid.uri", new TableOptions
@@ -138,7 +149,7 @@ public partial class LoadTests
                 Version = 50,
             },
         CancellationToken.None);
-        });
+        }
     }
 
     [Theory]
