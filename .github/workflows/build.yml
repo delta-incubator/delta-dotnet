@@ -48,7 +48,7 @@ jobs:
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
           dotnet tool install --global --version 16.0.0 ClangSharpPInvokeGenerator
-          ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
+          # ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code
@@ -66,6 +66,21 @@ jobs:
         with:
           name: test-fail-${{ matrix.os }}
           path: tests/DeltaLake.Tests/TestResults
+
+      - name: Setup LCOV
+        if: github.event_name == 'pull_request'
+        uses: hrishikesh-kadam/setup-lcov@v1
+
+      - name: Report code coverage
+        if: github.event_name == 'pull_request'
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: tests/DeltaLake.Tests/lcov.info
+          minimum-coverage: 80
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          #working-directory: apps/my-first-app
+          update-comment: true
 
       - name: Build docs
         if: ${{ matrix.docsTarget }}
