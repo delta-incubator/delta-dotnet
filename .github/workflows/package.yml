@@ -50,18 +50,18 @@ jobs:
           key: ${{ matrix.os }}
 
       - name: Add alternative Rust target
-        if: ${{ matrix.alternative-target }}
+        if: ${{ matrix.alternative-target != ''}}
         run: |
           cargo install cross
 
-      - name: Build
-        if: ${{ !matrix.alternative-target }}
+      - name: Build alternative target
+        if: ${{ !matrix.alternative-target != '' }}
         run: |
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
 
-      - name: Build alternative target
-        if: ${{ matrix.alternative-target != '' }}
-        run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
+      - name: Build
+        if: ${{ !matrix.alternative-target }}
+        run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
