@@ -55,7 +55,7 @@ jobs:
           cargo install cross
 
       - name: Build alternative target
-        if: ${{ !matrix.alternative-target != '' }}
+        if: ${{ matrix.alternative-target != '' }}
         run: |
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
 
