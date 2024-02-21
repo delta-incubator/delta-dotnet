@@ -17,6 +17,7 @@ jobs:
             checkTarget: true
           - os: ubuntu-latest
             docsTarget: true
+            coverageTarget: true
             cloudTestTarget: true
     runs-on: ${{ matrix.runsOn || matrix.os }}
     steps:
@@ -48,7 +49,7 @@ jobs:
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
           dotnet tool install --global --version 16.0.0 ClangSharpPInvokeGenerator
-          ClangSharpPInvokeGenerator @src/Temporalio/Bridge/GenerateInterop.rsp
+          # ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code
@@ -58,7 +59,7 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test
-        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.inf --logger "console;verbosity=detailed" --blame-crash -v n
+        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info --logger "console;verbosity=detailed" --blame-crash -v n
 
       - name: Upload test failure
         if: ${{ failure() }}
@@ -67,8 +68,35 @@ jobs:
           name: test-fail-${{ matrix.os }}
           path: tests/DeltaLake.Tests/TestResults
 
+      - name: Setup LCOV
+        if: github.event_name == 'pull_request' && matrix.coverageTarget
+        uses: hrishikesh-kadam/setup-lcov@v1
+
+      - name: Report code coverage
+        if: github.event_name == 'pull_request' && matrix.coverageTarget
+        uses: zgosalvez/github-actions-report-lcov@v3
+        with:
+          coverage-files: tests/DeltaLake.Tests/lcov.info
+          minimum-coverage: 80
+          artifact-name: code-coverage-report
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          #working-directory: apps/my-first-app
+          update-comment: true
+
       - name: Build docs
         if: ${{ matrix.docsTarget }}
         run: |
           dotnet tool update -g docfx
           docfx src/DeltaLake.ApiDoc/docfx.json --warningsAsErrors
+
+      - name: Upload artifact
+        if: ${{ github.ref == 'refs/heads/main' && matrix.docsTarget }}
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # Upload entire repository
+          path: "src/DeltaLake.ApiDoc/_site"
+
+      - name: Deploy to GitHub Pages
+        if: ${{ github.ref == 'refs/heads/main' && matrix.docsTarget }}
+        id: deployment
+        uses: actions/deploy-pages@v4
