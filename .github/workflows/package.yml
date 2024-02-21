@@ -89,6 +89,9 @@ jobs:
       - build-bridge-libraries
     runs-on: windows-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Download bridge libraries
         uses: actions/download-artifact@v3
         with:
