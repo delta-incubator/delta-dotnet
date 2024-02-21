@@ -55,6 +55,11 @@ jobs:
         run: |
           rustup target install ${{ matrix.alternative-target }}
 
+      - name: Install cross
+        if: ${{ matrix.use-cross }}
+        run: |
+          cargo install cross
+
       - name: Build alternative target
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
