@@ -57,7 +57,7 @@ jobs:
       - name: Build alternative target
         if: ${{ matrix.alternative-target != '' }}
         run: |
-          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
+          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
 
       - name: Build
         if: ${{ !matrix.alternative-target }}
@@ -76,6 +76,7 @@ jobs:
         with:
           name: ${{ matrix.out-prefix }}-bridge
           path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.out-file }}
+          if-no-files-found: "error"
 
   build-nuget-package:
     needs:
