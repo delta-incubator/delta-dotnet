@@ -19,14 +19,15 @@ jobs:
             out-file: libdelta_rs_bridge.so
             out-prefix: linux-arm64
             runsOn: ubuntu-latest
+            use-cross: true
             alternative-target: aarch64-unknown-linux-gnu
           - os: macos-latest
             out-file: libdelta_rs_bridge.dylib
             out-prefix: osx-x64
+            alternative-target: x86_64-apple-darwin
           - os: macos-arm
             out-file: libdelta_rs_bridge.dylib
             out-prefix: osx-arm64
-            alternative-target: aarch64-apple-darwin
             runsOn: macos-latest
           - os: windows-latest
             out-file: delta_rs_bridge.dll
@@ -50,16 +51,23 @@ jobs:
           key: ${{ matrix.os }}
 
       - name: Add alternative Rust target
-        if: ${{ matrix.alternative-target }}
-        run: rustup target add ${{ matrix.alternative-target }}
+        if: ${{ matrix.alternative-target != ''}}
+        run: |
+          rustup target install ${{ matrix.alternative-target }}
+
+      - name: Build alternative target
+        if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
+        run: |
+          cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
+
+      - name: Build cross target
+        if: ${{ matrix.use-cross }}
+        run: |
+          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
 
       - name: Build
         if: ${{ !matrix.alternative-target }}
         run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
-
-      - name: Build alternative target
-        if: ${{ matrix.alternative-target != '' }}
-        run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
@@ -74,12 +82,16 @@ jobs:
         with:
           name: ${{ matrix.out-prefix }}-bridge
           path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.out-file }}
+          if-no-files-found: "error"
 
   build-nuget-package:
     needs:
       - build-bridge-libraries
     runs-on: windows-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Download bridge libraries
         uses: actions/download-artifact@v3
         with:
@@ -89,7 +101,7 @@ jobs:
         uses: actions/setup-dotnet@v3
 
       - name: Build package
-        run: dotnet pack -c Release /p:BridgeLibraryRoot=${{ github.workspace }}/bridge-libraries
+        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:BridgeLibraryRoot=${{ github.workspace }}/bridge-libraries
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v3
@@ -100,5 +112,5 @@ jobs:
             src/DeltaLake/bin/Release/*.snupkg
       - name: Push nuget artifacts
         run: |
-          dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/${GITHUB_REPOSITORY_OWNER}/index.json"
-          dotnet nuget push "bin/Release/*.nupkg"  --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"
+          dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/mightyshazam/index.json"
+          dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"

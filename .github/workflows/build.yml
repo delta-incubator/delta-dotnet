@@ -5,7 +5,10 @@ on:
     branches:
       - main
       - "releases/*"
-
+permissions:
+  pages: write
+  id-token: write
+  pull-requests: write
 jobs:
   build-lint-test:
     strategy:
