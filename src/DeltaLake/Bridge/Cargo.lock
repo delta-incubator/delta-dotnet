@@ -951,8 +951,8 @@ dependencies = [
 
 [[package]]
 name = "deltalake"
-version = "0.17.0"
-source = "git+https://github.com/delta-io/delta-rs.git?branch=main#0449db9c3ce6477b903f74ec2aca471f9f3d0323"
+version = "0.17.1"
+source = "git+https://github.com/delta-io/delta-rs.git?branch=main#3d13238937529502e2a27c833f4e96643c42eb20"
 dependencies = [
  "deltalake-aws",
  "deltalake-azure",
@@ -963,7 +963,7 @@ dependencies = [
 [[package]]
 name = "deltalake-aws"
 version = "0.1.0"
-source = "git+https://github.com/delta-io/delta-rs.git?branch=main#0449db9c3ce6477b903f74ec2aca471f9f3d0323"
+source = "git+https://github.com/delta-io/delta-rs.git?branch=main#3d13238937529502e2a27c833f4e96643c42eb20"
 dependencies = [
  "async-trait",
  "backoff",
@@ -988,7 +988,7 @@ dependencies = [
 [[package]]
 name = "deltalake-azure"
 version = "0.1.0"
-source = "git+https://github.com/delta-io/delta-rs.git?branch=main#0449db9c3ce6477b903f74ec2aca471f9f3d0323"
+source = "git+https://github.com/delta-io/delta-rs.git?branch=main#3d13238937529502e2a27c833f4e96643c42eb20"
 dependencies = [
  "async-trait",
  "bytes",
@@ -1005,8 +1005,8 @@ dependencies = [
 
 [[package]]
 name = "deltalake-core"
-version = "0.17.0"
-source = "git+https://github.com/delta-io/delta-rs.git?branch=main#0449db9c3ce6477b903f74ec2aca471f9f3d0323"
+version = "0.17.1"
+source = "git+https://github.com/delta-io/delta-rs.git?branch=main#3d13238937529502e2a27c833f4e96643c42eb20"
 dependencies = [
  "arrow",
  "arrow-arith",
@@ -1066,7 +1066,7 @@ dependencies = [
 [[package]]
 name = "deltalake-gcp"
 version = "0.1.0"
-source = "git+https://github.com/delta-io/delta-rs.git?branch=main#0449db9c3ce6477b903f74ec2aca471f9f3d0323"
+source = "git+https://github.com/delta-io/delta-rs.git?branch=main#3d13238937529502e2a27c833f4e96643c42eb20"
 dependencies = [
  "async-trait",
  "bytes",
