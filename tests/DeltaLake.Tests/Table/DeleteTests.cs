@@ -1,3 +1,4 @@
+using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -66,29 +67,39 @@ public class DeleteTests
             info.Delete(true);
         }
     }
+
     [Fact]
     public async Task Memory_Invalid_Delete_Predicate_Test()
     {
-        await Assert.ThrowsAsync<DeltaLakeException>(async () =>
+        await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         await BaseDeleteTest($"memory://{Guid.NewGuid():N}", 10, "invalid_property > 100", 10));
+    }
+
+    [Fact]
+    public async Task Memory_Delete_Cancellation_Test()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        await BaseDeleteTest($"memory://{Guid.NewGuid():N}", 10, default, 10, true));
     }
 
     private async Task BaseDeleteTest(
         string path,
         int length,
         string? predicate,
-        int expectedRecords)
+        int expectedRecords,
+        bool cancelOp = false)
     {
         var data = await TableHelpers.SetupTable(path, length);
         using var runtime = data.runtime;
         using var table = data.table;
+        var token = cancelOp ? new CancellationToken(true) : CancellationToken.None;
         if (predicate == null)
         {
-            await table.DeleteAsync(CancellationToken.None);
+            await table.DeleteAsync(token);
         }
         else
         {
-            await table.DeleteAsync(predicate, CancellationToken.None);
+            await table.DeleteAsync(predicate, token);
         }
 
         var queryResult = table.QueryAsync(new SelectQuery("select * from test")

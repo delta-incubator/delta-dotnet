@@ -50,8 +50,13 @@ macro_rules! run_async_with_cancellation {
         let ($rt, $tbl) = unsafe { ($runtime.as_mut(), $table.as_mut()) };
         let runtime_handle = $rt.handle();
         let cancel_token = $cancellation_token.map(|v| v.token.clone());
+
         runtime_handle.spawn(async move {
             if let Some(cancel_token) = cancel_token {
+                if (cancel_token.is_cancelled()) {
+                    unsafe {$on_cancel}
+                    return
+                }
                 tokio::select! {
                     _ = cancel_token.cancelled() => unsafe {$on_cancel},
                     _ = async $work => {},
@@ -67,6 +72,11 @@ macro_rules! run_async_with_cancellation {
         let cancel_token = $cancellation_token.map(|v| v.token.clone());
         runtime_handle.spawn(async move {
             if let Some(cancel_token) = cancel_token {
+                if (cancel_token.is_cancelled()) {
+                    unsafe {$on_cancel}
+                    return
+                }
+
                 tokio::select! {
                     _ = cancel_token.cancelled() => unsafe {$on_cancel},
                     _ = async $work => {},
@@ -610,10 +620,18 @@ pub extern "C" fn table_load_with_datetime(
     ts_milliseconds: i64,
     cancellation_token: Option<&CancellationToken>,
     callback: TableEmptyCallback,
-) -> bool {
+) {
     let naive_dt = match NaiveDateTime::from_timestamp_millis(ts_milliseconds) {
         Some(dt) => dt,
-        None => return false,
+        None => unsafe {
+            let error = DeltaTableError::new(
+                runtime.as_mut(),
+                DeltaTableErrorCode::InvalidTimestamp,
+                "invalid timestamp",
+            );
+            callback(Box::into_raw(Box::new(error)));
+            return;
+        },
     };
 
     let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
@@ -634,7 +652,6 @@ pub extern "C" fn table_load_with_datetime(
         },
         { callback(std::ptr::null()) }
     );
-    true
 }
 
 #[no_mangle]
@@ -1185,18 +1202,21 @@ pub extern "C" fn table_insert(
                     return;
                 },
             };
+            let schema_mode = if overwrite_schema {
+                deltalake::operations::write::SchemaMode::Overwrite
+            } else {
+                deltalake::operations::write::SchemaMode::Merge
+            };
+
             let mut mb = WriteBuilder::new(tbl.table.log_store(), Some(snapshot))
                 .with_write_batch_size(max_rows_per_group)
                 .with_input_batches(batches)
                 .with_save_mode(save_mode)
-                .with_overwrite_schema(overwrite_schema);
+                .with_schema_mode(schema_mode);
             if let Some(predicate) = predicate {
                 mb = mb.with_replace_where(predicate);
             }
 
-            if overwrite_schema {
-                mb = mb.with_overwrite_schema(overwrite_schema)
-            }
             match mb.await {
                 Ok(updated) => {
                     tbl.table = updated;

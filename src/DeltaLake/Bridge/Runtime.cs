@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Apache.Arrow.C;
+using DeltaLake.Errors;
 
 namespace DeltaLake.Bridge
 {
@@ -72,10 +73,10 @@ namespace DeltaLake.Bridge
                 {
                     var nativeOptions = new Interop.TableOptions()
                     {
-                        version = options?.Version ?? -1,
-                        without_files = (byte)(options?.WithoutFiles == true ? 1 : 0),
-                        log_buffer_size = options?.LogBufferSize ?? (nuint)0,
-                        storage_options = options != null ? scope.Dictionary(this, options.StorageOptions) : null,
+                        version = options.Version.HasValue ? unchecked((long)options.Version.Value) : -1L,
+                        without_files = (byte)(options.WithoutFiles ? 1 : 0),
+                        log_buffer_size = options.LogBufferSize ?? (nuint)0,
+                        storage_options = options.StorageOptions != null ? scope.Dictionary(this, options.StorageOptions) : null,
                     };
                     Interop.Methods.table_new(
                         Ptr,
@@ -92,7 +93,7 @@ namespace DeltaLake.Bridge
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
+                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
                         }
                         else
                         {
@@ -144,7 +145,7 @@ namespace DeltaLake.Bridge
 
                                 if (fail != null)
                                 {
-                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(Ptr, fail));
+                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
                                 }
                                 else
                                 {

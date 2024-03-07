@@ -10,7 +10,7 @@ namespace DeltaLake.Table
         /// <summary>
         /// Optional version of the table to load
         /// </summary>
-        public long? Version { get; set; }
+        public ulong? Version { get; set; }
 
         /// <summary>
         /// A map of string options

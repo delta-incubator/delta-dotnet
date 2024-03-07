@@ -95,7 +95,19 @@ public static class TableHelpers
         return Path.Join(pathRoot ?? Settings.TestRoot, Tables[tid]);
     }
 
-    public async static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(string path, int length)
+    public static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(string path, int length)
+    {
+        var options = new InsertOptions
+        {
+            SaveMode = SaveMode.Append,
+        };
+        return SetupTable(path, length, options);
+    }
+
+    public async static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(
+        string path,
+        int length,
+        InsertOptions options)
     {
         var runtime = new DeltaRuntime(RuntimeOptions.Default);
         var builder = new Schema.Builder();
@@ -123,16 +135,18 @@ public static class TableHelpers
             new TableCreateOptions(path, schema),
             CancellationToken.None);
         Assert.NotNull(table);
+
+        await table.InsertAsync([BuildBasicRecordBatch(length)], schema, options, CancellationToken.None);
+        return (runtime, table);
+    }
+
+    public static RecordBatch BuildBasicRecordBatch(int length)
+    {
         var allocator = new NativeMemoryAllocator();
         var recordBatchBuilder = new RecordBatch.Builder(allocator)
             .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))))
             .Append("second", false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => x.ToString()))))
             .Append("third", false, col => col.Int64(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => (long)x))));
-        var options = new InsertOptions
-        {
-            SaveMode = SaveMode.Append,
-        };
-        await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
-        return (runtime, table);
+        return recordBatchBuilder.Build();
     }
 }

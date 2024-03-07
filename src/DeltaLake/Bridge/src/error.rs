@@ -46,6 +46,7 @@ pub enum DeltaTableErrorCode {
     OperationCanceled = 33,
     DataFusion = 34,
     SqlParser = 35,
+    InvalidTimestamp = 36,
 }
 
 impl DeltaTableError {

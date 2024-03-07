@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using DeltaLake.Errors;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
 
@@ -12,7 +13,7 @@ public partial class LoadTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
-    public async Task Load_Table_At_Version_Test(long version)
+    public async Task Load_Table_At_Version_Test(ulong version)
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
@@ -29,15 +30,42 @@ public partial class LoadTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
-    public async Task Table_Load_Version_Test(long version)
+    public async Task Table_Load_Version_Test(ulong version)
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
         CancellationToken.None);
-        Assert.Equal(4, table.Version());
+        Assert.Equal(4UL, table.Version());
         await table.LoadVersionAsync(version, CancellationToken.None);
         Assert.Equal(version, table.Version());
+    }
+
+    [Fact]
+    public async Task Table_Load_Invalid_Version_Test()
+    {
+        var location = TableIdentifier.SimpleTable.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        CancellationToken.None);
+        Assert.Equal(4UL, table.Version());
+        await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
+        await table.LoadVersionAsync(ulong.MaxValue, CancellationToken.None));
+        // table is in an invalid state
+        Assert.NotEqual(4UL, table.Version());
+    }
+
+    [Fact]
+    public async Task Table_Load_Version_Cancellation_Test()
+    {
+        var location = TableIdentifier.SimpleTable.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        CancellationToken.None);
+        Assert.Equal(4UL, table.Version());
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        await table.LoadVersionAsync(4, new CancellationToken(true)));
+        Assert.Equal(4UL, table.Version());
     }
 
 
@@ -49,12 +77,84 @@ public partial class LoadTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
         {
+            Version = 1UL,
+        },
+        CancellationToken.None);
+        Assert.Equal(1UL, table.Version());
+        await table.LoadDateTimeAsync(dateTimeOffset, CancellationToken.None);
+        Assert.Equal(4UL, table.Version());
+    }
+
+    [Fact]
+    public async Task Table_Load_DateTime_Max_Value_Timestamp()
+    {
+        var dateTimeOffset = DateTimeOffset.MaxValue;
+        var location = TableIdentifier.SimpleTable.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        {
             Version = 1,
         },
         CancellationToken.None);
-        Assert.Equal(1, table.Version());
+        Assert.Equal(1UL, table.Version());
         await table.LoadDateTimeAsync(dateTimeOffset, CancellationToken.None);
-        Assert.Equal(4, table.Version());
+        Assert.Equal(4UL, table.Version());
+    }
+
+    [Theory]
+    [InlineData(long.MaxValue)]
+    [InlineData(long.MinValue)]
+    public async Task Table_Load_Invalid_Timestamp(long value)
+    {
+        await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
+        {
+            var location = TableIdentifier.SimpleTable.TablePath();
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            {
+                Version = 1,
+            },
+            CancellationToken.None);
+            Assert.Equal(1UL, table.Version());
+            await table.LoadDateTimeAsync(value, CancellationToken.None);
+            Assert.Equal(4UL, table.Version());
+        });
+    }
+
+    [Fact]
+    public async Task Table_Cancellation_Timestamp_Test()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            var location = TableIdentifier.SimpleTable.TablePath();
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            {
+                Version = 1,
+            },
+            CancellationToken.None);
+            Assert.Equal(1UL, table.Version());
+            await table.LoadDateTimeAsync(long.MaxValue, new CancellationToken(true));
+            Assert.Equal(1UL, table.Version());
+        });
+    }
+
+    [Fact]
+    public async Task Table_Cancellation_DateTimeOffset_Test()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            var location = TableIdentifier.SimpleTable.TablePath();
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            {
+                Version = 1,
+            },
+            CancellationToken.None);
+            Assert.Equal(1UL, table.Version());
+            await table.LoadDateTimeAsync(DateTimeOffset.UtcNow, new CancellationToken(true));
+            Assert.Equal(1UL, table.Version());
+        });
     }
 
     [Theory]
@@ -67,12 +167,27 @@ public partial class LoadTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
         {
-            Version = minVersion,
+            Version = (ulong)minVersion,
         },
         CancellationToken.None);
-        Assert.Equal(minVersion, table.Version());
+        Assert.Equal((ulong)minVersion, table.Version());
         await table.LoadDateTimeAsync(DateTimeOffset.UtcNow, CancellationToken.None);
-        Assert.Equal(expectedVersion, table.Version());
+        Assert.Equal((ulong)expectedVersion, table.Version());
+    }
+
+    [Fact]
+    public async Task Table_Load_Latest_Cancel()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            var location = TableIdentifier.Checkpoints.TablePath();
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(
+                runtime,
+                 location,
+                  new TableOptions(),
+            new CancellationToken(true));
+        });
     }
 
     [Theory]
@@ -85,14 +200,36 @@ public partial class LoadTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
         {
-            Version = minVersion,
+            Version = (ulong)minVersion,
         },
         CancellationToken.None);
-        Assert.Equal(minVersion, table.Version());
+        Assert.Equal((ulong)minVersion, table.Version());
         for (var version = minVersion; version <= expectedVersion; version++)
         {
             await table.UpdateIncrementalAsync(version, CancellationToken.None);
-            Assert.Equal(version, table.Version());
+            Assert.Equal((ulong)version, table.Version());
+        }
+    }
+
+    [Theory]
+    [InlineData(TableIdentifier.Checkpoints, 1, 12)]
+    [InlineData(TableIdentifier.CheckpointsVacuumed, 5, 12)]
+    [InlineData(TableIdentifier.Delta020, 1, 3)]
+    public async Task Table_Load_Update_Incremental_Cancellation(TableIdentifier identifier, int minVersion, int expectedVersion)
+    {
+        var location = identifier.TablePath();
+        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        {
+            Version = (ulong)minVersion,
+        },
+        CancellationToken.None);
+        Assert.Equal((ulong)minVersion, table.Version());
+        for (var version = minVersion; version <= expectedVersion; version++)
+        {
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            table.UpdateIncrementalAsync(version, new CancellationToken(true)));
+            Assert.Equal((ulong)minVersion, table.Version());
         }
     }
 
@@ -106,18 +243,18 @@ public partial class LoadTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
         {
-            Version = minVersion,
+            Version = (ulong)minVersion,
         },
         CancellationToken.None);
-        Assert.Equal(minVersion, table.Version());
+        Assert.Equal((ulong)minVersion, table.Version());
         await table.UpdateIncrementalAsync(100, CancellationToken.None);
-        Assert.Equal(expectedVersion, table.Version());
+        Assert.Equal((ulong)expectedVersion, table.Version());
     }
 
     [Fact]
     public async Task Table_Load_Invalid_Uri_Type_Test()
     {
-        await Assert.ThrowsAsync<DeltaLakeException>(async () =>
+        await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         {
             using var runtime = new DeltaRuntime(RuntimeOptions.Default);
             using var table = await DeltaTable.LoadAsync(runtime, "invalid://invalid.uri", new TableOptions
@@ -138,7 +275,7 @@ public partial class LoadTests
         else
         {
 
-            await Assert.ThrowsAsync<DeltaLakeException>(TestBodyAsync);
+            await Assert.ThrowsAsync<DeltaRuntimeException>(TestBodyAsync);
         }
 
         static async Task TestBodyAsync()
@@ -176,10 +313,10 @@ public partial class LoadTests
             case TableIdentifier.TableWithEdgeTimestamps:
             case TableIdentifier.TableWithLiquidClustering:
             case TableIdentifier.TableWithoutDvSmall:
-                Assert.Equal(0, table.Version());
+                Assert.Equal(0UL, table.Version());
                 break;
             default:
-                Assert.NotEqual(0, table.Version());
+                Assert.NotEqual(0UL, table.Version());
                 break;
         }
     }
