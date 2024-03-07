@@ -1185,18 +1185,21 @@ pub extern "C" fn table_insert(
                     return;
                 },
             };
+            let schema_mode = if overwrite_schema {
+                deltalake::operations::write::SchemaMode::Merge
+            } else {
+                deltalake::operations::write::SchemaMode::Overwrite
+            };
+
             let mut mb = WriteBuilder::new(tbl.table.log_store(), Some(snapshot))
                 .with_write_batch_size(max_rows_per_group)
                 .with_input_batches(batches)
                 .with_save_mode(save_mode)
-                .with_overwrite_schema(overwrite_schema);
+                .with_schema_mode(schema_mode);
             if let Some(predicate) = predicate {
                 mb = mb.with_replace_where(predicate);
             }
 
-            if overwrite_schema {
-                mb = mb.with_overwrite_schema(overwrite_schema)
-            }
             match mb.await {
                 Ok(updated) => {
                     tbl.table = updated;
