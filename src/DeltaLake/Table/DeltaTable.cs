@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow;
+using DeltaLake.Errors;
 using DeltaLake.Runtime;
 
 namespace DeltaLake.Table
@@ -102,10 +103,10 @@ namespace DeltaLake.Table
         /// <summary>
         /// Retrieves the current table version
         /// </summary>
-        /// <returns><see cref="long"/></returns>
-        public long Version()
+        /// <returns><see cref="ulong"/></returns>
+        public ulong Version()
         {
-            return _table.Version();
+            return (ulong)_table.Version();
         }
 
         /// <summary>
@@ -114,7 +115,7 @@ namespace DeltaLake.Table
         /// <param name="version">desired version</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
         /// <returns><see cref="Task"/></returns>
-        public Task LoadVersionAsync(long version, CancellationToken cancellationToken)
+        public Task LoadVersionAsync(ulong version, CancellationToken cancellationToken)
         {
             return _table.LoadVersionAsync(version, cancellationToken);
         }
@@ -142,6 +143,13 @@ namespace DeltaLake.Table
              InsertOptions options,
              CancellationToken cancellationToken)
         {
+            if (!options.IsValid)
+            {
+                throw new DeltaConfigurationException(
+                    "Invalid InsertOptions",
+                    new ArgumentException("configuration is invalid", nameof(options)));
+            }
+
             await _table.InsertAsync(records, schema, options, cancellationToken).ConfigureAwait(false);
         }
 
@@ -204,7 +212,18 @@ namespace DeltaLake.Table
         /// <returns><see cref="Task"/></returns>
         public Task LoadDateTimeAsync(DateTimeOffset timestamp, CancellationToken cancellationToken)
         {
-            return _table.LoadDateTimeAsync(timestamp, cancellationToken);
+            return LoadDateTimeAsync(timestamp.ToUnixTimeMilliseconds(), cancellationToken);
+        }
+
+        /// <summary>
+        /// Loads table at a specific point in time
+        /// </summary>
+        /// <param name="timestampMilliseconds">desired point in time in unix milliseconds</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>  </param>
+        /// <returns><see cref="Task"/></returns>
+        public Task LoadDateTimeAsync(long timestampMilliseconds, CancellationToken cancellationToken)
+        {
+            return _table.LoadTimestampAsync(timestampMilliseconds, cancellationToken);
         }
 
         /// <summary>

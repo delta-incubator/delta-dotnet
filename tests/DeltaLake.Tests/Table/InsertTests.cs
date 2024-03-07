@@ -1,3 +1,4 @@
+using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -40,6 +41,43 @@ public class InsertTests
         var version = table.Version();
         await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
         Assert.Equal(version, table.Version());
+    }
+
+    [Fact]
+    public async Task Memory_Insert_Will_Cancel_Test()
+    {
+        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        using var runtime = tableParts.runtime;
+        using var table = tableParts.table;
+        var version = table.Version();
+        try
+        {
+            await table.InsertAsync([TableHelpers.BuildBasicRecordBatch(10)], table.Schema(), new InsertOptions(), new CancellationToken(true));
+            throw new InvalidOperationException();
+        }
+        catch (OperationCanceledException)
+        {
+            Assert.Equal(version, table.Version());
+        }
+    }
+
+    [Fact]
+    public async Task Memory_Insert_Invalid_Schema_Options_Test()
+    {
+        await Assert.ThrowsAsync<DeltaConfigurationException>(async () =>
+        {
+            var options = new InsertOptions
+            {
+                SaveMode = SaveMode.Append,
+                OverwriteSchema = true,
+            };
+            var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1, options);
+            using var table = tableParts.table;
+            var version = table.Version();
+            await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
+            Assert.Equal(version, table.Version());
+            throw new System.NotImplementedException();
+        });
     }
 
     private async Task BaseInsertTest(string path, int length)

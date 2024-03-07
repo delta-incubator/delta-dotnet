@@ -42,6 +42,7 @@ typedef enum DeltaTableErrorCode {
   OperationCanceled = 33,
   DataFusion = 34,
   SqlParser = 35,
+  InvalidTimestamp = 36,
 } DeltaTableErrorCode;
 
 typedef enum PartitionFilterBinaryOp {
@@ -312,7 +313,7 @@ void table_load_version(struct Runtime *_Nonnull runtime,
                         const struct CancellationToken *cancellation_token,
                         TableEmptyCallback callback);
 
-bool table_load_with_datetime(struct Runtime *_Nonnull runtime,
+void table_load_with_datetime(struct Runtime *_Nonnull runtime,
                               struct RawDeltaTable *_Nonnull table,
                               int64_t ts_milliseconds,
                               const struct CancellationToken *cancellation_token,

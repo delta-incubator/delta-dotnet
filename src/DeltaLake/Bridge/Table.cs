@@ -6,6 +6,7 @@ using Apache.Arrow;
 using Apache.Arrow.C;
 using Apache.Arrow.Ipc;
 using DeltaLake.Bridge.Interop;
+using DeltaLake.Errors;
 using DeltaLake.Table;
 using ICancellationToken = System.Threading.CancellationToken;
 
@@ -46,7 +47,7 @@ namespace DeltaLake.Bridge
         /// Returns the current version of the table
         /// </summary>
         /// <returns></returns>
-        public async Task LoadVersionAsync(long version, ICancellationToken cancellationToken)
+        public async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -56,7 +57,7 @@ namespace DeltaLake.Bridge
                     Interop.Methods.table_load_version(
                         _runtime.Ptr,
                          _ptr,
-                          version,
+                          unchecked((long)version),
                           scope.CancellationToken(cancellationToken),
                           scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
@@ -68,7 +69,7 @@ namespace DeltaLake.Bridge
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                         }
                         else
                         {
@@ -81,7 +82,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        public async Task LoadDateTimeAsync(DateTimeOffset when, ICancellationToken cancellationToken)
+        internal async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -91,7 +92,7 @@ namespace DeltaLake.Bridge
                     Interop.Methods.table_load_with_datetime(
                         _runtime.Ptr,
                          _ptr,
-                         when.ToUnixTimeMilliseconds(),
+                         timestampMilliseconds,
                           scope.CancellationToken(cancellationToken),
                           scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
@@ -103,7 +104,7 @@ namespace DeltaLake.Bridge
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                         }
                         else
                         {
@@ -190,7 +191,7 @@ namespace DeltaLake.Bridge
                 var result = Methods.table_schema(_runtime.Ptr, _ptr);
                 if (result.error != null)
                 {
-                    throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, result.error);
+                    throw DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, result.error);
                 }
 
                 var schemaPointer = (CArrowSchema*)result.bytes;
@@ -246,7 +247,7 @@ namespace DeltaLake.Bridge
 
                                 if (fail != null)
                                 {
-                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                                 }
                                 else
                                 {
@@ -303,7 +304,7 @@ namespace DeltaLake.Bridge
                                 }
                                 else if (fail != null)
                                 {
-                                    tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                                 }
                                 else
                                 {
@@ -350,7 +351,7 @@ namespace DeltaLake.Bridge
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                         }
                         else
                         {
@@ -387,7 +388,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -422,7 +423,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -457,7 +458,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -498,7 +499,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -531,7 +532,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -552,7 +553,7 @@ namespace DeltaLake.Bridge
                 var result = Methods.table_metadata(_runtime.Ptr, _ptr);
                 if (result.error != null)
                 {
-                    throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, result.error);
+                    throw DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, result.error);
                 }
 
                 try
@@ -592,7 +593,7 @@ namespace DeltaLake.Bridge
                             }
                             else if (fail != null)
                             {
-                                tsc.TrySetException(DeltaLakeException.FromDeltaTableError(_runtime.Ptr, fail));
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
                             else
                             {
@@ -637,7 +638,7 @@ namespace DeltaLake.Bridge
         {
             if (genericOrError.error != null)
             {
-                throw DeltaLakeException.FromDeltaTableError(_runtime.Ptr, genericOrError.error);
+                throw DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, genericOrError.error);
             }
 
             try

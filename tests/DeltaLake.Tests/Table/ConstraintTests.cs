@@ -1,6 +1,7 @@
 using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
+using DeltaLake.Errors;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
 
@@ -32,7 +33,7 @@ namespace DeltaLake.Tests.Table
             );
             if (throws)
             {
-                await Assert.ThrowsAsync<DeltaLakeException>(task);
+                await Assert.ThrowsAsync<DeltaRuntimeException>(task);
             }
             else
             {
@@ -46,13 +47,30 @@ namespace DeltaLake.Tests.Table
             var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
             using var runtime = tableParts.runtime;
             using var table = tableParts.table;
-            await Assert.ThrowsAsync<DeltaLakeException>(() => table.AddConstraintsAsync(
+            await Assert.ThrowsAsync<DeltaRuntimeException>(() => table.AddConstraintsAsync(
                 new Dictionary<string, string>
                 {
                     ["something isn't right"] = "invalid constraint",
                 },
                 new Dictionary<string, string>(),
                 CancellationToken.None));
+        }
+
+        [Fact]
+        public async Task Add_Constraint_Cancellation_Test()
+        {
+            var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+            using var runtime = tableParts.runtime;
+            using var table = tableParts.table;
+            var version = table.Version();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => table.AddConstraintsAsync(
+                new Dictionary<string, string>
+                {
+                    ["something isn't right"] = "invalid constraint",
+                },
+                new Dictionary<string, string>(),
+                new CancellationToken(true)));
+            Assert.Equal(version, table.Version());
         }
 
         [Fact]

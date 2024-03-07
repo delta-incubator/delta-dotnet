@@ -1,7 +1,6 @@
 using System;
-using DeltaLake.Bridge;
 
-namespace DeltaLake
+namespace DeltaLake.Errors
 {
     /// <summary>
     /// Represents an error that occurs during interaction with the underlying runtime
@@ -36,30 +35,5 @@ namespace DeltaLake
         /// A unique error code coming from the delta lake runtime
         /// </summary>
         public int ErrorCode { get; }
-
-        /// <summary>
-        /// Consumes and frees the <see cref="Bridge.Interop.DeltaTableError"/>
-        /// </summary>
-        /// <param name="runtime">Pointer to the unmanaged runtime</param>
-        /// <param name="error">Pointer to the unmanaged error</param>
-        /// <returns>A new DeltaLakeException instance</returns>
-        /// <exception cref="ArgumentNullException">Throw when error is null</exception>
-        internal unsafe static DeltaLakeException FromDeltaTableError(Bridge.Interop.Runtime* runtime, Bridge.Interop.DeltaTableError* error)
-        {
-            if (error == null)
-            {
-                throw new ArgumentNullException(nameof(error));
-            }
-
-            try
-            {
-                var message = ByteArrayRef.StrictUTF8.GetString(error->error.data, (int)error->error.size);
-                return new DeltaLakeException(message, (int)error->code);
-            }
-            finally
-            {
-                Bridge.Interop.Methods.error_free(runtime, error);
-            }
-        }
     }
 }

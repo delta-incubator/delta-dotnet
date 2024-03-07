@@ -1,4 +1,5 @@
 using Apache.Arrow;
+using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -51,8 +52,26 @@ public class UpdateTests
     [Fact]
     public async Task Memory_Update_Invalid_Predicate__Test()
     {
-        await Assert.ThrowsAsync<DeltaLakeException>(() =>
+        await Assert.ThrowsAsync<DeltaRuntimeException>(() =>
         BaseUpdateTest($"memory://{Guid.NewGuid():N}", 10, "predicate", 0));
+    }
+
+    [Fact]
+    public async Task Update_Cancellation_Test()
+    {
+        var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);
+        using var runtime = data.runtime;
+        using var table = data.table;
+        var version = table.Version();
+        try
+        {
+            await table.UpdateAsync("this will throw", new CancellationToken(true));
+            throw new InvalidOperationException();
+        }
+        catch (OperationCanceledException)
+        {
+            Assert.Equal(version, table.Version());
+        }
     }
 
     private async static Task BaseUpdateTest(

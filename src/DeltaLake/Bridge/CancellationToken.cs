@@ -40,7 +40,15 @@ namespace DeltaLake.Bridge
         public static CancellationToken FromThreading(System.Threading.CancellationToken token)
         {
             var ret = new CancellationToken();
-            ret._cancellationRegistrations.Add(token.Register(ret.Cancel));
+            if (token.IsCancellationRequested)
+            {
+                ret.Cancel();
+            }
+            else
+            {
+                ret._cancellationRegistrations.Add(token.Register(ret.Cancel));
+            }
+
             return ret;
         }
 

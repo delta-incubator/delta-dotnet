@@ -25,5 +25,10 @@ namespace DeltaLake.Table
         /// Overwrite schema with schema from record batch
         /// </summary>
         public bool OverwriteSchema { get; init; }
+
+        /// <summary>
+        /// Indicates a valid configuration
+        /// </summary>
+        public bool IsValid => !(this.SaveMode == SaveMode.Append && OverwriteSchema);
     }
 }

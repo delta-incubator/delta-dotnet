@@ -34,7 +34,7 @@ public class DeltaTableTests
             CancellationToken.None);
         Assert.NotNull(table);
         var version = table.Version();
-        Assert.Equal(0, version);
+        Assert.Equal(0UL, version);
         var location = table.Location();
         Assert.Equal(uri, location);
         var files = table.Files();
@@ -47,6 +47,36 @@ public class DeltaTableTests
         var protocol = table.ProtocolVersions();
         Assert.True(protocol.MinimumReaderVersion > 0);
         Assert.True(protocol.MinimumWriterVersion > 0);
+    }
+
+    [Fact]
+    public async Task Create_Cancellation()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(
+            async () =>
+            {
+                var uri = $"memory://{Guid.NewGuid():N}";
+                using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+                var builder = new Apache.Arrow.Schema.Builder();
+                builder.Field(fb =>
+                {
+                    fb.Name("test");
+                    fb.DataType(Int32Type.Default);
+                    fb.Nullable(false);
+                });
+                var schema = builder.Build();
+                using var table = await DeltaTable.CreateAsync(
+                    runtime,
+                    new TableCreateOptions(uri, schema)
+                    {
+                        Configuration = new Dictionary<string, string?>
+                        {
+                            ["delta.dataSkippingNumIndexedCols"] = "32",
+                            ["delta.setTransactionRetentionDuration"] = null,
+                        }
+                    },
+                    new CancellationToken(true));
+            });
     }
 
     [Fact]
@@ -87,7 +117,7 @@ public class DeltaTableTests
             CancellationToken.None);
         Assert.NotNull(table);
         var version = table.Version();
-        Assert.Equal(0, version);
+        Assert.Equal(0UL, version);
         var location = table.Location();
         Assert.Equal(uri, location);
         var metadata = table.Metadata();
@@ -104,7 +134,20 @@ public class DeltaTableTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
         CancellationToken.None);
-        Assert.Equal(4, table.Version());
+        Assert.Equal(4UL, table.Version());
+    }
+
+    [Fact]
+    public async Task Load_Cancellation_Test()
+    {
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            var location = Path.Join(Settings.TestRoot, "simple_table");
+            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+            new CancellationToken(true));
+            Assert.Equal(4UL, table.Version());
+        });
     }
 
     [Fact]
@@ -115,7 +158,7 @@ public class DeltaTableTests
         using var runtime = new DeltaRuntime(RuntimeOptions.Default);
         using var table = await DeltaTable.LoadAsync(runtime, memory.AsMemory(), new TableOptions(),
         CancellationToken.None);
-        Assert.Equal(4, table.Version());
+        Assert.Equal(4UL, table.Version());
     }
 
     [Fact]
@@ -153,7 +196,7 @@ public class DeltaTableTests
             TableAlias = "test",
         },
         CancellationToken.None).ToBlockingEnumerable().ToList();
-        Assert.Equal(1, version);
+        Assert.Equal(1UL, version);
         var resultCount = 0;
         foreach (var batch in queryResult)
         {
@@ -183,6 +226,7 @@ public class DeltaTableTests
         }
         var history = await table.HistoryAsync(1, CancellationToken.None);
         Assert.Single(history);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => table.HistoryAsync(1, new CancellationToken(true)));
         history = await table.HistoryAsync(default, CancellationToken.None);
         Assert.Equal(2, history.Length);
     }
