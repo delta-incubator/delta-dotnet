@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Apache.Arrow;
+using Apache.Arrow.Ipc;
 using DeltaLake.Errors;
 using DeltaLake.Runtime;
 
@@ -151,6 +152,29 @@ namespace DeltaLake.Table
             }
 
             await _table.InsertAsync(records, schema, options, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Inserts a record batch into the table based upon the provided options
+        /// </summary>
+        /// <param name="records">A collection of <see cref="IArrowArrayStream"/> records to insert</param>
+        /// <param name="options"><see cref="InsertOptions"/> </param>
+        /// <param name="cancellationToken"><see cref="CancellationToken"/> </param>
+        /// <returns><see cref="Task"/></returns>
+        public async Task InsertAsync(
+             IArrowArrayStream records,
+             InsertOptions options,
+             CancellationToken cancellationToken)
+        {
+
+            if (!options.IsValid)
+            {
+                throw new DeltaConfigurationException(
+                    "Invalid InsertOptions",
+                    new ArgumentException("configuration is invalid", nameof(options)));
+            }
+
+            await _table.InsertAsync(records, options, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
