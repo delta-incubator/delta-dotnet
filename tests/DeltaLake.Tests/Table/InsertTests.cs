@@ -44,6 +44,22 @@ public class InsertTests
     }
 
     [Fact]
+    public async Task Insert_Stream_Test()
+    {
+        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        using var runtime = tableParts.runtime;
+        using var table = tableParts.table;
+        var version = table.Version();
+        var rb = new[] {
+            TableHelpers.BuildBasicRecordBatch(10),
+        };
+        var schema = table.Schema();
+        using var reader = new Bridge.RecordBatchReader(rb, schema);
+        await table.InsertAsync(reader, new InsertOptions(), CancellationToken.None);
+        Assert.Equal(version + 1, table.Version());
+    }
+
+    [Fact]
     public async Task Memory_Insert_Will_Cancel_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
@@ -81,6 +97,28 @@ public class InsertTests
     }
 
     private async Task BaseInsertTest(string path, int length)
+    {
+        var data = await TableHelpers.SetupTable(path, length);
+        using var runtime = data.runtime;
+        using var table = data.table;
+        var queryResult = table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test > 1")
+        {
+            TableAlias = "test",
+        },
+        CancellationToken.None).ToBlockingEnumerable().ToList();
+
+        if (length > 2)
+        {
+            var totalRecords = queryResult.Select(s => s.Length).Sum();
+            Assert.Equal(length - 2, totalRecords);
+        }
+        else
+        {
+            Assert.Empty(queryResult);
+        }
+    }
+
+    private async Task StreamInsertTest(string path, int length)
     {
         var data = await TableHelpers.SetupTable(path, length);
         using var runtime = data.runtime;

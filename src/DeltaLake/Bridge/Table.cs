@@ -217,54 +217,59 @@ namespace DeltaLake.Bridge
                 return string.Empty;
             }
 
+            using var stream = new RecordBatchReader(records, schema);
+            return await InsertAsync(stream, options, cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<string> InsertAsync(
+            IArrowArrayStream stream,
+            InsertOptions options,
+            ICancellationToken cancellationToken)
+        {
             var tsc = new TaskCompletionSource<string>();
             using (var scope = new Scope())
             {
-                using (var stream = new RecordBatchReader(records, schema))
+                unsafe
                 {
-                    unsafe
+                    var ffiStream = CArrowArrayStream.Create();
+                    CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
+                    Interop.Methods.table_insert(
+                        _runtime.Ptr,
+                         _ptr,
+                         ffiStream,
+                         scope.Pointer(scope.ByteArray(options.Predicate)),
+                         scope.Pointer(ConvertSaveMode(options.SaveMode).Ref),
+                         new UIntPtr(options.MaxRowsPerGroup),
+                         (byte)(options.OverwriteSchema ? 1 : 0),
+                        scope.CancellationToken(cancellationToken),
+                          scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
                     {
-                        var ffiStream = CArrowArrayStream.Create();
-                        CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
-                        Interop.Methods.table_insert(
-                            _runtime.Ptr,
-                             _ptr,
-                             ffiStream,
-                             scope.Pointer(scope.ByteArray(options.Predicate)),
-                             scope.Pointer(ConvertSaveMode(options.SaveMode).Ref),
-                             new UIntPtr(options.MaxRowsPerGroup),
-                             (byte)(options.OverwriteSchema ? 1 : 0),
-                            scope.CancellationToken(cancellationToken),
-                              scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        try
                         {
-                            try
+                            if (cancellationToken.IsCancellationRequested)
                             {
-                                if (cancellationToken.IsCancellationRequested)
-                                {
-                                    tsc.TrySetCanceled(cancellationToken);
-                                    return;
-                                }
-
-                                if (fail != null)
-                                {
-                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
-                                }
-                                else
-                                {
-                                    tsc.TrySetResult("{}");
-                                }
+                                tsc.TrySetCanceled(cancellationToken);
+                                return;
                             }
-                            finally
+
+                            if (fail != null)
                             {
-                                CArrowArrayStream.Free(ffiStream);
-                                stream.Dispose();
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                             }
-                        }));
-                    }
-
-
-                    return await tsc.Task.ConfigureAwait(false);
+                            else
+                            {
+                                tsc.TrySetResult("{}");
+                            }
+                        }
+                        finally
+                        {
+                            CArrowArrayStream.Free(ffiStream);
+                            stream.Dispose();
+                        }
+                    }));
                 }
+
+                return await tsc.Task.ConfigureAwait(false);
             }
         }
 
