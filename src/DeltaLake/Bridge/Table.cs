@@ -232,19 +232,19 @@ namespace DeltaLake.Bridge
                 unsafe
                 {
                     var ffiStream = CArrowArrayStream.Create();
-                    CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
-                    Interop.Methods.table_insert(
-                        _runtime.Ptr,
-                         _ptr,
-                         ffiStream,
-                         scope.Pointer(scope.ByteArray(options.Predicate)),
-                         scope.Pointer(ConvertSaveMode(options.SaveMode).Ref),
-                         new UIntPtr(options.MaxRowsPerGroup),
-                         (byte)(options.OverwriteSchema ? 1 : 0),
-                        scope.CancellationToken(cancellationToken),
-                          scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                    try
                     {
-                        try
+                        CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
+                        Interop.Methods.table_insert(
+                            _runtime.Ptr,
+                             _ptr,
+                             ffiStream,
+                             scope.Pointer(scope.ByteArray(options.Predicate)),
+                             scope.Pointer(ConvertSaveMode(options.SaveMode).Ref),
+                             new UIntPtr(options.MaxRowsPerGroup),
+                             (byte)(options.OverwriteSchema ? 1 : 0),
+                            scope.CancellationToken(cancellationToken),
+                              scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
                         {
                             if (cancellationToken.IsCancellationRequested)
                             {
@@ -260,13 +260,12 @@ namespace DeltaLake.Bridge
                             {
                                 tsc.TrySetResult("{}");
                             }
-                        }
-                        finally
-                        {
-                            CArrowArrayStream.Free(ffiStream);
-                            stream.Dispose();
-                        }
-                    }));
+                        }));
+                    }
+                    finally
+                    {
+                        CArrowArrayStream.Free(ffiStream);
+                    }
                 }
 
                 return await tsc.Task.ConfigureAwait(false);
@@ -292,17 +291,18 @@ namespace DeltaLake.Bridge
                     unsafe
                     {
                         var ffiStream = CArrowArrayStream.Create();
-                        CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
-                        Interop.Methods.table_merge(
-                            _runtime.Ptr,
-                             _ptr,
-                             scope.Pointer(scope.ByteArray(query)),
-                             ffiStream,
-                            scope.CancellationToken(cancellationToken),
-                              scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
+                        try
                         {
-                            try
+                            CArrowArrayStreamExporter.ExportArrayStream(stream, ffiStream);
+                            Interop.Methods.table_merge(
+                                _runtime.Ptr,
+                                 _ptr,
+                                 scope.Pointer(scope.ByteArray(query)),
+                                 ffiStream,
+                                scope.CancellationToken(cancellationToken),
+                                  scope.FunctionPointer<Interop.GenericErrorCallback>((success, fail) =>
                             {
+
                                 if (cancellationToken.IsCancellationRequested)
                                 {
                                     tsc.TrySetCanceled(cancellationToken);
@@ -316,13 +316,13 @@ namespace DeltaLake.Bridge
                                     using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                     tsc.TrySetResult(content.ToUTF8());
                                 }
-                            }
-                            finally
-                            {
-                                CArrowArrayStream.Free(ffiStream);
-                                stream.Dispose();
-                            }
-                        }));
+
+                            }));
+                        }
+                        finally
+                        {
+                            CArrowArrayStream.Free(ffiStream);
+                        }
                     }
 
                     return await tsc.Task.ConfigureAwait(false);
