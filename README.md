@@ -11,10 +11,10 @@ This package is a C# wrapper around [delta-rs](https://github.com/delta-io/delta
 It uses the [tokio-rs](https://tokio.rs/) runtime to provide asynchronous behavior. This allows the usage of .NET Tasks and async/await to take advantage of the same behavior provided by the underlying rust library.
 This library also takes advantage of the [Apache Arrow](https://github.com/apache/arrow/blob/main/csharp/README.md) C# IPC formats to minimize the amount of copying required to move data between runtimes.
 
-![alt text](architecture_simple.png "Using a Rust bridge library with .NET p/invoke")
+![alt text](/media/images/delta-dot-net-pkg.png "Using a Rust bridge library with .NET p/invoke")
 
 The bridge library incorporates delta-rs and [tokio-rs](https://tokio.rs/) as shown in the image below.
-![alt text](architecture_expanded.png "Rust bridge library with tokio")
+![alt text](/media/images/bridge-library.png "Rust bridge library with tokio")
 
 ## Quick Start
 
