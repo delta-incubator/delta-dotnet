@@ -3,6 +3,7 @@ bin/
 obj/
 /.vs
 /.vscode
+.mono/
 .idea/
 target/
 src/DeltaLake.ApiDoc/_site

@@ -11,7 +11,7 @@ use arrow::{
     ffi_stream::FFI_ArrowArrayStream,
     record_batch::{RecordBatch, RecordBatchIterator, RecordBatchReader},
 };
-use chrono::{DateTime, Duration, NaiveDateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use deltalake::{
     arrow::datatypes::Schema,
     datafusion::{
@@ -22,7 +22,8 @@ use deltalake::{
     kernel::StructType,
     operations::{
         constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        update::UpdateBuilder, vacuum::VacuumBuilder, write::WriteBuilder,
+        transaction::CommitProperties, update::UpdateBuilder, vacuum::VacuumBuilder,
+        write::WriteBuilder,
     },
     protocol::SaveMode,
     DeltaOps, DeltaTableBuilder,
@@ -621,7 +622,7 @@ pub extern "C" fn table_load_with_datetime(
     cancellation_token: Option<&CancellationToken>,
     callback: TableEmptyCallback,
 ) {
-    let naive_dt = match NaiveDateTime::from_timestamp_millis(ts_milliseconds) {
+    let dt = match DateTime::<Utc>::from_timestamp_millis(ts_milliseconds) {
         Some(dt) => dt,
         None => unsafe {
             let error = DeltaTableError::new(
@@ -634,7 +635,6 @@ pub extern "C" fn table_load_with_datetime(
         },
     };
 
-    let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
     run_async_with_cancellation!(
         runtime,
         table,
@@ -877,14 +877,13 @@ pub extern "C" fn table_restore(
             );
             if version_or_timestamp > 0 {
                 if is_timestamp {
-                    let naive_dt = match NaiveDateTime::from_timestamp_millis(version_or_timestamp)
-                    {
+                    let dt = match DateTime::<Utc>::from_timestamp_millis(version_or_timestamp) {
                         Some(dt) => dt,
                         None => unsafe {
                             callback(
                                 DeltaTableError::new(
                                     rt,
-                                    DeltaTableErrorCode::GenericError,
+                                    DeltaTableErrorCode::InvalidTimestamp,
                                     "invalid timestamp",
                                 )
                                 .into_raw(),
@@ -893,7 +892,6 @@ pub extern "C" fn table_restore(
                         },
                     };
 
-                    let dt = DateTime::<Utc>::from_naive_utc_and_offset(naive_dt, Utc);
                     cmd = cmd.with_datetime_to_restore(dt);
                 } else {
                     cmd = cmd.with_version_to_restore(version_or_timestamp);
@@ -904,7 +902,7 @@ pub extern "C" fn table_restore(
                 .with_protocol_downgrade_allowed(protocol_downgrade_allowed);
 
             if let Some(js) = json_metadata {
-                cmd = cmd.with_metadata(js);
+                cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(js));
             }
 
             match cmd.into_future().await {
@@ -1377,7 +1375,7 @@ async fn vacuum(
     if let Some(metadata) = custom_metadata {
         let json_metadata: serde_json::Map<String, serde_json::Value> =
             metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
-        cmd = cmd.with_metadata(json_metadata);
+        cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(json_metadata));
     };
 
     let (result, metrics) = cmd.await?;
@@ -1508,7 +1506,9 @@ pub extern "C" fn table_add_constraints(
             if let Some(metadata) = custom_metadata {
                 let json_metadata: serde_json::Map<String, serde_json::Value> =
                     metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
-                cmd = cmd.with_metadata(json_metadata);
+                cmd = cmd.with_commit_properties(
+                    CommitProperties::default().with_metadata(json_metadata),
+                );
             };
 
             match cmd.into_future().await {
