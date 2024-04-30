@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -15,33 +16,43 @@ public class Program
     public static async Task Main(string[] args)
     {
         var uri = args[0];
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        var builder = new Apache.Arrow.Schema.Builder();
-        builder.Field(fb =>
+        int length;
+        if (args.Length < 2 || !int.TryParse(args[1], out length))
         {
-            fb.Name("test");
-            fb.DataType(Int32Type.Default);
-            fb.Nullable(false);
-        });
-        var schema = builder.Build();
-        var allocator = new NativeMemoryAllocator();
-        var recordBatchBuilder = new RecordBatch.Builder(allocator)
-            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))));
-        using var table = await DeltaTable.CreateAsync(
-            runtime,
-            new TableCreateOptions(uri, schema)
+            length = 10;
+        }
+
+        var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        {
+            var builder = new Apache.Arrow.Schema.Builder();
+            builder.Field(fb =>
             {
-                Configuration = new Dictionary<string, string?>
+                fb.Name("test");
+                fb.DataType(Int32Type.Default);
+                fb.Nullable(false);
+            });
+            var schema = builder.Build();
+            var allocator = new NativeMemoryAllocator();
+            var recordBatchBuilder = new RecordBatch.Builder(allocator)
+                .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))));
+            using var table = await DeltaTable.CreateAsync(
+                runtime,
+                new TableCreateOptions(uri, schema)
                 {
-                    ["delta.dataSkippingNumIndexedCols"] = "32",
-                    ["delta.setTransactionRetentionDuration"] = null,
-                }
-            },
-            CancellationToken.None);
-        var options = new InsertOptions
-        {
-            SaveMode = SaveMode.Append,
-        };
-        await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+                    Configuration = new Dictionary<string, string?>
+                    {
+                        ["delta.dataSkippingNumIndexedCols"] = "32",
+                        ["delta.setTransactionRetentionDuration"] = null,
+                    }
+                },
+                CancellationToken.None);
+            var options = new InsertOptions
+            {
+                SaveMode = SaveMode.Append,
+            };
+            await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+        }
+
+        runtime.Dispose();
     }
 }

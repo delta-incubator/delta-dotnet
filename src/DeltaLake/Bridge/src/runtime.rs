@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::Once;
 
 use crate::ByteArray;
@@ -9,9 +8,8 @@ use crate::Map;
 #[repr(C)]
 pub struct RuntimeOptions {}
 
-#[derive(Clone)]
 pub struct Runtime {
-    runtime: Arc<tokio::runtime::Runtime>,
+    runtime: tokio::runtime::Runtime,
 }
 
 /// If fail is not null, it must be manually freed when done. Runtime is always
@@ -38,7 +36,7 @@ pub extern "C" fn runtime_new(options: *const RuntimeOptions) -> RuntimeOrFail {
             // We have to make an empty runtime just for the failure to be
             // freeable
             let mut runtime = Runtime {
-                runtime: Arc::new(tokio::runtime::Builder::new_multi_thread().build().unwrap()),
+                runtime: tokio::runtime::Builder::new_multi_thread().build().unwrap(),
             };
             let fail = runtime.alloc_utf8(&format!("Invalid options: {}", err));
             RuntimeOrFail {
@@ -52,7 +50,8 @@ pub extern "C" fn runtime_new(options: *const RuntimeOptions) -> RuntimeOrFail {
 #[no_mangle]
 pub extern "C" fn runtime_free(runtime: *mut Runtime) {
     unsafe {
-        let _ = Box::from_raw(runtime);
+        let rt = Box::from_raw(runtime);
+        rt.runtime.shutdown_background();
     }
 }
 
@@ -127,9 +126,7 @@ impl Runtime {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
             .build()
-            .map(|rt| Runtime {
-                runtime: Arc::new(rt),
-            })
+            .map(|rt| Runtime { runtime: rt })
     }
 
     pub fn borrow_buf(&mut self) -> Vec<u8> {
