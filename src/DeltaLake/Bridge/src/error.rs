@@ -126,6 +126,9 @@ impl DeltaTableError {
             deltalake::DeltaTableError::Kernel { .. } => DeltaTableErrorCode::Kernel,
             deltalake::DeltaTableError::MetadataError(_) => DeltaTableErrorCode::MetaDataError,
             deltalake::DeltaTableError::NotInitialized => DeltaTableErrorCode::NotInitialized,
+            deltalake::DeltaTableError::CommitValidation { source: _ } => {
+                DeltaTableErrorCode::InvalidData
+            }
         };
 
         Self::new(_runtime, code, &error_string)
