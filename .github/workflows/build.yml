@@ -62,6 +62,8 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test
+        env:
+          RUST_BACKTRACE: 1
         run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info --logger "console;verbosity=detailed" --blame-crash -v n
 
       - name: Upload test failure
