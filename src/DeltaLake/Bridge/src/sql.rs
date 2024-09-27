@@ -24,9 +24,20 @@ macro_rules! make_update {
         }
 
         for assign in $assignments {
-            for col in assign.id {
-                $update = $update.update(col.to_string(), assign.value.to_string());
-            }
+            match assign.target {
+                AssignmentTarget::ColumnName(object_name) => {
+                    for col in object_name.0 {
+                        $update = $update.update(col.to_string(), assign.value.to_string());
+                    }
+                },
+                AssignmentTarget::Tuple(vec) => {
+                    for item in vec {
+                        for col in item.0 {
+                            $update = $update.update(col.to_string(), assign.value.to_string());
+                        }
+                    }
+                },
+            };
         }
         $update
     }};
@@ -241,7 +252,7 @@ pub enum Statement {
 }
 
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
-#[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
+// #[cfg_attr(feature = "visitor", derive(Visit, VisitMut))]
 pub enum MergeClause {
     MatchedUpdate {
         predicate: Option<Expr>,
@@ -265,15 +276,11 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
         TableFactor::Table {
             name,
             alias,
-            args: _,
-            with_hints: _,
-            version: _,
-            partitions: _,
+            ..
         } => alias.map(|a| a.to_string()).or(Some(name.to_string())),
         TableFactor::Derived {
-            lateral: _,
-            subquery: _,
             alias,
+            ..
         } => alias.map(|a| a.to_string()),
         TableFactor::TableFunction { expr: _, alias } => alias.map(|a| a.to_string()),
         TableFactor::Function {
@@ -284,34 +291,28 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
         } => alias.map(|a| a.to_string()),
         TableFactor::UNNEST {
             alias,
-            array_exprs: _,
-            with_offset: _,
-            with_offset_alias: _,
+            ..
         } => alias.map(|a| a.to_string()),
         TableFactor::NestedJoin {
-            table_with_joins: _,
             alias,
+            ..
         } => alias.map(|a| a.to_string()),
         TableFactor::Pivot {
-            table: _,
-            aggregate_function: _,
-            value_column: _,
-            pivot_values: _,
             alias,
+            ..
         } => alias.map(|a| a.to_string()),
         TableFactor::Unpivot {
-            table: _,
-            value: _,
-            name: _,
-            columns: _,
             alias,
+            ..
         } => alias.map(|a| a.to_string()),
         TableFactor::JsonTable {
-            json_expr: _,
-            json_path: _,
-            columns: _,
             alias,
+            ..
         } => alias.map(|a| a.to_string()),
+        TableFactor::MatchRecognize { 
+            alias,
+            ..
+         } => alias.map(|a| a.to_string()),
     }
 }
 

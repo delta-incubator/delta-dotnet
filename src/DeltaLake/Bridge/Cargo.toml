@@ -8,10 +8,10 @@ name = "delta_rs_bridge"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-arrow = { version = "50", features = ["ffi"]}
+arrow = { version = "52", features = ["ffi"]}
 chrono = "0.4.31"
 # deltalake = "0.16.5"
-deltalake = { git = "https://github.com/delta-io/delta-rs.git", branch = "main", features = ["azure", "gcs", "s3", "datafusion"] }
+deltalake = { git = "https://github.com/delta-io/delta-rs.git", tag = "rust-v0.20.0", features = ["azure", "gcs", "s3", "datafusion"] }
 futures = "0.3"
 libc = "0.2"
 serde_json = "1.0.116"

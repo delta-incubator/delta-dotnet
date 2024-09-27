@@ -17,7 +17,7 @@ use deltalake::{
     datafusion::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
-        execution::context::{SQLOptions, SessionContext},
+        execution::context::{SQLOptions, SessionContext}, sql::sqlparser::ast::AssignmentTarget,
     },
     kernel::StructType,
     operations::{
@@ -973,9 +973,20 @@ pub extern "C" fn table_update(
             }
 
             for assign in assignments {
-                for col in assign.id {
-                    ub = ub.with_update(col.to_string(), assign.value.to_string());
-                }
+                match assign.target {
+                    AssignmentTarget::ColumnName(object_name) => {
+                        for col in object_name.0 {
+                            ub = ub.with_update(col.to_string(), assign.value.to_string());
+                        }
+                    },
+                    AssignmentTarget::Tuple(vec) => {
+                        for item in vec {
+                            for col in item.0 {
+                                ub = ub.with_update(col.to_string(), assign.value.to_string());
+                            }
+                        }
+                    },
+                };
             }
 
             match ub.await {
@@ -1554,7 +1565,7 @@ async fn create_delta_table(
     })?;
     let mut builder = DeltaOps(table)
         .create()
-        .with_columns(delta_schema.fields().clone())
+        .with_columns(delta_schema.fields().cloned())
         .with_save_mode(mode)
         .with_partition_columns(partition_by);
     if let Some(name) = &name {
@@ -1635,6 +1646,7 @@ fn ffi_to_batches(
     }
     Ok((read_batches, schema))
 }
+
 
 #[cfg(test)]
 mod tests {

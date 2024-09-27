@@ -129,6 +129,11 @@ impl DeltaTableError {
             deltalake::DeltaTableError::CommitValidation { source: _ } => {
                 DeltaTableErrorCode::InvalidData
             }
+            deltalake::DeltaTableError::KernelError(..) => DeltaTableErrorCode::Kernel,
+            deltalake::DeltaTableError::NotInitializedWithFiles(_) => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataNotRecorded { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataNotEnabled { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataInvalidVersionRange { .. } => DeltaTableErrorCode::Generic,
         };
 
         Self::new(_runtime, code, &error_string)
