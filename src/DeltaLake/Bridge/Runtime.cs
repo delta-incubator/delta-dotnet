@@ -87,17 +87,17 @@ namespace DeltaLake.Bridge
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {
-                            tsc.TrySetCanceled(cancellationToken);
+                            Task.Run(() => tsc.TrySetCanceled(cancellationToken));;
                             return;
                         }
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
+                            Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
                         }
                         else
                         {
-                            tsc.TrySetResult(new Table(this, success));
+                            Task.Run(() => tsc.TrySetResult(new Table(this, success)));
                         }
                     }));
                 }
@@ -139,17 +139,17 @@ namespace DeltaLake.Bridge
                             {
                                 if (cancellationToken.IsCancellationRequested)
                                 {
-                                    tsc.TrySetCanceled(cancellationToken);
+                                    Task.Run(() => tsc.TrySetCanceled(cancellationToken));;
                                     return;
                                 }
 
                                 if (fail != null)
                                 {
-                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
+                                    Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
                                 }
                                 else
                                 {
-                                    tsc.TrySetResult(new Table(this, success));
+                                    Task.Run(() => tsc.TrySetResult(new Table(this, success)));
                                 }
                             }));
                     }

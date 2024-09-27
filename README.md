@@ -53,7 +53,7 @@ public static Task<DeltaTable> CreateDeltaTable(
         runtime,
         new TableCreateOptions(uri, schema)
         {
-            Configuration = new Dictionary<string, string?>(),
+            Configuration = new Dictionary<string, string>(),
         },
         cancellationToken);
 }

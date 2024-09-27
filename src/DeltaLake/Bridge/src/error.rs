@@ -1,14 +1,18 @@
+use std::fmt::Debug;
+
 use deltalake::datafusion::sql::sqlparser::parser::ParserError;
 
 use crate::{runtime::Runtime, ByteArray};
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct DeltaTableError {
     code: DeltaTableErrorCode,
     error: ByteArray,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum DeltaTableErrorCode {
     Utf8 = 0,
     Protocol = 1,

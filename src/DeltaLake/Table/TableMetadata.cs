@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 
 namespace DeltaLake.Table
@@ -9,7 +10,7 @@ namespace DeltaLake.Table
     /// </summary>
     public class TableMetadata
     {
-        private static readonly Dictionary<string, string?> EmptySettings = new();
+        private static readonly Dictionary<string, string> EmptySettings = new();
 
         /// <summary>
         /// Table id
@@ -54,7 +55,7 @@ namespace DeltaLake.Table
         /// <summary>
         /// Configuration map
         /// </summary>
-        public IReadOnlyDictionary<string, string?> Configuration { get; init; } = EmptySettings;
+        public IReadOnlyDictionary<string, string> Configuration { get; init; } = EmptySettings;
 
         internal unsafe static TableMetadata FromUnmanaged(Bridge.Interop.TableMetadata* metadata)
         {
@@ -69,7 +70,7 @@ namespace DeltaLake.Table
                 CreatedTime = DateTimeOffset.FromUnixTimeMilliseconds(metadata->created_time),
                 FormatOptions = KeyValueToDictionaryNullable(metadata->format_options),
                 PartitionColumns = partitionColumns,
-                Configuration = KeyValueToDictionaryNullable(metadata->configuration),
+                Configuration = KeyValueToDictionary(metadata->configuration),
             };
         }
 
@@ -108,6 +109,19 @@ namespace DeltaLake.Table
             }
 
             return dictionary;
+        }
+
+        private unsafe static Dictionary<string, string> KeyValueToDictionary(Bridge.Interop.Dictionary kvs)
+        {
+            var toReturn = new Dictionary<string, string>();
+            foreach (var (key, value) in KeyValueToDictionaryNullable(kvs).Where(x => x.Value != null))
+            {
+                if (value != null) {
+                    toReturn[key] = value;
+                }
+            }
+
+            return toReturn;
         }
     }
 }

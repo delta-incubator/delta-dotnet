@@ -17,7 +17,7 @@ use deltalake::{
     datafusion::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
-        execution::context::{SQLOptions, SessionContext}, sql::sqlparser::ast::AssignmentTarget,
+        execution::context::{SQLOptions, SessionContext}, sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
     kernel::StructType,
     operations::{
@@ -920,6 +920,20 @@ pub extern "C" fn table_restore(
     );
 }
 
+fn table_update_internal(
+    rt: &mut Runtime,
+    query: NonNull<ByteArrayRef>,
+) -> Result<(Option<Expr>, Vec<Assignment>), DeltaTableError> {
+    let query_str = unsafe { query.as_ref().to_str() };
+    let mut parser = DeltaLakeParser::new(query_str)
+    .map_err(|err| DeltaTableError::new(
+        rt,
+        DeltaTableErrorCode::Generic,
+        &err.to_string(),
+    ))?;
+    parser.parse_update(rt)
+}
+
 #[no_mangle]
 pub extern "C" fn table_update(
     mut runtime: NonNull<Runtime>,
@@ -928,21 +942,7 @@ pub extern "C" fn table_update(
     cancellation_token: Option<&CancellationToken>,
     callback: GenericErrorCallback,
 ) {
-    let query = {
-        let query = unsafe { query.as_ref() };
-        query.to_str()
-    };
-    let mut parser = match DeltaLakeParser::new(query) {
-        Ok(parser) => parser,
-        Err(error) => unsafe {
-            callback(
-                std::ptr::null(),
-                DeltaTableError::from_parser_error(runtime.as_mut(), error).into_raw(),
-            );
-            return;
-        },
-    };
-    let (predicate, assignments) = match parser.parse_update(unsafe { runtime.as_mut() }) {
+    let (predicate, assignments) = match table_update_internal(unsafe { runtime.as_mut() }, query) {
         Ok(statement) => statement,
         Err(error) => unsafe {
             callback(std::ptr::null(), error.into_raw());
@@ -971,7 +971,6 @@ pub extern "C" fn table_update(
             if let Some(predicate) = predicate {
                 ub = ub.with_predicate(predicate.to_string());
             }
-
             for assign in assignments {
                 match assign.target {
                     AssignmentTarget::ColumnName(object_name) => {
@@ -988,7 +987,7 @@ pub extern "C" fn table_update(
                     },
                 };
             }
-
+            
             match ub.await {
                 Ok((delta_table, metrics)) => {
                     tbl.table = delta_table;
@@ -1001,6 +1000,7 @@ pub extern "C" fn table_update(
                     }
                 }
                 Err(error) => unsafe {
+                    println!("done with error");
                     callback(
                         std::ptr::null(),
                         DeltaTableError::from_error(rt, error).into_raw(),

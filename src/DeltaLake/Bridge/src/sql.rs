@@ -346,3 +346,17 @@ impl Iterator for DataFrameStreamIterator {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::runtime::{Runtime, RuntimeOptions};
+
+    use super::DeltaLakeParser;
+
+    #[test]
+    fn test_parser() {
+        let mut runtime = Runtime::new(&RuntimeOptions{}).unwrap();
+        let mut parser = DeltaLakeParser::new("UPDATE test SET test = test + CAST(1 AS INT) WHERE test > CAST(1 AS INT)").unwrap();
+        parser.parse_update(&mut runtime).unwrap();
+    }
+}
