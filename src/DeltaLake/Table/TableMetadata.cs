@@ -116,7 +116,8 @@ namespace DeltaLake.Table
             var toReturn = new Dictionary<string, string>();
             foreach (var (key, value) in KeyValueToDictionaryNullable(kvs).Where(x => x.Value != null))
             {
-                if (value != null) {
+                if (value != null)
+                {
                     toReturn[key] = value;
                 }
             }

@@ -362,11 +362,12 @@ namespace DeltaLake.Bridge
                         else
                         {
                             var stream = CArrowArrayStreamImporter.ImportArrayStream((CArrowArrayStream*)success);
-                            Task.Run(() => {
-                            if (!tsc.TrySetResult(stream))
+                            Task.Run(() =>
                             {
-                                stream.Dispose();
-                            }
+                                if (!tsc.TrySetResult(stream))
+                                {
+                                    stream.Dispose();
+                                }
                             });
                         }
                     }));
@@ -474,7 +475,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var bytes = content.ToByteArray();
-                                Task.Run(() => tsc.TrySetResult(bytes));;
+                                Task.Run(() => tsc.TrySetResult(bytes)); ;
                             }
                         }));
 
