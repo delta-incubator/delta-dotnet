@@ -16,6 +16,7 @@ This library also takes advantage of the [Apache Arrow](https://github.com/apach
 The bridge library incorporates delta-rs and [tokio-rs](https://tokio.rs/) as shown in the image below.
 ![alt text](/media/images/bridge-library.png "Rust bridge library with tokio")
 
+NOTE: On unix systems, there is the possibility of a stack overflow due to small stack sizes for the .NET framework. The default size should correspond to `ulimit -s`, but we can override this by setting the environment variable `DOTNET_DefaultStackSize` to a hexadecimal number of bytes. The unit tests use `180000`.
 ## Quick Start
 
 ```csharp

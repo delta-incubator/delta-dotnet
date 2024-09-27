@@ -73,7 +73,7 @@ namespace DeltaLake.Bridge
                         }
                         else
                         {
-                            Task.Run(() => tsc.TrySetResult(true));
+                            _ = Task.Run(() => tsc.TrySetResult(true));
                         }
                     }));
                 }
@@ -108,7 +108,7 @@ namespace DeltaLake.Bridge
                         }
                         else
                         {
-                            Task.Run(() => tsc.TrySetResult(true));
+                            _ = Task.Run(() => tsc.TrySetResult(true));
                         }
                     }));
                 }
@@ -258,7 +258,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                Task.Run(() => tsc.TrySetResult("{}"));
+                                _ = Task.Run(() => tsc.TrySetResult("{}"));
                             }
                         }));
                     }
@@ -315,7 +315,7 @@ namespace DeltaLake.Bridge
                                 {
                                     using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                     var value = content.ToUTF8();
-                                    Task.Run(() => tsc.TrySetResult(value));
+                                    _ = Task.Run(() => tsc.TrySetResult(value));
                                 }
 
                             }));
@@ -362,7 +362,7 @@ namespace DeltaLake.Bridge
                         else
                         {
                             var stream = CArrowArrayStreamImporter.ImportArrayStream((CArrowArrayStream*)success);
-                            Task.Run(() =>
+                            _ = Task.Run(() =>
                             {
                                 if (!tsc.TrySetResult(stream))
                                 {
@@ -403,7 +403,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var value = content.ToUTF8();
-                                Task.Run(() => tsc.TrySetResult(value));
+                                _ = Task.Run(() => tsc.TrySetResult(value));
                             }
                         }));
 
@@ -439,7 +439,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var result = content.ToUTF8();
-                                Task.Run(() => tsc.TrySetResult(result));
+                                _ = Task.Run(() => tsc.TrySetResult(result));
                             }
                         }));
 
@@ -475,7 +475,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var bytes = content.ToByteArray();
-                                Task.Run(() => tsc.TrySetResult(bytes)); ;
+                                _ = Task.Run(() => tsc.TrySetResult(bytes)); ;
                             }
                         }));
 
@@ -515,7 +515,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                Task.Run(() => tsc.TrySetResult(true));
+                                _ = Task.Run(() => tsc.TrySetResult(true));
                             }
                         }));
                 }
@@ -548,7 +548,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                Task.Run(() => tsc.TrySetResult(true));
+                                _ = Task.Run(() => tsc.TrySetResult(true));
                             }
                         }));
 
@@ -609,7 +609,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                Task.Run(() => tsc.TrySetResult(true));
+                                _ = Task.Run(() => tsc.TrySetResult(true));
                             }
                         }));
                 }
