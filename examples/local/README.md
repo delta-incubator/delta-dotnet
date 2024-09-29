@@ -5,6 +5,7 @@
 - [Pre-reqs](#pre-reqs)
     - [For Windows Development](#for-windows-development)
 - [Getting started](#getting-started)
+- [Connecting to other cloud sinks](#connecting-to-other-cloud-sinks)
 
 <!-- /TOC -->
 
@@ -54,3 +55,15 @@ And, if ran in Azure:
 You can read this C#-written Delta file in engines such as Spark:
 
 ![ADLS Spark Read](../../media/images/adls-spark-read.png)
+
+## Connecting to other cloud sinks
+
+`delta-rs` uses [`object-store`](https://github.com/delta-io/delta-rs/blob/8e4c23bfb235b55943b97b1df5ec99951d01bea0/crates/hdfs/Cargo.toml#L16) to write to cloud sources, meaning, all of these Authentication options are supported [object-store-docs](https://docs.rs/object_store/latest/object_store/azure/enum.AzureConfigKey.html#variants), including [other Cloud stores](https://docs.rs/object_store/latest/object_store/#available-objectstore-implementations) the crate suports.
+
+In C#, simply override the `StorageOptions` with whatever K:V pairs `object-store` supports:
+
+```csharp
+var storageOptions = new Dictionary<string, string>();
+storageOptions.Add("some-cloud-store-key-1", "value-1");
+storageOptions.Add("some-cloud-store-key-1", "value-2storageOptions.Add("some-cloud-store-key-1", "value-1");");
+```
