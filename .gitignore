@@ -1,7 +1,7 @@
 # Build results
 bin/
 obj/
-/.vs
+**/.vs
 /.vscode
 .mono/
 .idea/
