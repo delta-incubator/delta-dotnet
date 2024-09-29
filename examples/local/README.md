@@ -8,7 +8,6 @@
 - [Connecting to other cloud sinks](#connecting-to-other-cloud-sinks)
 
 <!-- /TOC -->
-<!-- /TOC -->
 
 This is a quickstart project to quickly write to a local filepath and cloud-based filepaths (such as Azure Data Lake Storage).
 
