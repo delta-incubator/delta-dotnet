@@ -8,6 +8,7 @@
 - [Connecting to other cloud sinks](#connecting-to-other-cloud-sinks)
 
 <!-- /TOC -->
+<!-- /TOC -->
 
 This is a quickstart project to quickly write to a local filepath and cloud-based filepaths (such as Azure Data Lake Storage).
 
@@ -65,5 +66,5 @@ In C#, simply override the `StorageOptions` with whatever K:V pairs `object-stor
 ```csharp
 var storageOptions = new Dictionary<string, string>();
 storageOptions.Add("some-cloud-store-key-1", "value-1");
-storageOptions.Add("some-cloud-store-key-1", "value-2storageOptions.Add("some-cloud-store-key-1", "value-1");");
+storageOptions.Add("some-cloud-store-key-1", "value-2");
 ```
