@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using DeltaLake.Errors;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
