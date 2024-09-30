@@ -397,5 +397,5 @@ void table_add_constraints(struct Runtime *_Nonnull runtime,
                            TableEmptyCallback callback);
 
 #ifdef __cplusplus
-} // extern "C"
-#endif // __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
