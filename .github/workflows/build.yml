@@ -20,7 +20,12 @@ jobs:
             checkTarget: true
           - os: ubuntu-latest
             docsTarget: true
-            coverageTarget: true
+            # Code coverage doesn't seem to work when PR's are opened from forked repositories that
+            # open PRs, see discussion:
+            #
+            # >>> https://delta-users.slack.com/archives/C06P467JMBK/p1727730777683979?thread_ts=1727643486.229189&cid=C06P467JMBK
+            #
+            coverageTarget: false
             cloudTestTarget: true
     runs-on: ${{ matrix.runsOn || matrix.os }}
     steps:
