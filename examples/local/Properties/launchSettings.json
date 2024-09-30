@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "local": {
+      "commandName": "Project",
+      "commandLineArgs": "\"E:\\.temp\\demo-table\" \"20\""
+    },
+    "azure": {
+      "commandName": "Project",
+      "commandLineArgs": "\"abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table\" \"20\""
+    }
+  }
+}

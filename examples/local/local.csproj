@@ -1,12 +1,25 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
         <TargetFramework>net8.0</TargetFramework>
     </PropertyGroup>
 
+    <!-- Internal Projects -->
     <ItemGroup>
+        <!-- TODO: Update to Nuget package reference, once published -->
         <ProjectReference Include="..\..\src\DeltaLake\DeltaLake.csproj" />
     </ItemGroup>
+
+    <!-- External Packages -->
+    <ItemGroup>
+        <!-- Entra ID interaction with Azure Data Lake Storage -->
+        <PackageReference Include="Azure.Identity" Version="1.12.1" />
+    </ItemGroup>
+	
+    <!-- Copy Bridge .dll from cargo to this demo project's debug location -->
+    <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+        <Exec Command="copy /Y $(ProjectDir)..\..\src\DeltaLake\bin\Debug\net8.0\delta_rs_bridge.dll $(OutDir)" Condition=" '$(OS)' == 'Windows_NT' " />
+    </Target>
 
 </Project>
