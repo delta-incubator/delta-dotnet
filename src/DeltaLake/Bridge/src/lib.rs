@@ -238,6 +238,7 @@ impl DynamicArray {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct ByteArray {
     data: *const u8,
     size: libc::size_t,

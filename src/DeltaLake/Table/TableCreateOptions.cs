@@ -55,7 +55,7 @@ namespace DeltaLake.Table
         /// Optional configuration
         /// </summary>
 
-        public Dictionary<string, string?>? Configuration { get; init; }
+        public Dictionary<string, string>? Configuration { get; init; }
 
         /// <summary>
         /// Storage options to pass to table builder

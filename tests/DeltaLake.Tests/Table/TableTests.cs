@@ -25,10 +25,9 @@ public class DeltaTableTests
             runtime,
             new TableCreateOptions(uri, schema)
             {
-                Configuration = new Dictionary<string, string?>
+                Configuration = new Dictionary<string, string>
                 {
                     ["delta.dataSkippingNumIndexedCols"] = "32",
-                    ["delta.setTransactionRetentionDuration"] = null,
                 }
             },
             CancellationToken.None);
@@ -69,10 +68,9 @@ public class DeltaTableTests
                     runtime,
                     new TableCreateOptions(uri, schema)
                     {
-                        Configuration = new Dictionary<string, string?>
+                        Configuration = new Dictionary<string, string>
                         {
                             ["delta.dataSkippingNumIndexedCols"] = "32",
-                            ["delta.setTransactionRetentionDuration"] = null,
                         }
                     },
                     new CancellationToken(true));
@@ -100,10 +98,9 @@ public class DeltaTableTests
         var schema = builder.Build();
         var createOptions = new TableCreateOptions(uri, schema)
         {
-            Configuration = new Dictionary<string, string?>
+            Configuration = new Dictionary<string, string>
             {
                 ["delta.dataSkippingNumIndexedCols"] = "32",
-                ["delta.setTransactionRetentionDuration"] = null,
             },
             PartitionBy = { "test" },
             Name = "table",
