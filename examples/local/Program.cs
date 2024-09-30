@@ -100,7 +100,7 @@ public class Program
     {
         bool isRunningInsideVisualStudio = !string.IsNullOrEmpty(envVarIfRunningInVisualStudio);
 
-        // All supported auth formats:
+        // All supported Entra auth formats:
         //
         // >>> https://learn.microsoft.com/en-us/dotnet/api/azure.core.tokencredential?view=azure-dotnet
         //
