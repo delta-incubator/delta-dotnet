@@ -1,14 +1,18 @@
+use std::fmt::Debug;
+
 use deltalake::datafusion::sql::sqlparser::parser::ParserError;
 
 use crate::{runtime::Runtime, ByteArray};
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct DeltaTableError {
     code: DeltaTableErrorCode,
     error: ByteArray,
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub enum DeltaTableErrorCode {
     Utf8 = 0,
     Protocol = 1,
@@ -129,6 +133,11 @@ impl DeltaTableError {
             deltalake::DeltaTableError::CommitValidation { source: _ } => {
                 DeltaTableErrorCode::InvalidData
             }
+            deltalake::DeltaTableError::KernelError(..) => DeltaTableErrorCode::Kernel,
+            deltalake::DeltaTableError::NotInitializedWithFiles(_) => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataNotRecorded { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataNotEnabled { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataInvalidVersionRange { .. } => DeltaTableErrorCode::Generic,
         };
 
         Self::new(_runtime, code, &error_string)

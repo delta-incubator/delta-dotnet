@@ -76,14 +76,14 @@ jobs:
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
           path: src/DeltaLake/Bridge/target/release/${{ matrix.out-file }}
 
       - name: Upload bridge library alternative target
         if: ${{ matrix.alternative-target != '' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
           path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.out-file }}
@@ -109,7 +109,7 @@ jobs:
         run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:BridgeLibraryRoot=${{ github.workspace }}/bridge-libraries
 
       - name: Upload NuGet artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nuget-package
           path: |

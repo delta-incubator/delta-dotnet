@@ -62,11 +62,15 @@ jobs:
         run: dotnet format --verify-no-changes
 
       - name: Test
-        run: dotnet test /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info --logger "console;verbosity=detailed" --blame-crash -v n
+        env:
+          RUST_BACKTRACE: 1
+          # increased stack size currently necessary for osx
+          DOTNET_DefaultStackSize: "180000"
+        run: dotnet test -c Release /p:CollectCoverage=true /p:CoverletOutputFormat=lcov /p:CoverletOutput=./lcov.info --logger "console;verbosity=detailed" --blame-crash -v n
 
       - name: Upload test failure
         if: ${{ failure() }}
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: test-fail-${{ matrix.os }}
           path: tests/DeltaLake.Tests/TestResults

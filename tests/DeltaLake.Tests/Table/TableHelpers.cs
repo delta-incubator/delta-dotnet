@@ -81,6 +81,7 @@ public static class TableHelpers
 
     public static IEnumerable<TableIdentifier> ValidTables => Tables.Keys.Where(t => t switch
     {
+        TableIdentifier.TableWithColumnMapping => false,
         TableIdentifier.CheckpointsTombstones => false,
         _ => true,
     });
