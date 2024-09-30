@@ -39,10 +39,9 @@ public class Program
                 runtime,
                 new TableCreateOptions(uri, schema)
                 {
-                    Configuration = new Dictionary<string, string?>
+                    Configuration = new Dictionary<string, string>
                     {
                         ["delta.dataSkippingNumIndexedCols"] = "32",
-                        ["delta.setTransactionRetentionDuration"] = null,
                     }
                 },
                 CancellationToken.None);

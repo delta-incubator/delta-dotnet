@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using DeltaLake.Errors;
 using DeltaLake.Runtime;
 using DeltaLake.Table;
@@ -268,16 +267,7 @@ public partial class LoadTests
     [Fact]
     public async Task Table_Load_Invalid_Path_Test()
     {
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            await Assert.ThrowsAsync<SEHException>(TestBodyAsync);
-        }
-        else
-        {
-
-            await Assert.ThrowsAsync<DeltaRuntimeException>(TestBodyAsync);
-        }
-
+        await Assert.ThrowsAsync<DeltaRuntimeException>(TestBodyAsync);
         static async Task TestBodyAsync()
         {
             using var runtime = new DeltaRuntime(RuntimeOptions.Default);

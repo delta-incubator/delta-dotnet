@@ -87,17 +87,17 @@ namespace DeltaLake.Bridge
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {
-                            tsc.TrySetCanceled(cancellationToken);
+                            _ = Task.Run(() => tsc.TrySetCanceled(cancellationToken)); ;
                             return;
                         }
 
                         if (fail != null)
                         {
-                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
+                            _ = Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
                         }
                         else
                         {
-                            tsc.TrySetResult(new Table(this, success));
+                            _ = Task.Run(() => tsc.TrySetResult(new Table(this, success)));
                         }
                     }));
                 }
@@ -127,7 +127,7 @@ namespace DeltaLake.Bridge
                             mode = saveMode.Ref,
                             name = scope.ByteArray(options.Name),
                             description = scope.ByteArray(options.Description),
-                            configuration = scope.OptionalDictionary(this, options.Configuration ?? new Dictionary<string, string?>()),
+                            configuration = scope.Dictionary(this, options.Configuration ?? new Dictionary<string, string>()),
                             custom_metadata = scope.Dictionary(this, options.CustomMetadata ?? new Dictionary<string, string>()),
                             storage_options = scope.Dictionary(this, options.StorageOptions ?? new Dictionary<string, string>()),
                         };
@@ -139,17 +139,17 @@ namespace DeltaLake.Bridge
                             {
                                 if (cancellationToken.IsCancellationRequested)
                                 {
-                                    tsc.TrySetCanceled(cancellationToken);
+                                    _ = Task.Run(() => tsc.TrySetCanceled(cancellationToken)); ;
                                     return;
                                 }
 
                                 if (fail != null)
                                 {
-                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
+                                    _ = Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
                                 }
                                 else
                                 {
-                                    tsc.TrySetResult(new Table(this, success));
+                                    _ = Task.Run(() => tsc.TrySetResult(new Table(this, success)));
                                 }
                             }));
                     }
