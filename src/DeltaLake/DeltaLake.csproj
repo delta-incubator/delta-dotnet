@@ -11,8 +11,8 @@
         <Nullable>enable</Nullable>
         <TargetFrameworks>net6.0;net8.0;</TargetFrameworks>
         <VersionSuffix>rc-1</VersionSuffix>
-        <PackageTags>DeltaLake</PackageTags>
-        <PackageId>Delta.Net</PackageId>
+        <PackageTags>deltalake csharp</PackageTags>
+        <PackageId>DeltaLake.Net</PackageId>
     </PropertyGroup>
 
     <ItemGroup>
