@@ -20,15 +20,4 @@ NOTE: On unix systems, there is the possibility of a stack overflow due to small
 
 ## Quick Start
 
-Initiate gitmodules:
-
-```powershell
-git submodule update --init
-
-$GIT_ROOT = git rev-parse --show-toplevel
-$DELTA_KERNEL_RS_TAG = Get-Content $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs.version.txt
-
-git -C $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs checkout $DELTA_KERNEL_RS_TAG
-```
-
 `TODO`: Add docs on how to run the example project using dotnet cli.
