@@ -17,66 +17,18 @@ The bridge library incorporates delta-rs and [tokio-rs](https://tokio.rs/) as sh
 ![alt text](/media/images/bridge-library.png "Rust bridge library with tokio")
 
 NOTE: On unix systems, there is the possibility of a stack overflow due to small stack sizes for the .NET framework. The default size should correspond to `ulimit -s`, but we can override this by setting the environment variable `DOTNET_DefaultStackSize` to a hexadecimal number of bytes. The unit tests use `180000`.
+
 ## Quick Start
 
-```csharp
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-using Apache.Arrow;
-using Apache.Arrow.Memory;
-using Apache.Arrow.Types;
-using DeltaLake.Runtime;
-using DeltaLake.Table;
+Initiate gitmodules:
 
+```powershell
+git submodule update --init
 
-public static Runtime CreateRuntime()
-{
-    return new DeltaRuntime(RuntimeOptions.Default);
-}
+$GIT_ROOT = git rev-parse --show-toplevel
+$DELTA_KERNEL_RS_TAG = Get-Content $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs.version.txt
 
-public static Task<DeltaTable> CreateDeltaTable(
-    Runtime runtime,
-    string path,
-    CancellationToken cancellationToken
-)
-{
-    var builder = new Apache.Arrow.Schema.Builder();
-    builder.Field(fb =>
-    {
-        fb.Name("test");
-        fb.DataType(Int32Type.Default);
-        fb.Nullable(false);
-    });
-    var schema = builder.Build();
-    return DeltaTable.CreateAsync(
-        runtime,
-        new TableCreateOptions(uri, schema)
-        {
-            Configuration = new Dictionary<string, string>(),
-        },
-        cancellationToken);
-}
-
-public static Task<DeltaTable, Runtime> InsertIntoTable(
-    DeltaTable table,
-    CancellationToken cancellationToken)
-{
-    var allocator = new NativeMemoryAllocator();
-    var recordBatchBuilder = new RecordBatch.Builder(allocator)
-        .Append(
-            "test",
-            false,
-            col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))));
-    var options = new InsertOptions
-    {
-        SaveMode = SaveMode.Append,
-    };
-    await table.InsertAsync(
-        [recordBatchBuilder.Build()],
-        schema,
-        options,
-        cancellationToken);
-}
+git -C $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs checkout $DELTA_KERNEL_RS_TAG
 ```
+
+`TODO`: Add docs on how to run the example project using dotnet cli.
