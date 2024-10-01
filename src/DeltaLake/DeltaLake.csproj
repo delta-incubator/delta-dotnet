@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Description>DeltaLake for .NET</Description>
@@ -30,6 +30,7 @@
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
         <BridgeLibraryFile>delta_rs_bridge.dll</BridgeLibraryFile>
+		<KernelLibraryFile>delta_kernel_ffi.dll</KernelLibraryFile>
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
         <BridgeLibraryFile>libdelta_rs_bridge.so</BridgeLibraryFile>
@@ -50,6 +51,11 @@
                 <Link>$(BridgeLibraryFile)</Link>
                 <PublishState>Included</PublishState>
             </Content>
+			<Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
+				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+				<Link>$(KernelLibraryFile)</Link>
+				<PublishState>Included</PublishState>
+			</Content>
         </ItemGroup>
     </Target>
 
