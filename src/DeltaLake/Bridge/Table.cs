@@ -44,7 +44,7 @@ namespace DeltaLake.Bridge
 
         #region Delta Rust table operations
 
-        internal async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
+        internal virtual async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -79,7 +79,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
+        internal virtual async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -114,7 +114,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal long Version()
+        internal virtual long Version()
         {
             unsafe
             {
@@ -122,7 +122,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal string Uri()
+        internal virtual string Uri()
         {
             unsafe
             {
@@ -144,7 +144,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal string[] FileUris()
+        internal virtual string[] FileUris()
         {
             unsafe
             {
@@ -152,7 +152,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal string[] Files()
+        internal virtual string[] Files()
         {
             unsafe
             {
@@ -160,7 +160,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal ProtocolInfo ProtocolVersions()
+        internal virtual ProtocolInfo ProtocolVersions()
         {
             unsafe
             {
@@ -173,7 +173,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal Schema Schema()
+        internal virtual Schema Schema()
         {
             unsafe
             {
@@ -195,7 +195,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<string> InsertAsync(
+        internal virtual async Task<string> InsertAsync(
             IReadOnlyCollection<RecordBatch> records,
             Schema schema,
             InsertOptions options,
@@ -210,7 +210,7 @@ namespace DeltaLake.Bridge
             return await InsertAsync(stream, options, cancellationToken).ConfigureAwait(false);
         }
 
-        internal async Task<string> InsertAsync(
+        internal virtual async Task<string> InsertAsync(
             IArrowArrayStream stream,
             InsertOptions options,
             ICancellationToken cancellationToken)
@@ -261,7 +261,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<string> MergeAsync(
+        internal virtual async Task<string> MergeAsync(
             string query,
             IReadOnlyCollection<RecordBatch> records,
             Schema schema,
@@ -320,7 +320,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<IArrowArrayStream> QueryAsync(
+        internal virtual async Task<IArrowArrayStream> QueryAsync(
             string query,
             string? tableName,
             ICancellationToken cancellationToken)
@@ -366,7 +366,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<string> DeleteAsync(string predicate, ICancellationToken cancellationToken)
+        internal virtual async Task<string> DeleteAsync(string predicate, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<string>();
             using (var scope = new Scope())
@@ -402,7 +402,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<string> UpdateAsync(string query, ICancellationToken cancellationToken)
+        internal virtual async Task<string> UpdateAsync(string query, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<string>();
             using (var scope = new Scope())
@@ -438,7 +438,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<byte[]> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
+        internal virtual async Task<byte[]> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<byte[]>();
             using (var scope = new Scope())
@@ -474,7 +474,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task AddConstraintAsync(IReadOnlyDictionary<string, string> constraints, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
+        internal virtual async Task AddConstraintAsync(IReadOnlyDictionary<string, string> constraints, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
         {
             if (constraints.Count == 0)
             {
@@ -513,7 +513,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
+        internal virtual async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -547,7 +547,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal DeltaLake.Table.TableMetadata Metadata()
+        internal virtual DeltaLake.Table.TableMetadata Metadata()
         {
             unsafe
             {
@@ -569,7 +569,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task RestoreAsync(RestoreOptions options, ICancellationToken cancellationToken)
+        internal virtual async Task RestoreAsync(RestoreOptions options, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -606,18 +606,6 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode)
-        {
-            return saveMode switch
-            {
-                SaveMode.Append => SaveModeAppend,
-                SaveMode.Overwrite => SaveModeOverwrite,
-                SaveMode.ErrorIfExists => SaveModeError,
-                SaveMode.Ignore => SaveModeIfgnore,
-                _ => throw new ArgumentOutOfRangeException(nameof(saveMode)),
-            };
-        }
-
         #endregion Delta Rust table operations
 
         #region SafeHandle implementation
@@ -634,16 +622,24 @@ namespace DeltaLake.Bridge
 
         #endregion SafeHandle implementation
 
-        #region Private helper methods
+        #region Helper methods
 
-        private static byte BoolAsByte(bool input)
-        {
-            return input switch
+        internal static ByteArrayRef ConvertSaveMode(SaveMode saveMode) =>
+            saveMode switch
+            {
+                SaveMode.Append => SaveModeAppend,
+                SaveMode.Overwrite => SaveModeOverwrite,
+                SaveMode.ErrorIfExists => SaveModeError,
+                SaveMode.Ignore => SaveModeIfgnore,
+                _ => throw new ArgumentOutOfRangeException(nameof(saveMode)),
+            };
+
+        private static byte BoolAsByte(bool input) =>
+            input switch
             {
                 true => 0,
                 false => 1,
             };
-        }
 
         private unsafe string[] GetStringArray(GenericOrError genericOrError)
         {
@@ -675,6 +671,6 @@ namespace DeltaLake.Bridge
             }
         }
 
-        #endregion Private helper methods
+        #endregion Helper methods
     }
 }
