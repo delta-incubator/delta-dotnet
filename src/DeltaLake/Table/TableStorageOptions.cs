@@ -11,5 +11,11 @@ namespace DeltaLake.Table
         /// A map of string options
         /// </summary>
         public Dictionary<string, string> StorageOptions { get; init; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// Location of the delta table
+        /// memory://, s3://, azure://, etc
+        /// </summary>
+        public string TableLocation { get; init; } = string.Empty;
     }
 }

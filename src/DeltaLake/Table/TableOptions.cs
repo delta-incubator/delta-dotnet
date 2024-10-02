@@ -3,7 +3,7 @@ using System.Collections.Generic;
 namespace DeltaLake.Table
 {
     /// <summary>
-    /// Options for creating a new delta table
+    /// Options for loading a new delta table
     /// </summary>
     public record TableOptions : TableStorageOptions
     {

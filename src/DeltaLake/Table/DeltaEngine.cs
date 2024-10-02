@@ -50,29 +50,13 @@ namespace DeltaLake.Table
 
         /// <inheritdoc/>
         public async Task<ITable> LoadTableAsync(
-            string uri,
             TableOptions options,
             CancellationToken cancellationToken
         ) =>
             new DeltaTable(
                 new Core.Table(
                     await Runtime
-                        .LoadTableAsync(uri, options, cancellationToken)
-                        .ConfigureAwait(false),
-                    options
-                )
-            );
-
-        /// <inheritdoc/>
-        public async Task<ITable> LoadTableAsync(
-            Memory<byte> uri,
-            TableOptions options,
-            CancellationToken cancellationToken
-        ) =>
-            new DeltaTable(
-                new Core.Table(
-                    await Runtime
-                        .LoadTableAsync(uri, options, cancellationToken)
+                        .LoadTableAsync(options, cancellationToken)
                         .ConfigureAwait(false),
                     options
                 )

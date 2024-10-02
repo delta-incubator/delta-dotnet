@@ -32,19 +32,9 @@ namespace DeltaLake.Interfaces
         /// <summary>
         /// Asynchronously loads a table at the latest version.
         /// </summary>
-        /// <param name="uri">The location of the table.</param>
         /// <param name="options">The options for loading the table.</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
         /// <returns>A new table loaded at the latest version.</returns>
-        Task<ITable> LoadTableAsync(string uri, TableOptions options, CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Asynchronously loads a table at the latest version.
-        /// </summary>
-        /// <param name="uri">The location of the table, represented as a byte array.</param>
-        /// <param name="options">The options for loading the table.</param>
-        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
-        /// <returns>A new table loaded at the latest version.</returns>
-        Task<ITable> LoadTableAsync(Memory<byte> uri, TableOptions options, CancellationToken cancellationToken);
+        Task<ITable> LoadTableAsync(TableOptions options, CancellationToken cancellationToken);
     }
 }

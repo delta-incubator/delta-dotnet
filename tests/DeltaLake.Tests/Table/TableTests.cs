@@ -126,8 +126,7 @@ public class DeltaTableTests
     {
         var location = Path.Join(Settings.TestRoot, "simple_table");
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions(),
-        CancellationToken.None);
+        using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location }, CancellationToken.None);
         Assert.Equal(4UL, table.Version());
     }
 
@@ -138,21 +137,9 @@ public class DeltaTableTests
         {
             var location = Path.Join(Settings.TestRoot, "simple_table");
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync(location, new TableOptions(),
-            new CancellationToken(true));
+            using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location }, new CancellationToken(true));
             Assert.Equal(4UL, table.Version());
         });
-    }
-
-    [Fact]
-    public async Task Load_Table_Memory_Test()
-    {
-        var location = Path.Join(Settings.TestRoot, "simple_table");
-        var memory = System.Text.Encoding.UTF8.GetBytes(location);
-        using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(memory.AsMemory(), new TableOptions(),
-        CancellationToken.None);
-        Assert.Equal(4UL, table.Version());
     }
 
     [Fact]

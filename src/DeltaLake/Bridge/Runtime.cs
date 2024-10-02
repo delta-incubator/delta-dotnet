@@ -42,12 +42,11 @@ namespace DeltaLake.Bridge
         }
 
         internal async Task<Table> LoadTableAsync(
-            string tableUri,
             DeltaLake.Table.TableOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
-            var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(tableUri));
-            var encodedLength = System.Text.Encoding.UTF8.GetBytes(tableUri, buffer);
+            var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(options.TableLocation));
+            var encodedLength = System.Text.Encoding.UTF8.GetBytes(options.TableLocation, buffer);
             try
             {
                 return await LoadTableAsync(buffer.AsMemory(0, encodedLength), options, cancellationToken).ConfigureAwait(false);

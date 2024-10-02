@@ -16,8 +16,9 @@ public partial class LoadTests
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = version,
         },
         CancellationToken.None);
@@ -33,7 +34,7 @@ public partial class LoadTests
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions(),
+        using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location },
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await table.LoadVersionAsync(version, CancellationToken.None);
@@ -45,7 +46,7 @@ public partial class LoadTests
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions(),
+        using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location },
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
@@ -59,7 +60,7 @@ public partial class LoadTests
     {
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions(),
+        using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location },
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -74,8 +75,9 @@ public partial class LoadTests
         var dateTimeOffset = DateTimeOffset.UtcNow;
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = 1UL,
         },
         CancellationToken.None);
@@ -90,8 +92,9 @@ public partial class LoadTests
         var dateTimeOffset = DateTimeOffset.MaxValue;
         var location = TableIdentifier.SimpleTable.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = 1,
         },
         CancellationToken.None);
@@ -109,8 +112,9 @@ public partial class LoadTests
         {
             var location = TableIdentifier.SimpleTable.TablePath();
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync(location, new TableOptions
+            using var table = await engine.LoadTableAsync(new TableOptions
             {
+                TableLocation = location,
                 Version = 1,
             },
             CancellationToken.None);
@@ -127,8 +131,9 @@ public partial class LoadTests
         {
             var location = TableIdentifier.SimpleTable.TablePath();
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync(location, new TableOptions
+            using var table = await engine.LoadTableAsync(new TableOptions
             {
+                TableLocation = location,
                 Version = 1,
             },
             CancellationToken.None);
@@ -145,8 +150,9 @@ public partial class LoadTests
         {
             var location = TableIdentifier.SimpleTable.TablePath();
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync(location, new TableOptions
+            using var table = await engine.LoadTableAsync(new TableOptions
             {
+                TableLocation = location,
                 Version = 1,
             },
             CancellationToken.None);
@@ -164,8 +170,9 @@ public partial class LoadTests
     {
         var location = identifier.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = (ulong)minVersion,
         },
         CancellationToken.None);
@@ -181,7 +188,7 @@ public partial class LoadTests
         {
             var location = TableIdentifier.Checkpoints.TablePath();
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync(location, new TableOptions(), new CancellationToken(true));
+            using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location }, new CancellationToken(true));
         });
     }
 
@@ -193,8 +200,9 @@ public partial class LoadTests
     {
         var location = identifier.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = (ulong)minVersion,
         },
         CancellationToken.None);
@@ -214,8 +222,9 @@ public partial class LoadTests
     {
         var location = identifier.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = (ulong)minVersion,
         },
         CancellationToken.None);
@@ -236,8 +245,9 @@ public partial class LoadTests
     {
         var location = identifier.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions
+        using var table = await engine.LoadTableAsync(new TableOptions
         {
+            TableLocation = location,
             Version = (ulong)minVersion,
         },
         CancellationToken.None);
@@ -252,8 +262,9 @@ public partial class LoadTests
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         {
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync("invalid://invalid.uri", new TableOptions
+            using var table = await engine.LoadTableAsync(new TableOptions
             {
+                TableLocation = "invalid://invalid.uri",
                 Version = 50,
             },
         CancellationToken.None);
@@ -267,8 +278,9 @@ public partial class LoadTests
         static async Task TestBodyAsync()
         {
             using IEngine engine = new DeltaEngine(EngineOptions.Default);
-            using var table = await engine.LoadTableAsync("file://invalid.uri", new TableOptions
+            using var table = await engine.LoadTableAsync(new TableOptions
             {
+                TableLocation = "file://invalid.uri",
                 Version = 50,
             },
         CancellationToken.None);
@@ -281,7 +293,7 @@ public partial class LoadTests
     {
         var location = identifier.TablePath();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using var table = await engine.LoadTableAsync(location, new TableOptions(),
+        using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location },
         CancellationToken.None);
         switch (identifier)
         {

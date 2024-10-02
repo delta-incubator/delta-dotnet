@@ -26,12 +26,6 @@ namespace DeltaLake.Table
         public Schema Schema { get; }
 
         /// <summary>
-        /// Location of the delta table
-        /// memory://, s3://, azure://, etc
-        /// </summary>
-        public string TableLocation { get; }
-
-        /// <summary>
         /// List of columns to use for partitioning
         /// </summary>
         public ICollection<string> PartitionBy { get; init; } = new List<string>();
