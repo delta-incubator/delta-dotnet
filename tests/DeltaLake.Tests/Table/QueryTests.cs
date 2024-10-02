@@ -8,7 +8,6 @@ public class QueryTests
     public async Task Query_Cancellation_Test()
     {
         var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1);
-        using var runtime = data.runtime;
         using var table = data.table;
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
@@ -29,7 +28,6 @@ public class QueryTests
     public async Task Query_Valid_Query_Params_Test(string queryText, string tableAlias)
     {
         var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1);
-        using var runtime = data.runtime;
         using var table = data.table;
         var query = new SelectQuery(queryText)
         {
@@ -50,7 +48,6 @@ public class QueryTests
     public async Task Query_Invalid_Query_Params_Test(string queryText, string tableAlias)
     {
         var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1);
-        using var runtime = data.runtime;
         using var table = data.table;
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         {

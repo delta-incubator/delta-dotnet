@@ -10,16 +10,16 @@ using DeltaLake.Errors;
 namespace DeltaLake.Bridge
 {
     /// <summary>
-    /// Core-owned runtime.
+    /// Core-owned Delta Rust runtime.
     /// </summary>
-    internal sealed class Runtime : SafeHandle
+    internal class Runtime : SafeHandle
     {
         /// <summary>
         /// Initializes a new instance of the <see cref="Runtime"/> class.
         /// </summary>
-        /// <param name="options">Runtime options.</param>
+        /// <param name="options">Engine options.</param>
         /// <exception cref="InvalidOperationException">Any internal core error.</exception>
-        public Runtime(DeltaLake.Runtime.RuntimeOptions options)
+        internal Runtime(DeltaLake.Table.EngineOptions options)
             : base(IntPtr.Zero, true)
         {
             unsafe
@@ -41,12 +41,9 @@ namespace DeltaLake.Bridge
             }
         }
 
-        /// <inheritdoc />
-        public override unsafe bool IsInvalid => false;
-
-        public async Task<Table> LoadTableAsync(
+        internal async Task<Table> LoadTableAsync(
             string tableUri,
-             DeltaLake.Table.TableOptions options,
+            DeltaLake.Table.TableOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
             var buffer = ArrayPool<byte>.Shared.Rent(System.Text.Encoding.UTF8.GetByteCount(tableUri));
@@ -106,7 +103,9 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> CreateTableAsync(DeltaLake.Table.TableCreateOptions options, System.Threading.CancellationToken cancellationToken)
+        internal async Task<Table> CreateTableAsync(
+            DeltaLake.Table.TableCreateOptions options,
+            System.Threading.CancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<Table>();
             using (var scope = new Scope())
@@ -177,11 +176,18 @@ namespace DeltaLake.Bridge
             Interop.Methods.byte_array_free(Ptr, byteArray);
         }
 
+        #region SafeHandle implementation
+
+        /// <inheritdoc />
+        public override unsafe bool IsInvalid => false;
+
         /// <inheritdoc />
         protected override unsafe bool ReleaseHandle()
         {
             Interop.Methods.runtime_free(Ptr);
             return true;
         }
+
+        #endregion SafeHandle implementation
     }
 }

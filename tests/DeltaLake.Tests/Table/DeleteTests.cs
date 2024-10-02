@@ -90,7 +90,6 @@ public class DeleteTests
         bool cancelOp = false)
     {
         var data = await TableHelpers.SetupTable(path, length);
-        using var runtime = data.runtime;
         using var table = data.table;
         var token = cancelOp ? new CancellationToken(true) : CancellationToken.None;
         if (predicate == null)

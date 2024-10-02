@@ -7,7 +7,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options passed when creating a table
     /// </summary>
-    public class TableCreateOptions
+    public record TableCreateOptions
     {
         /// <summary>
         /// Creates an instance of create options, ensuring its mandatory properties

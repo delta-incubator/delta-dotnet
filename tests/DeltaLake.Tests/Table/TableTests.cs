@@ -1,7 +1,7 @@
 using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
-using DeltaLake.Runtime;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -12,7 +12,7 @@ public class DeltaTableTests
     public async Task Create_InMemory_Test()
     {
         var uri = $"memory://{Guid.NewGuid():N}";
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
         {
@@ -21,8 +21,7 @@ public class DeltaTableTests
             fb.Nullable(false);
         });
         var schema = builder.Build();
-        using var table = await DeltaTable.CreateAsync(
-            runtime,
+        using var table = await engine.CreateTableAsync(
             new TableCreateOptions(uri, schema)
             {
                 Configuration = new Dictionary<string, string>
@@ -55,7 +54,7 @@ public class DeltaTableTests
             async () =>
             {
                 var uri = $"memory://{Guid.NewGuid():N}";
-                using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+                using IEngine engine = new DeltaEngine(EngineOptions.Default);
                 var builder = new Apache.Arrow.Schema.Builder();
                 builder.Field(fb =>
                 {
@@ -64,8 +63,7 @@ public class DeltaTableTests
                     fb.Nullable(false);
                 });
                 var schema = builder.Build();
-                using var table = await DeltaTable.CreateAsync(
-                    runtime,
+                using var table = await engine.CreateTableAsync(
                     new TableCreateOptions(uri, schema)
                     {
                         Configuration = new Dictionary<string, string>
@@ -81,7 +79,7 @@ public class DeltaTableTests
     public async Task Create_InMemory_With_Partitions_Test()
     {
         var uri = $"memory://{Guid.NewGuid():N}";
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
         {
@@ -108,8 +106,7 @@ public class DeltaTableTests
             CustomMetadata = new Dictionary<string, string> { ["test"] = "something" },
             StorageOptions = new Dictionary<string, string> { ["something"] = "here" },
         };
-        using var table = await DeltaTable.CreateAsync(
-            runtime,
+        using var table = await engine.CreateTableAsync(
             createOptions,
             CancellationToken.None);
         Assert.NotNull(table);
@@ -128,8 +125,8 @@ public class DeltaTableTests
     public async Task Load_Table_Test()
     {
         var location = Path.Join(Settings.TestRoot, "simple_table");
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions(),
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
     }
@@ -140,8 +137,8 @@ public class DeltaTableTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
             var location = Path.Join(Settings.TestRoot, "simple_table");
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync(location, new TableOptions(),
             new CancellationToken(true));
             Assert.Equal(4UL, table.Version());
         });
@@ -152,8 +149,8 @@ public class DeltaTableTests
     {
         var location = Path.Join(Settings.TestRoot, "simple_table");
         var memory = System.Text.Encoding.UTF8.GetBytes(location);
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, memory.AsMemory(), new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(memory.AsMemory(), new TableOptions(),
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
     }
@@ -162,7 +159,7 @@ public class DeltaTableTests
     public async Task Table_Insert_Test()
     {
         var uri = $"memory://{Guid.NewGuid():N}";
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
         {
@@ -171,8 +168,7 @@ public class DeltaTableTests
             fb.Nullable(false);
         });
         var schema = builder.Build();
-        using var table = await DeltaTable.CreateAsync(
-            runtime,
+        using var table = await engine.CreateTableAsync(
             new TableCreateOptions(uri, schema),
             CancellationToken.None);
         Assert.NotNull(table);

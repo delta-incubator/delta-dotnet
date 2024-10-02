@@ -8,7 +8,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Metadata for the table
     /// </summary>
-    public class TableMetadata
+    public record TableMetadata
     {
         private static readonly Dictionary<string, string> EmptySettings = new();
 

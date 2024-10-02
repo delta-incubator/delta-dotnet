@@ -6,7 +6,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options for restoring a delta table
     /// </summary>
-    public class RestoreOptions
+    public record RestoreOptions
     {
         /// <summary>
         /// Optional version. Mutually excluse with <see cref="Timestamp"/>

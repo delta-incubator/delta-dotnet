@@ -1,5 +1,5 @@
 using DeltaLake.Errors;
-using DeltaLake.Runtime;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -15,8 +15,8 @@ public partial class LoadTests
     public async Task Load_Table_At_Version_Test(ulong version)
     {
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = version,
         },
@@ -32,8 +32,8 @@ public partial class LoadTests
     public async Task Table_Load_Version_Test(ulong version)
     {
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions(),
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await table.LoadVersionAsync(version, CancellationToken.None);
@@ -44,8 +44,8 @@ public partial class LoadTests
     public async Task Table_Load_Invalid_Version_Test()
     {
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions(),
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
@@ -58,8 +58,8 @@ public partial class LoadTests
     public async Task Table_Load_Version_Cancellation_Test()
     {
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions(),
         CancellationToken.None);
         Assert.Equal(4UL, table.Version());
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
@@ -73,8 +73,8 @@ public partial class LoadTests
     {
         var dateTimeOffset = DateTimeOffset.UtcNow;
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = 1UL,
         },
@@ -89,8 +89,8 @@ public partial class LoadTests
     {
         var dateTimeOffset = DateTimeOffset.MaxValue;
         var location = TableIdentifier.SimpleTable.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = 1,
         },
@@ -108,8 +108,8 @@ public partial class LoadTests
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         {
             var location = TableIdentifier.SimpleTable.TablePath();
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync(location, new TableOptions
             {
                 Version = 1,
             },
@@ -126,8 +126,8 @@ public partial class LoadTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
             var location = TableIdentifier.SimpleTable.TablePath();
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync(location, new TableOptions
             {
                 Version = 1,
             },
@@ -144,8 +144,8 @@ public partial class LoadTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
             var location = TableIdentifier.SimpleTable.TablePath();
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync(location, new TableOptions
             {
                 Version = 1,
             },
@@ -163,8 +163,8 @@ public partial class LoadTests
     public async Task Table_Load_Latest(TableIdentifier identifier, int minVersion, int expectedVersion)
     {
         var location = identifier.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = (ulong)minVersion,
         },
@@ -180,12 +180,8 @@ public partial class LoadTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
         {
             var location = TableIdentifier.Checkpoints.TablePath();
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(
-                runtime,
-                 location,
-                  new TableOptions(),
-            new CancellationToken(true));
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync(location, new TableOptions(), new CancellationToken(true));
         });
     }
 
@@ -196,8 +192,8 @@ public partial class LoadTests
     public async Task Table_Load_Update_Incremental(TableIdentifier identifier, int minVersion, int expectedVersion)
     {
         var location = identifier.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = (ulong)minVersion,
         },
@@ -217,8 +213,8 @@ public partial class LoadTests
     public async Task Table_Load_Update_Incremental_Cancellation(TableIdentifier identifier, int minVersion, int expectedVersion)
     {
         var location = identifier.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = (ulong)minVersion,
         },
@@ -239,8 +235,8 @@ public partial class LoadTests
     public async Task Table_Load_Update_Incremental_Latest(TableIdentifier identifier, int minVersion, int expectedVersion)
     {
         var location = identifier.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions
         {
             Version = (ulong)minVersion,
         },
@@ -255,8 +251,8 @@ public partial class LoadTests
     {
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         {
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, "invalid://invalid.uri", new TableOptions
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync("invalid://invalid.uri", new TableOptions
             {
                 Version = 50,
             },
@@ -270,8 +266,8 @@ public partial class LoadTests
         await Assert.ThrowsAsync<DeltaRuntimeException>(TestBodyAsync);
         static async Task TestBodyAsync()
         {
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-            using var table = await DeltaTable.LoadAsync(runtime, "file://invalid.uri", new TableOptions
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using var table = await engine.LoadTableAsync("file://invalid.uri", new TableOptions
             {
                 Version = 50,
             },
@@ -284,8 +280,8 @@ public partial class LoadTests
     public async Task Table_Will_Load_Test(TableIdentifier identifier)
     {
         var location = identifier.TablePath();
-        using var runtime = new DeltaRuntime(RuntimeOptions.Default);
-        using var table = await DeltaTable.LoadAsync(runtime, location, new TableOptions(),
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using var table = await engine.LoadTableAsync(location, new TableOptions(),
         CancellationToken.None);
         switch (identifier)
         {

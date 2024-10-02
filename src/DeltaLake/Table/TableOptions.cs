@@ -5,7 +5,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options for creating a new delta table
     /// </summary>
-    public class TableOptions
+    public record TableOptions
     {
         /// <summary>
         /// Optional version of the table to load

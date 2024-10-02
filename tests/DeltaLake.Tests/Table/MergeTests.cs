@@ -156,7 +156,6 @@ public class MergeTests
             99
           )";
         var pair = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);
-        using var runtime = pair.runtime;
         using var table = pair.table;
         var allocator = new NativeMemoryAllocator();
         var enumerable = Enumerable.Range(5, 10);
@@ -181,7 +180,6 @@ public class MergeTests
     public async Task Merge_Zero_Record_Count_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
-        using var runtime = tableParts.runtime;
         using var table = tableParts.table;
         var version = table.Version();
         await table.MergeAsync(@"MERGE INTO mytable USING newdata
@@ -203,7 +201,6 @@ public class MergeTests
     private async Task BaseMergeTest(string query, Action<IReadOnlyList<RecordBatch>> assertions)
     {
         var pair = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);
-        using var runtime = pair.runtime;
         using var table = pair.table;
         var allocator = new NativeMemoryAllocator();
         var enumerable = Enumerable.Range(5, 10);
