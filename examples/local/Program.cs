@@ -8,7 +8,7 @@ using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using Azure.Core;
 using Azure.Identity;
-using DeltaLake.Runtime;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace local;
@@ -45,7 +45,7 @@ public class Program
             storageOptions.Add("bearer_token", GenerateAzureStorageOAuthToken());
         }
 
-        var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
         {
             var builder = new Apache.Arrow.Schema.Builder();
             builder
@@ -68,8 +68,7 @@ public class Program
                 .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => GenerateRandomString(randomValueGenerator)))))
                 .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => randomValueGenerator.Next()))));
 
-            using var table = await DeltaTable.CreateAsync(
-                runtime,
+            using var table = await engine.CreateTableAsync(
                 new TableCreateOptions(uri, schema)
                 {
                     Configuration = new Dictionary<string, string>
@@ -85,8 +84,6 @@ public class Program
             };
             await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
         }
-
-        runtime.Dispose();
     }
 
     private static string GenerateRandomString(Random random, int length = 10)
