@@ -41,7 +41,10 @@ namespace DeltaLake.Table
         ) =>
             new DeltaTable(
                 new Core.Table(
-                    await Runtime.CreateTableAsync(options, cancellationToken).ConfigureAwait(false)
+                    await Runtime
+                        .CreateTableAsync(options, cancellationToken)
+                        .ConfigureAwait(false),
+                    options
                 )
             );
 
@@ -55,7 +58,8 @@ namespace DeltaLake.Table
                 new Core.Table(
                     await Runtime
                         .LoadTableAsync(uri, options, cancellationToken)
-                        .ConfigureAwait(false)
+                        .ConfigureAwait(false),
+                    options
                 )
             );
 
@@ -69,7 +73,8 @@ namespace DeltaLake.Table
                 new Core.Table(
                     await Runtime
                         .LoadTableAsync(uri, options, cancellationToken)
-                        .ConfigureAwait(false)
+                        .ConfigureAwait(false),
+                    options
                 )
             );
 

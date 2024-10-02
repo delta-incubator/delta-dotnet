@@ -9,6 +9,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
+using DeltaLake.Table;
 using DeltaRustBridge = DeltaLake.Bridge;
 
 namespace DeltaLake.Kernel.Core
@@ -22,11 +23,17 @@ namespace DeltaLake.Kernel.Core
     /// </summary>
     internal class Table : DeltaRustBridge.Table
     {
+        private readonly TableStorageOptions tableStorageOptions;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Table"/> class.
         /// </summary>
         /// <param name="table">The Delta Rust table.</param>
-        internal unsafe Table(DeltaRustBridge.Table table)
-            : base(table._runtime, table._ptr) { }
+        /// <param name="tableStorageOptions">The table storage options.</param>
+        internal unsafe Table(DeltaRustBridge.Table table, TableStorageOptions tableStorageOptions)
+            : base(table._runtime, table._ptr)
+        {
+            this.tableStorageOptions = tableStorageOptions;
+        }
     }
 }

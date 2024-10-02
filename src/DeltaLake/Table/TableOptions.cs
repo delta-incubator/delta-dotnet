@@ -5,17 +5,12 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options for creating a new delta table
     /// </summary>
-    public record TableOptions
+    public record TableOptions : TableStorageOptions
     {
         /// <summary>
         /// Optional version of the table to load
         /// </summary>
         public ulong? Version { get; set; }
-
-        /// <summary>
-        /// A map of string options
-        /// </summary>
-        public Dictionary<string, string> StorageOptions { get; } = new Dictionary<string, string>();
 
         /// <summary>
         /// Whether or not to load files when building the table

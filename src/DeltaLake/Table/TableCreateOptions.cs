@@ -7,7 +7,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options passed when creating a table
     /// </summary>
-    public record TableCreateOptions
+    public record TableCreateOptions : TableStorageOptions
     {
         /// <summary>
         /// Creates an instance of create options, ensuring its mandatory properties
@@ -56,11 +56,6 @@ namespace DeltaLake.Table
         /// </summary>
 
         public Dictionary<string, string>? Configuration { get; init; }
-
-        /// <summary>
-        /// Storage options to pass to table builder
-        /// </summary>
-        public Dictionary<string, string>? StorageOptions { get; init; }
 
         /// <summary>
         /// Table metadata
