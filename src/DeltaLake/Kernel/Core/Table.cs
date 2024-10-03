@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DeltaLake.Extensions;
+using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Disposables;
 using DeltaLake.Kernel.Interop;
@@ -69,6 +70,7 @@ namespace DeltaLake.Kernel.Core
         /// </remarks>
         private readonly unsafe sbyte* tableLocationPtr;
         private readonly unsafe IntPtr allocateErrorCallbackPtr;
+        private readonly unsafe IntPtr allocateStringCallbackPtr;
         private readonly unsafe sbyte** storageOptionsKeyPtrs;
         private readonly unsafe sbyte** storageOptionsValuePtrs;
 
@@ -91,6 +93,7 @@ namespace DeltaLake.Kernel.Core
         /// </remarks>
         private readonly GCHandle tableLocationHandle;
         private readonly GCHandle allocateErrorCallbackHandle;
+        private readonly GCHandle allocateStringCallbackHandle;
         private readonly GCHandle[] storageOptionsKeyHandles;
         private readonly GCHandle[] storageOptionsValueHandles;
 
@@ -126,12 +129,16 @@ namespace DeltaLake.Kernel.Core
                 this.tableLocationPtr = (sbyte*)ptr.ToPointer();
                 this.tableLocationSlice = new KernelStringSlice { ptr = this.tableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
 
-                // Allocation callback is used to communicate back memory allocation
-                // errors.
+                // Allocation callback is used to communicate memory allocation
+                // requests to/from the Kernel via method hooks.
                 //
-                AllocateErrorFn callbackDelegate = AllocateErrorCallbacks.ThrowAllocationError;
-                this.allocateErrorCallbackHandle = GCHandle.Alloc(callbackDelegate);
-                this.allocateErrorCallbackPtr = Marshal.GetFunctionPointerForDelegate(callbackDelegate);
+                AllocateErrorFn allocationErrorDelegate = AllocateErrorCallbacks.ThrowAllocationError;
+                this.allocateErrorCallbackHandle = GCHandle.Alloc(allocationErrorDelegate);
+                this.allocateErrorCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocationErrorDelegate);
+
+                AllocateStringFn allocateStringDelegate = StringAllocatorCallbacks.AllocateString;
+                this.allocateStringCallbackHandle = GCHandle.Alloc(allocateStringDelegate);
+                this.allocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocateStringDelegate);
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
@@ -191,10 +198,34 @@ namespace DeltaLake.Kernel.Core
             {
                 unsafe
                 {
-                    return unchecked((long)Methods.version(tableSnapshot.Snapshot));
+                    return unchecked((long)Methods.version(this.tableSnapshot.Snapshot));
                 }
             }
             return base.Version();
+        }
+
+        internal override string Uri()
+        {
+            if (this.isKernelAllocated && this.isKernelSupported)
+            {
+                unsafe
+                {
+                    IntPtr tableRootPtr = IntPtr.Zero;
+                    try
+                    {
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.tableSnapshot.Snapshot, this.allocateStringCallbackPtr);
+
+                        // Kernel returns an extra "/", delta-rs does not
+                        //
+                        return Marshal.PtrToStringAnsi(tableRootPtr)?.TrimEnd('/') ?? string.Empty;
+                    }
+                    finally
+                    {
+                        if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
+                    }
+                }
+            }
+            return base.Uri();
         }
 
         /// <remarks>
@@ -231,6 +262,7 @@ namespace DeltaLake.Kernel.Core
 
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
                 if (this.allocateErrorCallbackHandle.IsAllocated) this.allocateErrorCallbackHandle.Free();
+                if (this.allocateStringCallbackHandle.IsAllocated) this.allocateStringCallbackHandle.Free();
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
                 foreach (GCHandle handle in this.storageOptionsValueHandles) if (handle.IsAllocated) handle.Free();
 

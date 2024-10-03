@@ -79,6 +79,7 @@ public class Program
                 },
                 CancellationToken.None);
 
+            Console.WriteLine($"Table root path: {table.Location()}");
             Console.WriteLine($"Table version before transaction: {table.Version()}");
             var options = new InsertOptions
             {
