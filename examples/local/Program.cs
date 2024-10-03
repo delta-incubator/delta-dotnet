@@ -78,11 +78,14 @@ public class Program
                     StorageOptions = storageOptions,
                 },
                 CancellationToken.None);
+
+            Console.WriteLine($"Table version before transaction: {table.Version()}");
             var options = new InsertOptions
             {
                 SaveMode = SaveMode.Append,
             };
             await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+            Console.WriteLine($"Table version after transaction: {table.Version()}");
         }
     }
 
