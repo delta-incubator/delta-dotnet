@@ -80,6 +80,15 @@ Get-ChildItem "$GIT_ROOT/src/DeltaLake/Kernel/include" -Filter delta_kernel_ffi.
 }
 
 ClangSharpPInvokeGenerator @src/DeltaLake/Kernel/GenerateInterop.rsp
+
+# Post-processing script to remove Mangled entrpoints - ClangSharpPInvokeGenerator
+# does not seem to have a built-in arg that does this.
+#
+Get-ChildItem "$GIT_ROOT/src/DeltaLake/Kernel/Interop" -Filter Interop.cs -Recurse | ForEach-Object {
+    $content = Get-Content $_.FullName -Raw
+    $updatedContent = $content -replace ', EntryPoint = "[^"]+"', ''
+    Set-Content -Path $_.FullName -Value $updatedContent
+}
 ```
 
 ### Regenerating API docs
