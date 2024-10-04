@@ -17,6 +17,7 @@ public class Program
 {
     private static readonly string stringColumnName = "colStringTest";
     private static readonly string intColumnName = "colIntegerTest";
+    private static readonly string partitionColumnName = "colHostTest";
 
     private static string envVarIfRunningInVisualStudio = Environment.GetEnvironmentVariable("VisualStudioVersion");
 
@@ -55,6 +56,12 @@ public class Program
                     fb.DataType(StringType.Default);
                     fb.Nullable(false);
                 })
+                .Field(fb =>
+                {
+                    fb.Name(partitionColumnName);
+                    fb.DataType(StringType.Default);
+                    fb.Nullable(false);
+                })
                 .Field(static fb =>
                 {
                     fb.Name(intColumnName);
@@ -64,8 +71,11 @@ public class Program
             var schema = builder.Build();
             var allocator = new NativeMemoryAllocator();
             var randomValueGenerator = new Random();
+            var hostName = Environment.MachineName;
+
             var recordBatchBuilder = new RecordBatch.Builder(allocator)
                 .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => GenerateRandomString(randomValueGenerator)))))
+                .Append(partitionColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => hostName))))
                 .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => randomValueGenerator.Next()))));
 
             using var table = await engine.CreateTableAsync(
@@ -75,11 +85,13 @@ public class Program
                     {
                         ["delta.dataSkippingNumIndexedCols"] = "32"
                     },
+                    PartitionBy = new[] { partitionColumnName },
                     StorageOptions = storageOptions,
                 },
                 CancellationToken.None);
 
             Console.WriteLine($"Table root path: {table.Location()}");
+            Console.WriteLine($"Table partition columns: {string.Join(", ", table.Metadata().PartitionColumns)}");
             Console.WriteLine($"Table version before transaction: {table.Version()}");
             var options = new InsertOptions
             {

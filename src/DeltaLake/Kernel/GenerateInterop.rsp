@@ -3,6 +3,7 @@ compatible-codegen
 exclude-fnptr-codegen
 exclude-anonymous-field-helpers
 exclude-com-proxies
+generate-disable-runtime-marshalling
 --with-access-specifier
 *=internal
 --file

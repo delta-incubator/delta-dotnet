@@ -17,8 +17,9 @@ using System.Threading.Tasks;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
-using DeltaLake.Kernel.Disposables;
+using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
+using DeltaLake.Kernel.State;
 using DeltaLake.Table;
 using DeltaRustBridge = DeltaLake.Bridge;
 using ICancellationToken = System.Threading.CancellationToken;
@@ -59,7 +60,7 @@ namespace DeltaLake.Kernel.Core
         /// <remarks>
         /// It is our responsibility to dispose of these alongside this <see cref="Table"/> class.
         /// </remarks>
-        private readonly IManagedTableSnapshot tableSnapshot;
+        private readonly ISafeState state;
 
         /// <summary>
         /// Pointers **WE** manage alongside this <see cref="Table"/> class.
@@ -71,6 +72,7 @@ namespace DeltaLake.Kernel.Core
         private readonly unsafe sbyte* tableLocationPtr;
         private readonly unsafe IntPtr allocateErrorCallbackPtr;
         private readonly unsafe IntPtr allocateStringCallbackPtr;
+        private readonly unsafe IntPtr visitPartitionPtr;
         private readonly unsafe sbyte** storageOptionsKeyPtrs;
         private readonly unsafe sbyte** storageOptionsValuePtrs;
 
@@ -140,6 +142,8 @@ namespace DeltaLake.Kernel.Core
                 this.allocateStringCallbackHandle = GCHandle.Alloc(allocateStringDelegate);
                 this.allocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocateStringDelegate);
 
+                this.visitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
+
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
                 //
@@ -185,7 +189,7 @@ namespace DeltaLake.Kernel.Core
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
                 this.sharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
-                this.tableSnapshot = new ManagedTableSnapshot(this.tableLocationSlice, this.sharedExternEnginePtr);
+                this.state = new ManagedTableState(this.tableLocationSlice, this.sharedExternEnginePtr);
                 this.isKernelAllocated = true;
             }
         }
@@ -198,7 +202,7 @@ namespace DeltaLake.Kernel.Core
             {
                 unsafe
                 {
-                    return unchecked((long)Methods.version(this.tableSnapshot.Snapshot));
+                    return unchecked((long)Methods.version(this.state.Snapshot));
                 }
             }
             return base.Version();
@@ -213,7 +217,7 @@ namespace DeltaLake.Kernel.Core
                     IntPtr tableRootPtr = IntPtr.Zero;
                     try
                     {
-                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.tableSnapshot.Snapshot, this.allocateStringCallbackPtr);
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot, this.allocateStringCallbackPtr);
 
                         // Kernel returns an extra "/", delta-rs does not
                         //
@@ -250,6 +254,25 @@ namespace DeltaLake.Kernel.Core
             await base.LoadTimestampAsync(timestampMilliseconds, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <remarks>
+        /// Kernel does not support all Metadata - so we get what we can from
+        /// delta-rs, and override with Kernel values when supported. The idea
+        /// is, as Kernel exposes more metadata that delta-rs does not, we can
+        /// continue to expose the Kernel view to end users.
+        /// </remarks>
+        internal override TableMetadata Metadata()
+        {
+            TableMetadata metadata = base.Metadata();
+            if (this.isKernelAllocated && this.isKernelSupported)
+            {
+                unsafe
+                {
+                    metadata.PartitionColumns = PartitionColumns();
+                }
+            }
+            return metadata;
+        }
+
         #endregion Delta Kernel table operations
 
         #region SafeHandle implementation
@@ -258,7 +281,7 @@ namespace DeltaLake.Kernel.Core
         {
             if (this.isKernelAllocated)
             {
-                this.tableSnapshot.Dispose();
+                this.state.Dispose();
 
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
                 if (this.allocateErrorCallbackHandle.IsAllocated) this.allocateErrorCallbackHandle.Free();
@@ -280,5 +303,64 @@ namespace DeltaLake.Kernel.Core
         }
 
         #endregion SafeHandle implementation
+
+        #region Private methods
+
+        private List<string> PartitionColumns()
+        {
+            List<string> partitionColumns = new();
+            unsafe
+            {
+                int partitionColumnCount = (int)Methods.get_partition_column_count(this.state.GlobalScanState);
+                PartitionList* partitionListPtr = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
+
+                // We set the length to 0 here and use it to track how many
+                // items we've added.
+                //
+                partitionListPtr->Len = 0;
+                partitionListPtr->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
+
+                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.state.GlobalScanState);
+                try
+                {
+                    for (; ; )
+                    {
+                        bool hasNext = Methods.string_slice_next(partitionIterator, partitionListPtr, this.visitPartitionPtr);
+                        if (!hasNext) break;
+                    }
+
+                    if (partitionListPtr->Len != partitionColumnCount)
+                    {
+                        throw new InvalidOperationException(
+                            $"Delta Kernel partition iterator did not return {partitionColumnCount} columns as reported by 'get_partition_column_count' after iterating, reported {partitionListPtr->Len} instead."
+                        );
+                    }
+
+                    if (partitionListPtr->Len > 0)
+                    {
+                        for (int i = 0; i < partitionListPtr->Len; i++)
+                        {
+                            partitionColumns.Add(
+                                Marshal.PtrToStringAnsi((IntPtr)partitionListPtr->Cols[i])
+                                    ?? throw new InvalidOperationException(
+                                        $"Delta Kernel returned a null partition column name despite reporting {partitionColumnCount} > 0 partition(s) exist."
+                                    )
+                            );
+                        }
+                    }
+                }
+                finally
+                {
+                    for (int i = 0; i < partitionListPtr->Len; i++) Marshal.FreeHGlobal((IntPtr)partitionListPtr->Cols[i]);
+                    Methods.free_string_slice_data(partitionIterator);
+                    Marshal.FreeHGlobal((IntPtr)partitionListPtr->Cols);
+                    Marshal.FreeHGlobal((IntPtr)partitionListPtr);
+                }
+
+                return partitionColumns;
+            }
+        }
+
+        #endregion Private methods
     }
 }

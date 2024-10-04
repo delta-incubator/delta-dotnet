@@ -45,7 +45,7 @@ namespace DeltaLake.Table
         /// <summary>
         /// List of partition columns
         /// </summary>
-        public IReadOnlyList<string> PartitionColumns { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> PartitionColumns { get; internal set; } = Array.Empty<string>();
 
         /// <summary>
         /// Created time

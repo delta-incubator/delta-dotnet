@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 // <summary>
-// A managed table snapshot.
+// The list of partitions.
 // </summary>
 //
 // <copyright company="The Delta Lake Project Authors">
@@ -9,21 +9,21 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-using DeltaLake.Kernel.Interop;
-using System;
-
-namespace DeltaLake.Kernel.Disposables
+namespace DeltaLake.Kernel.State
 {
     /// <summary>
-    /// Managed table snapshot interface.
+    /// The list of partitions.
     /// </summary>
-    internal interface IManagedTableSnapshot : IDisposable
+    public struct PartitionList
     {
         /// <summary>
-        /// Gets the managed point in time snapshot, safely auto refreshes on
-        /// every get.
+        /// The number of partitions.
         /// </summary>
-        /// <returns>The managed point in time snapshot.</returns>
-        public unsafe SharedSnapshot* Snapshot { get; }
+        public int Len;
+
+        /// <summary>
+        /// The list of partition columns.
+        /// </summary>
+        public unsafe char** Cols;
     }
 }

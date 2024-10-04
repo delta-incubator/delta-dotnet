@@ -21,6 +21,14 @@ namespace DeltaLake.Kernel.Core
     /// operations not supported by the FFI yet falls back to Delta RS Runtime
     /// implementation.
     /// </summary>
+    /// <remarks>
+    /// This class isn't really used today, because the Kernel's entry point is
+    /// at per table scope, meaning, we essentially maintain a Kernel Runtime per
+    /// table.
+    ///
+    /// In the future, if Kernel exposes a global FFI that spans table, we can overload
+    /// this class to provide the global Kernel Runtime.
+    /// </remarks>
     internal class Runtime : DeltaRustBridge.Runtime
     {
         /// <summary>
