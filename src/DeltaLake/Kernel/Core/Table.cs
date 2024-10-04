@@ -72,7 +72,6 @@ namespace DeltaLake.Kernel.Core
         private readonly unsafe sbyte* tableLocationPtr;
         private readonly unsafe IntPtr allocateErrorCallbackPtr;
         private readonly unsafe IntPtr allocateStringCallbackPtr;
-        private readonly unsafe IntPtr visitPartitionPtr;
         private readonly unsafe sbyte** storageOptionsKeyPtrs;
         private readonly unsafe sbyte** storageOptionsValuePtrs;
 
@@ -141,8 +140,6 @@ namespace DeltaLake.Kernel.Core
                 AllocateStringFn allocateStringDelegate = StringAllocatorCallbacks.AllocateString;
                 this.allocateStringCallbackHandle = GCHandle.Alloc(allocateStringDelegate);
                 this.allocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocateStringDelegate);
-
-                this.visitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
@@ -311,50 +308,19 @@ namespace DeltaLake.Kernel.Core
             List<string> partitionColumns = new();
             unsafe
             {
-                int partitionColumnCount = (int)Methods.get_partition_column_count(this.state.GlobalScanState);
-                PartitionList* partitionListPtr = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
-
-                // We set the length to 0 here and use it to track how many
-                // items we've added.
-                //
-                partitionListPtr->Len = 0;
-                partitionListPtr->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
-
-                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.state.GlobalScanState);
-                try
+                PartitionList* managedPartitionListPtr = this.state.PartitionList;
+                int numPartitions = managedPartitionListPtr->Len;
+                if (numPartitions > 0)
                 {
-                    for (; ; )
+                    for (int i = 0; i < numPartitions; i++)
                     {
-                        bool hasNext = Methods.string_slice_next(partitionIterator, partitionListPtr, this.visitPartitionPtr);
-                        if (!hasNext) break;
-                    }
-
-                    if (partitionListPtr->Len != partitionColumnCount)
-                    {
-                        throw new InvalidOperationException(
-                            $"Delta Kernel partition iterator did not return {partitionColumnCount} columns as reported by 'get_partition_column_count' after iterating, reported {partitionListPtr->Len} instead."
+                        partitionColumns.Add(
+                            Marshal.PtrToStringAnsi((IntPtr)managedPartitionListPtr->Cols[i])
+                                ?? throw new InvalidOperationException(
+                                    $"Delta Kernel returned a null partition column name despite reporting {numPartitions} > 0 partition(s) exist."
+                                )
                         );
                     }
-
-                    if (partitionListPtr->Len > 0)
-                    {
-                        for (int i = 0; i < partitionListPtr->Len; i++)
-                        {
-                            partitionColumns.Add(
-                                Marshal.PtrToStringAnsi((IntPtr)partitionListPtr->Cols[i])
-                                    ?? throw new InvalidOperationException(
-                                        $"Delta Kernel returned a null partition column name despite reporting {partitionColumnCount} > 0 partition(s) exist."
-                                    )
-                            );
-                        }
-                    }
-                }
-                finally
-                {
-                    for (int i = 0; i < partitionListPtr->Len; i++) Marshal.FreeHGlobal((IntPtr)partitionListPtr->Cols[i]);
-                    Methods.free_string_slice_data(partitionIterator);
-                    Marshal.FreeHGlobal((IntPtr)partitionListPtr->Cols);
-                    Marshal.FreeHGlobal((IntPtr)partitionListPtr);
                 }
 
                 return partitionColumns;

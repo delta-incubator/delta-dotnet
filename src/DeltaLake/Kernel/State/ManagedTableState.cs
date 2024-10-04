@@ -10,6 +10,8 @@
 // -----------------------------------------------------------------------------
 
 using System;
+using System.Runtime.InteropServices;
+using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
 
 namespace DeltaLake.Kernel.State
@@ -28,6 +30,8 @@ namespace DeltaLake.Kernel.State
         private unsafe SharedScan* managedScan = null;
         private unsafe SharedGlobalScanState* managedGlobalScanState = null;
         private unsafe SharedSchema* managedSchema = null;
+        private unsafe PartitionList* partitionList = null;
+        private readonly unsafe IntPtr visitPartitionPtr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
@@ -41,6 +45,7 @@ namespace DeltaLake.Kernel.State
         {
             this.tableLocationSlice = tableLocationSlice;
             this.sharedExternEnginePtr = sharedExternEnginePtr;
+            this.visitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
         }
 
         #region ISafeState implementation
@@ -88,6 +93,16 @@ namespace DeltaLake.Kernel.State
             private set => managedSchema = value;
         }
 
+        public unsafe PartitionList* PartitionList
+        {
+            get
+            {
+                this.RefreshPartitionList();
+                return partitionList;
+            }
+            private set => partitionList = value;
+        }
+
         #endregion ISafeState implementation
 
         #region IDisposable implementation
@@ -104,6 +119,7 @@ namespace DeltaLake.Kernel.State
         {
             if (!disposed)
             {
+                this.DisposePartitionList();
                 this.DisposeSnapshot();
                 this.DisposeSchema();
                 this.DisposeGlobalScanState();
@@ -118,6 +134,20 @@ namespace DeltaLake.Kernel.State
         #endregion IDisposable implementation
 
         #region Private methods
+
+        private void DisposePartitionList()
+        {
+            unsafe
+            {
+                if (this.partitionList != null)
+                {
+                    for (int i = 0; i < this.partitionList->Len; i++) Marshal.FreeHGlobal((IntPtr)this.partitionList->Cols[i]);
+                    Marshal.FreeHGlobal((IntPtr)this.partitionList->Cols);
+                    Marshal.FreeHGlobal((IntPtr)this.partitionList);
+                    this.partitionList = null;
+                }
+            }
+        }
 
         private void DisposeScan()
         {
@@ -163,6 +193,44 @@ namespace DeltaLake.Kernel.State
                 {
                     Methods.free_snapshot(this.managedPointInTimeSnapshot);
                     this.managedPointInTimeSnapshot = null;
+                }
+            }
+        }
+
+        private void RefreshPartitionList()
+        {
+            unsafe
+            {
+                this.DisposePartitionList();
+                int partitionColumnCount = (int)Methods.get_partition_column_count(this.GlobalScanState);
+                this.partitionList = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
+
+                // We set the length to 0 here and use it to track how many
+                // items we've added.
+                //
+                this.partitionList->Len = 0;
+                this.partitionList->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
+
+                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.GlobalScanState);
+                try
+                {
+                    for (; ; )
+                    {
+                        bool hasNext = Methods.string_slice_next(partitionIterator, this.partitionList, this.visitPartitionPtr);
+                        if (!hasNext) break;
+                    }
+
+                    int receivedPartitionLen = this.partitionList->Len;
+                    if (receivedPartitionLen != partitionColumnCount)
+                    {
+                        throw new InvalidOperationException(
+                            $"Delta Kernel partition iterator did not return {partitionColumnCount} columns as reported by 'get_partition_column_count' after iterating, reported {receivedPartitionLen} instead."
+                        );
+                    }
+                }
+                finally
+                {
+                    Methods.free_string_slice_data(partitionIterator);
                 }
             }
         }

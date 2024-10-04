@@ -46,5 +46,12 @@ namespace DeltaLake.Kernel.State
         /// </summary>
         /// <returns>The managed point in time table shared schema.</returns>
         public unsafe SharedSchema* Schema { get; }
+
+        /// <summary>
+        /// Gets the managed partition lists, safely auto refreshes on
+        /// every get.
+        /// </summary>
+        /// <returns>The managed partition list.</returns>
+        public unsafe PartitionList* PartitionList { get; }
     }
 }
