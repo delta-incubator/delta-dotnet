@@ -126,7 +126,7 @@ namespace DeltaLake.Interfaces
         #region Read Operations
 
         /// <summary>
-        /// Issue a SELECT query against the table.
+        /// Issue a SELECT query against the table and returns an Arrow <see cref="RecordBatch"/>.
         /// </summary>
         /// <param name="query">A SELECT query.</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
