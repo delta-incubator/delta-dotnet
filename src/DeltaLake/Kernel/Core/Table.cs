@@ -17,7 +17,6 @@ using System.Threading.Tasks;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
-using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
 using DeltaLake.Table;
