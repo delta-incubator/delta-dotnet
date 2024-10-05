@@ -1,8 +1,9 @@
 --config
 compatible-codegen
-exclude-fnptr-codegen
 exclude-anonymous-field-helpers
 exclude-com-proxies
+exclude-default-remappings
+exclude-fnptr-codegen
 generate-disable-runtime-marshalling
 --with-access-specifier
 *=internal
