@@ -20,38 +20,38 @@ namespace DeltaLake.Kernel.State
     internal interface ISafeState : IDisposable
     {
         /// <summary>
-        /// Gets the managed point in time snapshot, safely auto refreshes on
-        /// every get.
+        /// Gets the managed point in time snapshot.
         /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed point in time snapshot.</returns>
-        public unsafe SharedSnapshot* Snapshot { get; }
+        public unsafe SharedSnapshot* Snapshot(bool refresh);
 
         /// <summary>
-        /// Gets the managed point in time scan, safely auto refreshes on
-        /// every get.
+        /// Gets the managed point in time scan.
         /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed point in time scan state.</returns>
-        public unsafe SharedScan* Scan { get; }
+        public unsafe SharedScan* Scan(bool refresh);
 
         /// <summary>
-        /// Gets the managed point in time global table scan state, safely auto refreshes on
-        /// every get.
+        /// Gets the managed point in time global table scan state.
         /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed point in time global scan state.</returns>
-        public unsafe SharedGlobalScanState* GlobalScanState { get; }
+        public unsafe SharedGlobalScanState* GlobalScanState(bool refresh);
 
         /// <summary>
-        /// Gets the managed point in time table shared schema, safely auto refreshes on
-        /// every get.
+        /// Gets the managed point in time table shared schema.
         /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed point in time table shared schema.</returns>
-        public unsafe SharedSchema* Schema { get; }
+        public unsafe SharedSchema* Schema(bool refresh);
 
         /// <summary>
-        /// Gets the managed partition lists, safely auto refreshes on
-        /// every get.
+        /// Gets the managed partition lists.
         /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed partition list.</returns>
-        public unsafe PartitionList* PartitionList { get; }
+        public unsafe PartitionList* PartitionList(bool refresh);
     }
 }

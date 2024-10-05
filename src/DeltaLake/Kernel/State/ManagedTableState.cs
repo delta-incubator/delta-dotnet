@@ -49,59 +49,44 @@ namespace DeltaLake.Kernel.State
             this.marshalledVisitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
         }
 
+        /// <remarks>
+        /// Refreshes state if requested or if not exists.
+        /// </remarks>
         #region ISafeState implementation
 
         /// <inheritdoc/>
-        public unsafe SharedSnapshot* Snapshot
+        public unsafe SharedSnapshot* Snapshot(bool refresh)
         {
-            get
-            {
-                this.RefreshSnapshot();
-                return managedPointInTimeSnapshot;
-            }
-            private set => managedPointInTimeSnapshot = value;
+            if (refresh || managedPointInTimeSnapshot == null) this.RefreshSnapshot();
+            return managedPointInTimeSnapshot;
         }
 
         /// <inheritdoc/>
-        public unsafe SharedScan* Scan
+        public unsafe SharedScan* Scan(bool refresh)
         {
-            get
-            {
-                this.RefreshScan();
-                return managedScan;
-            }
-            private set => managedScan = value;
+            if (refresh || managedScan == null) this.RefreshScan();
+            return managedScan;
         }
 
         /// <inheritdoc/>
-        public unsafe SharedGlobalScanState* GlobalScanState
+        public unsafe SharedGlobalScanState* GlobalScanState(bool refresh)
         {
-            get
-            {
-                this.RefreshGlobalScanState();
-                return managedGlobalScanState;
-            }
-            private set => managedGlobalScanState = value;
+            if (refresh || managedGlobalScanState == null) RefreshGlobalScanState();
+            return managedGlobalScanState;
         }
 
-        public unsafe SharedSchema* Schema
+        /// <inheritdoc/>
+        public unsafe SharedSchema* Schema(bool refresh)
         {
-            get
-            {
-                this.RefreshSchema();
-                return managedSchema;
-            }
-            private set => managedSchema = value;
+            if (refresh || managedSchema == null) this.RefreshSchema();
+            return managedSchema;
         }
 
-        public unsafe PartitionList* PartitionList
+        /// <inheritdoc/>
+        public unsafe PartitionList* PartitionList(bool refresh)
         {
-            get
-            {
-                this.RefreshPartitionList();
-                return partitionList;
-            }
-            private set => partitionList = value;
+            if (refresh || partitionList == null) this.RefreshPartitionList();
+            return partitionList;
         }
 
         #endregion ISafeState implementation
@@ -134,7 +119,7 @@ namespace DeltaLake.Kernel.State
 
         #endregion IDisposable implementation
 
-        #region Private methods
+        #region Private Dispose methods
 
         private void DisposeMarshalledDelegates()
         {
@@ -207,12 +192,21 @@ namespace DeltaLake.Kernel.State
             }
         }
 
+        #endregion Private Dispose methods
+
+        /// <remarks>
+        /// The refresh methods use the public methods when calling on dependent
+        /// state without requesting refresh, since the public methods are
+        /// idempotent (and will refresh parent state if not exists).
+        /// </remarks>
+        #region Private Refresh methods
+
         private void RefreshPartitionList()
         {
             unsafe
             {
                 this.DisposePartitionList();
-                int partitionColumnCount = (int)Methods.get_partition_column_count(this.GlobalScanState);
+                int partitionColumnCount = (int)Methods.get_partition_column_count(this.GlobalScanState(false));
                 this.partitionList = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
 
                 // We set the length to 0 here and use it to track how many
@@ -221,7 +215,7 @@ namespace DeltaLake.Kernel.State
                 this.partitionList->Len = 0;
                 this.partitionList->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
 
-                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.GlobalScanState);
+                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.GlobalScanState(false));
                 try
                 {
                     for (; ; )
@@ -250,7 +244,7 @@ namespace DeltaLake.Kernel.State
             unsafe
             {
                 this.DisposeScan();
-                ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot, this.sharedExternEnginePtr, null);
+                ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
                     throw new InvalidOperationException("Failed to create table scan from Delta Kernel.");
@@ -264,7 +258,7 @@ namespace DeltaLake.Kernel.State
             unsafe
             {
                 this.DisposeSchema();
-                this.managedSchema = Methods.get_global_read_schema(this.GlobalScanState);
+                this.managedSchema = Methods.get_global_read_schema(this.GlobalScanState(false));
             }
         }
 
@@ -273,7 +267,7 @@ namespace DeltaLake.Kernel.State
             unsafe
             {
                 this.DisposeGlobalScanState();
-                this.managedGlobalScanState = Methods.get_global_scan_state(this.Scan);
+                this.managedGlobalScanState = Methods.get_global_scan_state(this.Scan(false));
             }
         }
 
@@ -291,6 +285,6 @@ namespace DeltaLake.Kernel.State
             }
         }
 
-        #endregion Private methods
+        #endregion Private Refresh methods
     }
 }

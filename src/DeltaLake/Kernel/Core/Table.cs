@@ -17,9 +17,11 @@ using System.Threading.Tasks;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
+using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
 using DeltaLake.Table;
+using static DeltaLake.Kernel.Callbacks.Visit.VisitCallbacks;
 using DeltaRustBridge = DeltaLake.Bridge;
 using ICancellationToken = System.Threading.CancellationToken;
 
@@ -76,12 +78,6 @@ namespace DeltaLake.Kernel.Core
         private readonly GCHandle[] storageOptionsKeyHandles;
         private readonly GCHandle[] storageOptionsValueHandles;
 
-        /// <remarks>
-        /// It is our responsibility to release these pointers via <see cref="Marshal.FreeHGlobal"/>.
-        /// </remarks>
-        private unsafe IntPtr marshalledAllocateErrorCallbackPtr;
-        private unsafe IntPtr marshalledAllocateStringCallbackPtr;
-
         /// <summary>
         /// Pointers **KERNEL** manages related to this <see cref="Table"/> class.
         /// </summary>
@@ -124,15 +120,10 @@ namespace DeltaLake.Kernel.Core
                 this.gcPinnedTableLocationPtr = (sbyte*)ptr.ToPointer();
                 this.tableLocationSlice = new KernelStringSlice { ptr = this.gcPinnedTableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
 
-                // Callbacks are used to communicate requests to/from the Kernel.
-                //
-                this.marshalledAllocateErrorCallbackPtr = Marshal.GetFunctionPointerForDelegate<AllocateErrorFn>(AllocateErrorCallbacks.ThrowAllocationError);
-                this.marshalledAllocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString);
-
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
                 //
-                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, this.marshalledAllocateErrorCallbackPtr);
+                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, Marshal.GetFunctionPointerForDelegate<AllocateErrorFn>(AllocateErrorCallbacks.ThrowAllocationError));
                 if (engineBuilder.tag != ExternResultEngineBuilder_Tag.OkEngineBuilder)
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
@@ -191,6 +182,65 @@ namespace DeltaLake.Kernel.Core
                 throw new InvalidOperationException("Direct read operation is not supported without using the Delta Kernel.");
             }
 
+            unsafe
+            {
+                // Refresh the necessary Kernel state together before initiating
+                // the scan.
+                //
+                SharedSnapshot* managedSnapshotPtr = this.state.Snapshot(true);
+                SharedSchema* managedSchemaPtr = this.state.Schema(true);
+                PartitionList* managedPartitionListPtr = this.state.PartitionList(true);
+                SharedScan* managedScanPtr = this.state.Scan(true);
+                SharedGlobalScanState* managedGlobalScanStatePtr = this.state.GlobalScanState(true);
+
+                // Memory scoped to this Read operation
+                //
+                SharedScanDataIterator* kernelOwnedScanDataIteratorPtr = null;
+                IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+
+                // We don't explicitly pin the memory for these complex objects,
+                // since they will not be GC-ed until the vars go out of scope
+                // of this method, which encapsulates the complete scan
+                // operation.
+                //
+                ArrowContext methodScopedArrowContext = new();
+                ArrowContext* arrowContextPtr = &methodScopedArrowContext;
+
+                EngineContext methodScopedEngineContext = new()
+                {
+                    GlobalScanState = managedGlobalScanStatePtr,
+                    Schema = managedSchemaPtr,
+                    TableRoot = (char*)tableRootPtr,
+                    Engine = this.kernelOwnedSharedExternEnginePtr,
+                    PartitionList = managedPartitionListPtr,
+                    PartitionValues = null,
+                    ArrowContext = arrowContextPtr
+                };
+                EngineContext* engineContextPtr = &methodScopedEngineContext;
+
+                try
+                {
+                    ExternResultHandleSharedScanDataIterator dataIteratorHandle = Methods.kernel_scan_data_init(this.kernelOwnedSharedExternEnginePtr, managedScanPtr);
+                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanDataIterator_Tag.OkHandleSharedScanDataIterator)
+                    {
+                        throw new InvalidOperationException("Failed to construct kernel scan data iterator.");
+                    }
+                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
+                    for (; ; )
+                    {
+                        ExternResultbool isScanOk = Methods.kernel_scan_data_next(kernelOwnedScanDataIteratorPtr, engineContextPtr, Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
+                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
+                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
+                    }
+                }
+                finally
+                {
+                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_kernel_scan_data(kernelOwnedScanDataIteratorPtr);
+                    if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
+                    methodScopedArrowContext.Dispose();
+                }
+            }
+
             throw new NotImplementedException("Remove this placeholder before merging.");
         }
 
@@ -200,7 +250,7 @@ namespace DeltaLake.Kernel.Core
             {
                 unsafe
                 {
-                    return unchecked((long)Methods.version(this.state.Snapshot));
+                    return unchecked((long)Methods.version(this.state.Snapshot(true)));
                 }
             }
             return base.Version();
@@ -215,7 +265,7 @@ namespace DeltaLake.Kernel.Core
                     IntPtr tableRootPtr = IntPtr.Zero;
                     try
                     {
-                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot, this.marshalledAllocateStringCallbackPtr);
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(true), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
 
                         // Kernel returns an extra "/", delta-rs does not
                         //
@@ -287,18 +337,6 @@ namespace DeltaLake.Kernel.Core
                 Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsKeyPtrs);
                 Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsValuePtrs);
 
-                if (this.marshalledAllocateErrorCallbackPtr != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(this.marshalledAllocateErrorCallbackPtr);
-                    this.marshalledAllocateErrorCallbackPtr = IntPtr.Zero;
-                }
-
-                if (this.marshalledAllocateStringCallbackPtr != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(this.marshalledAllocateStringCallbackPtr);
-                    this.marshalledAllocateStringCallbackPtr = IntPtr.Zero;
-                }
-
                 // EngineBuilder* does not need to be deallocated
                 //
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1727978348653369
@@ -318,7 +356,7 @@ namespace DeltaLake.Kernel.Core
             List<string> partitionColumns = new();
             unsafe
             {
-                PartitionList* managedPartitionListPtr = this.state.PartitionList;
+                PartitionList* managedPartitionListPtr = this.state.PartitionList(true);
                 int numPartitions = managedPartitionListPtr->Len;
                 if (numPartitions > 0)
                 {

@@ -9,6 +9,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
+using System;
 using System.Runtime.InteropServices;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Interop;
@@ -42,6 +43,80 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     char* col = (char*)StringAllocatorCallbacks.AllocateString(partition);
                     list->Cols[list->Len] = col;
                     list->Len++;
+                }
+            );
+
+        /// <summary>
+        /// Visits the scanned data.
+        /// </summary>
+        /// <param name="engineContext">The engine context.</param>
+        /// <param name="engineData">The engine data.</param>
+        /// <param name="selectionVec">The selection vector.</param>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate void VisitScanDataDelegate(
+            void* engineContext,
+            ExclusiveEngineData* engineData,
+            KernelBoolSlice selectionVec
+        );
+        internal static unsafe VisitScanDataDelegate VisitScanData =
+            new(
+                (
+                    void* engineContext,
+                    ExclusiveEngineData* engineData,
+                    KernelBoolSlice selectionVec
+                ) =>
+                {
+                    IntPtr marshalledProcessScanDataCallbackPtr = Marshal.GetFunctionPointerForDelegate<ProcessScanDataDelegate>(ProcessScanData);
+                    Methods.visit_scan_data(
+                        engineData,
+                        selectionVec,
+                        engineContext,
+                        marshalledProcessScanDataCallbackPtr
+                    );
+                    Methods.free_bool_slice(selectionVec);
+                }
+            );
+
+        /// <summary>
+        /// Processes the scanned data.
+        /// </summary>
+        /// <param name="engineContext">The engine context.</param>
+        /// <param name="parquetFilePath">The path of the parquet file to read.</param>
+        /// <param name="parquetFileSize">The file size.</param>
+        /// <param name="stats">The file statistics.</param>
+        /// <param name="dvInfo">The selection vector information.</param>
+        /// <param name="partitionMap">The partition map.</param>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate void ProcessScanDataDelegate(
+            void* engineContext,
+            KernelStringSlice parquetFilePath,
+            long parquetFileSize,
+            Stats* stats,
+            DvInfo* dvInfo,
+            CStringMap* partitionMap
+        );
+
+        internal static unsafe ProcessScanDataDelegate ProcessScanData =
+            new(
+                (
+                    void* engineContext,
+                    KernelStringSlice parquetFilePath,
+                    long parquetFileSize,
+                    Stats* stats,
+                    DvInfo* dvInfo,
+                    CStringMap* partitionMap
+                ) =>
+                {
+                    EngineContext* context = (EngineContext*)engineContext;
+                    ExternResultKernelBoolSlice selectionVectorRes = Methods.selection_vector_from_dv(dvInfo, context->Engine, context->GlobalScanState);
+                    if (selectionVectorRes.tag != ExternResultKernelBoolSlice_Tag.OkKernelBoolSlice)
+                    {
+                        throw new InvalidOperationException("Could not get selection vector from kernel");
+                    }
+                    KernelBoolSlice selectionVec = selectionVectorRes.Anonymous.Anonymous1.ok;
+
+                    Methods.free_bool_slice(selectionVec);
+                    context->PartitionValues = null;
                 }
             );
     }
