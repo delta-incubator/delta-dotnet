@@ -31,7 +31,8 @@ namespace DeltaLake.Kernel.State
         private unsafe SharedGlobalScanState* managedGlobalScanState = null;
         private unsafe SharedSchema* managedSchema = null;
         private unsafe PartitionList* partitionList = null;
-        private readonly unsafe IntPtr visitPartitionPtr;
+
+        private unsafe IntPtr marshalledVisitPartitionPtr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
@@ -45,7 +46,7 @@ namespace DeltaLake.Kernel.State
         {
             this.tableLocationSlice = tableLocationSlice;
             this.sharedExternEnginePtr = sharedExternEnginePtr;
-            this.visitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
+            this.marshalledVisitPartitionPtr = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
         }
 
         #region ISafeState implementation
@@ -135,6 +136,15 @@ namespace DeltaLake.Kernel.State
 
         #region Private methods
 
+        private void DisposeMarshalledDelegates()
+        {
+            if (this.marshalledVisitPartitionPtr != IntPtr.Zero)
+            {
+                Marshal.FreeHGlobal(this.marshalledVisitPartitionPtr);
+                this.marshalledVisitPartitionPtr = IntPtr.Zero;
+            }
+        }
+
         private void DisposePartitionList()
         {
             unsafe
@@ -216,7 +226,7 @@ namespace DeltaLake.Kernel.State
                 {
                     for (; ; )
                     {
-                        bool hasNext = Methods.string_slice_next(partitionIterator, this.partitionList, this.visitPartitionPtr);
+                        bool hasNext = Methods.string_slice_next(partitionIterator, this.partitionList, this.marshalledVisitPartitionPtr);
                         if (!hasNext) break;
                     }
 

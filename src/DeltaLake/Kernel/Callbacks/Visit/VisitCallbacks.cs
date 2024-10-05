@@ -24,21 +24,25 @@ namespace DeltaLake.Kernel.Callbacks.Visit
         /// <summary>
         /// Visits the partition.
         /// </summary>
-        /// <param name="context">The partition context.</param>
-        /// <param name="partition">The partition kernel slice.</param>
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        internal unsafe delegate void VisitPartitionDelegate(void* context, KernelStringSlice partition);
-
         /// <remarks>
         /// Caller is responsible for freeing the memory allocated to the column pointer.
         /// </remarks>
-        internal static unsafe VisitPartitionDelegate VisitPartition = new((void* context, KernelStringSlice partition) =>
-            {
-                PartitionList* list = (PartitionList*)context;
-                char* col = (char*)StringAllocatorCallbacks.AllocateString(partition);
-                list->Cols[list->Len] = col;
-                list->Len++;
-            }
+        /// <param name="context">The partition context.</param>
+        /// <param name="partition">The partition kernel slice.</param>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate void VisitPartitionDelegate(
+            void* context,
+            KernelStringSlice partition
         );
+        internal static unsafe VisitPartitionDelegate VisitPartition =
+            new(
+                (void* context, KernelStringSlice partition) =>
+                {
+                    PartitionList* list = (PartitionList*)context;
+                    char* col = (char*)StringAllocatorCallbacks.AllocateString(partition);
+                    list->Cols[list->Len] = col;
+                    list->Len++;
+                }
+            );
     }
 }

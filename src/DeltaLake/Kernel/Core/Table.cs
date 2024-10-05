@@ -38,7 +38,7 @@ namespace DeltaLake.Kernel.Core
         /// Behavioral flags.
         /// </summary>
         private bool isKernelSupported;
-        private bool isKernelAllocated;
+        private readonly bool isKernelAllocated;
 
         /// <summary>
         /// Regular managed objects.
@@ -66,13 +66,21 @@ namespace DeltaLake.Kernel.Core
         /// </summary>
         /// <remarks>
         /// It is our responsibility to release these pointers via the paired GC
-        /// handles.
+        /// handles via <see cref="GCHandle.Free()"/>.
         /// </remarks>
-        private readonly unsafe sbyte* tableLocationPtr;
-        private readonly unsafe IntPtr allocateErrorCallbackPtr;
-        private readonly unsafe IntPtr allocateStringCallbackPtr;
-        private readonly unsafe sbyte** storageOptionsKeyPtrs;
-        private readonly unsafe sbyte** storageOptionsValuePtrs;
+        private readonly unsafe sbyte* gcPinnedTableLocationPtr;
+        private readonly unsafe sbyte** gcPinnedStorageOptionsKeyPtrs;
+        private readonly unsafe sbyte** gcPinnedStorageOptionsValuePtrs;
+
+        private readonly GCHandle tableLocationHandle;
+        private readonly GCHandle[] storageOptionsKeyHandles;
+        private readonly GCHandle[] storageOptionsValueHandles;
+
+        /// <remarks>
+        /// It is our responsibility to release these pointers via <see cref="Marshal.FreeHGlobal"/>.
+        /// </remarks>
+        private unsafe IntPtr marshalledAllocateErrorCallbackPtr;
+        private unsafe IntPtr marshalledAllocateStringCallbackPtr;
 
         /// <summary>
         /// Pointers **KERNEL** manages related to this <see cref="Table"/> class.
@@ -81,21 +89,8 @@ namespace DeltaLake.Kernel.Core
         /// It is our responsibility to ask Kernel to release these pointers
         /// when <see cref="Table"/> class is disposed.
         /// </remarks>
-        private readonly unsafe EngineBuilder* engineBuilderPtr;
-        private readonly unsafe SharedExternEngine* sharedExternEnginePtr;
-
-        /// <summary>
-        /// GC handles to release the pointers we manage.
-        /// </summary>
-        /// <remarks>
-        /// It is our responsibility to invoke <see cref="GCHandle.Free()"/> on
-        /// each of these handles when <see cref="Table"/> class is disposed.
-        /// </remarks>
-        private readonly GCHandle tableLocationHandle;
-        private readonly GCHandle allocateErrorCallbackHandle;
-        private readonly GCHandle allocateStringCallbackHandle;
-        private readonly GCHandle[] storageOptionsKeyHandles;
-        private readonly GCHandle[] storageOptionsValueHandles;
+        private readonly unsafe EngineBuilder* kernelOwnedEngineBuilderPtr;
+        private readonly unsafe SharedExternEngine* kernelOwnedSharedExternEnginePtr;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Table"/> class.
@@ -126,29 +121,23 @@ namespace DeltaLake.Kernel.Core
                 //
                 (GCHandle handle, IntPtr ptr) = tableStorageOptions.TableLocation.ToPinnedSBytePointer();
                 this.tableLocationHandle = handle;
-                this.tableLocationPtr = (sbyte*)ptr.ToPointer();
-                this.tableLocationSlice = new KernelStringSlice { ptr = this.tableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
+                this.gcPinnedTableLocationPtr = (sbyte*)ptr.ToPointer();
+                this.tableLocationSlice = new KernelStringSlice { ptr = this.gcPinnedTableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
 
-                // Allocation callback is used to communicate memory allocation
-                // requests to/from the Kernel via method hooks.
+                // Callbacks are used to communicate requests to/from the Kernel.
                 //
-                AllocateErrorFn allocationErrorDelegate = AllocateErrorCallbacks.ThrowAllocationError;
-                this.allocateErrorCallbackHandle = GCHandle.Alloc(allocationErrorDelegate);
-                this.allocateErrorCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocationErrorDelegate);
-
-                AllocateStringFn allocateStringDelegate = StringAllocatorCallbacks.AllocateString;
-                this.allocateStringCallbackHandle = GCHandle.Alloc(allocateStringDelegate);
-                this.allocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate(allocateStringDelegate);
+                this.marshalledAllocateErrorCallbackPtr = Marshal.GetFunctionPointerForDelegate<AllocateErrorFn>(AllocateErrorCallbacks.ThrowAllocationError);
+                this.marshalledAllocateStringCallbackPtr = Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString);
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
                 //
-                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, this.allocateErrorCallbackPtr);
+                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, this.marshalledAllocateErrorCallbackPtr);
                 if (engineBuilder.tag != ExternResultEngineBuilder_Tag.OkEngineBuilder)
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
                 }
-                this.engineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
+                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
 
                 // The joys of unmanaged code, this is all to pass some Key:Value string pairs
                 // to the Kernel's Engine Builder (e.g. Storage Account/S3 Keys etc.).
@@ -157,8 +146,8 @@ namespace DeltaLake.Kernel.Core
                 int count = tableStorageOptions.StorageOptions.Count;
                 this.storageOptionsKeyHandles = new GCHandle[count];
                 this.storageOptionsValueHandles = new GCHandle[count];
-                this.storageOptionsKeyPtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
-                this.storageOptionsValuePtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
+                this.gcPinnedStorageOptionsKeyPtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
+                this.gcPinnedStorageOptionsValuePtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
                 this.storageOptionsKeySlices = new KernelStringSlice[count];
                 this.storageOptionsValueSlices = new KernelStringSlice[count];
 
@@ -169,28 +158,41 @@ namespace DeltaLake.Kernel.Core
 
                     this.storageOptionsKeyHandles[index] = keyHandle;
                     this.storageOptionsValueHandles[index] = valueHandle;
-                    this.storageOptionsKeyPtrs[index] = (sbyte*)keyPtr.ToPointer();
-                    this.storageOptionsValuePtrs[index] = (sbyte*)valuePtr.ToPointer();
-                    this.storageOptionsKeySlices[index] = new KernelStringSlice { ptr = this.storageOptionsKeyPtrs[index], len = (nuint)kvp.Key.Length };
-                    this.storageOptionsValueSlices[index] = new KernelStringSlice { ptr = this.storageOptionsValuePtrs[index], len = (nuint)kvp.Value.Length };
+                    this.gcPinnedStorageOptionsKeyPtrs[index] = (sbyte*)keyPtr.ToPointer();
+                    this.gcPinnedStorageOptionsValuePtrs[index] = (sbyte*)valuePtr.ToPointer();
+                    this.storageOptionsKeySlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsKeyPtrs[index], len = (nuint)kvp.Key.Length };
+                    this.storageOptionsValueSlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsValuePtrs[index], len = (nuint)kvp.Value.Length };
 
-                    Methods.set_builder_option(this.engineBuilderPtr, this.storageOptionsKeySlices[index], this.storageOptionsValueSlices[index]);
+                    Methods.set_builder_option(this.kernelOwnedEngineBuilderPtr, this.storageOptionsKeySlices[index], this.storageOptionsValueSlices[index]);
 
                     index++;
                 }
 
-                this.sharedExternEngine = Methods.builder_build(this.engineBuilderPtr);
+                this.sharedExternEngine = Methods.builder_build(this.kernelOwnedEngineBuilderPtr);
                 if (this.sharedExternEngine.tag != ExternResultHandleSharedExternEngine_Tag.OkHandleSharedExternEngine)
                 {
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
-                this.sharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
-                this.state = new ManagedTableState(this.tableLocationSlice, this.sharedExternEnginePtr);
+                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
+                this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
             }
         }
 
         #region Delta Kernel table operations
+
+        internal Apache.Arrow.Table Read()
+        {
+            if (!this.isKernelAllocated || !this.isKernelSupported)
+            {
+                // There's currently no direct equivalent to this in delta-rs,
+                // so we throw if the Kernel is not being used.
+                //
+                throw new InvalidOperationException("Direct read operation is not supported without using the Delta Kernel.");
+            }
+
+            throw new NotImplementedException("Remove this placeholder before merging.");
+        }
 
         internal override long Version()
         {
@@ -213,7 +215,7 @@ namespace DeltaLake.Kernel.Core
                     IntPtr tableRootPtr = IntPtr.Zero;
                     try
                     {
-                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot, this.allocateStringCallbackPtr);
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot, this.marshalledAllocateStringCallbackPtr);
 
                         // Kernel returns an extra "/", delta-rs does not
                         //
@@ -280,19 +282,28 @@ namespace DeltaLake.Kernel.Core
                 this.state.Dispose();
 
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
-                if (this.allocateErrorCallbackHandle.IsAllocated) this.allocateErrorCallbackHandle.Free();
-                if (this.allocateStringCallbackHandle.IsAllocated) this.allocateStringCallbackHandle.Free();
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
                 foreach (GCHandle handle in this.storageOptionsValueHandles) if (handle.IsAllocated) handle.Free();
+                Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsKeyPtrs);
+                Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsValuePtrs);
 
-                Marshal.FreeHGlobal((IntPtr)this.storageOptionsKeyPtrs);
-                Marshal.FreeHGlobal((IntPtr)this.storageOptionsValuePtrs);
+                if (this.marshalledAllocateErrorCallbackPtr != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(this.marshalledAllocateErrorCallbackPtr);
+                    this.marshalledAllocateErrorCallbackPtr = IntPtr.Zero;
+                }
+
+                if (this.marshalledAllocateStringCallbackPtr != IntPtr.Zero)
+                {
+                    Marshal.FreeHGlobal(this.marshalledAllocateStringCallbackPtr);
+                    this.marshalledAllocateStringCallbackPtr = IntPtr.Zero;
+                }
 
                 // EngineBuilder* does not need to be deallocated
                 //
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1727978348653369
                 //
-                Methods.free_engine(sharedExternEnginePtr);
+                Methods.free_engine(kernelOwnedSharedExternEnginePtr);
             }
 
             return base.ReleaseHandle();

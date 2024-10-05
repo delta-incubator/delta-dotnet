@@ -133,6 +133,11 @@ namespace DeltaLake.Interfaces
         /// <returns>A <see cref="IAsyncEnumerable{RecordBatch}"/> collection of record batches representing the query results.</returns>
         IAsyncEnumerable<RecordBatch> QueryAsync(SelectQuery query, [EnumeratorCancellation] CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Read the delta table and return as <see cref="Apache.Arrow.Table"/>.
+        /// </summary>
+        Apache.Arrow.Table Read();
+
         #endregion Read Operations
 
         #region Transaction Operations

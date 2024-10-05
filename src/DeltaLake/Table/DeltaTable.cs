@@ -117,6 +117,9 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
+        public Apache.Arrow.Table Read() => this.table.Read();
+
+        /// <inheritdoc/>
         public async Task InsertAsync(
             IReadOnlyCollection<RecordBatch> records,
             Schema schema,
