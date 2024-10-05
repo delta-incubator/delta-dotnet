@@ -11,6 +11,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using DeltaLake.Kernel.Arrow.Handlers;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
@@ -66,12 +67,11 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     KernelBoolSlice selectionVec
                 ) =>
                 {
-                    IntPtr marshalledProcessScanDataCallbackPtr = Marshal.GetFunctionPointerForDelegate<ProcessScanDataDelegate>(ProcessScanData);
                     Methods.visit_scan_data(
                         engineData,
                         selectionVec,
                         engineContext,
-                        marshalledProcessScanDataCallbackPtr
+                        Marshal.GetFunctionPointerForDelegate<ProcessScanDataDelegate>(ProcessScanData)
                     );
                     Methods.free_bool_slice(selectionVec);
                 }
@@ -113,10 +113,50 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     {
                         throw new InvalidOperationException("Could not get selection vector from kernel");
                     }
-                    KernelBoolSlice selectionVec = selectionVectorRes.Anonymous.Anonymous1.ok;
+                    KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
 
-                    Methods.free_bool_slice(selectionVec);
+                    context->PartitionValues = partitionMap;
+                    new ArrowFFIInterOpHandler().ReadParquetFileAsArrow(
+                        context,
+                        parquetFilePath,
+                        selectionVector
+                    );
+
+                    Methods.free_bool_slice(selectionVector);
                     context->PartitionValues = null;
+                }
+            );
+
+        /// <summary>
+        /// Physically reads the arrow data.
+        /// </summary>
+        /// <param name="engineContext">The engine context.</param>
+        /// <param name="engineData">The engine data.</param>
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        internal unsafe delegate void VisitReadDataDelegate(
+            void* engineContext,
+            ExclusiveEngineData* engineData
+        );
+        internal static unsafe VisitReadDataDelegate IngestArrowData =
+            new(
+                (
+                    void* engineContext,
+                    ExclusiveEngineData* engineData
+                ) =>
+                {
+                    EngineContext* context = (EngineContext*)engineContext;
+                    ExternResultArrowFFIData isRawArrowReadOk = Methods.get_raw_arrow_data(engineData, context->Engine);
+                    if (isRawArrowReadOk.tag != ExternResultArrowFFIData_Tag.OkArrowFFIData)
+                    {
+                        throw new InvalidOperationException("Could not read raw Arrow data with Delta Kernel");
+                    }
+                    ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1.ok;
+                    new ArrowFFIInterOpHandler().ZeroCopyRecordBatchToArrowContext(
+                        context->ArrowContext,
+                        arrowData,
+                        context->PartitionList,
+                        context->PartitionValues
+                    );
                 }
             );
     }

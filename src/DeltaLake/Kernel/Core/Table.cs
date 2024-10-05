@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DeltaLake.Extensions;
+using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Callbacks.Visit;
@@ -232,6 +233,7 @@ namespace DeltaLake.Kernel.Core
                         if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
                         else if (!isScanOk.Anonymous.Anonymous1.ok) break;
                     }
+                    return methodScopedArrowContext.ToTable();
                 }
                 finally
                 {
@@ -240,8 +242,6 @@ namespace DeltaLake.Kernel.Core
                     methodScopedArrowContext.Dispose();
                 }
             }
-
-            throw new NotImplementedException("Remove this placeholder before merging.");
         }
 
         internal override long Version()
