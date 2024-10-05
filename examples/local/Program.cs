@@ -100,7 +100,9 @@ public class Program
             await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
             Console.WriteLine($"Table version after transaction: {table.Version()}");
 
-            Apache.Arrow.Table readTable = table.Read();
+            Apache.Arrow.Table readTable = table.ReadAsArrowTable();
+            Console.WriteLine(readTable.ToString());
+            Console.WriteLine(table.ReadAsString());
         }
     }
 

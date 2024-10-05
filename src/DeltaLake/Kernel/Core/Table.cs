@@ -12,8 +12,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Apache.Arrow;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
@@ -22,6 +24,7 @@ using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
 using DeltaLake.Table;
+using Microsoft.Data.Analysis;
 using static DeltaLake.Kernel.Callbacks.Visit.VisitCallbacks;
 using DeltaRustBridge = DeltaLake.Bridge;
 using ICancellationToken = System.Threading.CancellationToken;
@@ -173,7 +176,7 @@ namespace DeltaLake.Kernel.Core
 
         #region Delta Kernel table operations
 
-        internal Apache.Arrow.Table Read()
+        internal (Apache.Arrow.Schema, List<RecordBatch>) ReadAsRecordBatchesAndSchema()
         {
             if (!this.isKernelAllocated || !this.isKernelSupported)
             {
@@ -194,7 +197,7 @@ namespace DeltaLake.Kernel.Core
                 SharedScan* managedScanPtr = this.state.Scan(true);
                 SharedGlobalScanState* managedGlobalScanStatePtr = this.state.GlobalScanState(true);
 
-                // Memory scoped to this Read operation
+                // Memory scoped to this ReadAsArrowTable operation
                 //
                 SharedScanDataIterator* kernelOwnedScanDataIteratorPtr = null;
                 IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
@@ -233,7 +236,7 @@ namespace DeltaLake.Kernel.Core
                         if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
                         else if (!isScanOk.Anonymous.Anonymous1.ok) break;
                     }
-                    return methodScopedArrowContext.ToTable();
+                    return (methodScopedArrowContext.Schema, methodScopedArrowContext.ToRecordBatches());
                 }
                 finally
                 {
@@ -242,6 +245,29 @@ namespace DeltaLake.Kernel.Core
                     methodScopedArrowContext.Dispose();
                 }
             }
+        }
+
+        internal Apache.Arrow.Table ReadAsArrowTable()
+        {
+            (Schema schema, List<RecordBatch> recordBatches) = this.ReadAsRecordBatchesAndSchema();
+            return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
+        }
+
+        /// <remarks>
+        /// <see cref="DataFrame"/> does not have a good way to combine multiple
+        /// <see cref="RecordBatch"/>. If/when it does, we can expose a method
+        /// to convert all Record Batches to a single DataFrame.
+        ///
+        /// For now, this is only used as a convenient way to convert a <see
+        /// cref="Table"/> to a visual representation, which is why we don't
+        /// expose DataFrame in the public interface.
+        /// </remarks>
+        internal DataFrame ReadFirstRecordBatchAsDataFrame()
+        {
+            (_, List<RecordBatch> recordBatches) = this.ReadAsRecordBatchesAndSchema();
+            RecordBatch firstRecordBatch = recordBatches.FirstOrDefault();
+            if (firstRecordBatch == null) return new DataFrame();
+            return DataFrame.FromArrowRecordBatch(firstRecordBatch);
         }
 
         internal override long Version()

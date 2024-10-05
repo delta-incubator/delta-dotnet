@@ -28,19 +28,22 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// <returns>The converted Arrow Table.</returns>
         internal static unsafe Apache.Arrow.Table ToTable(this ArrowContext context)
         {
-            if (
-                context == null
-                || context.NumBatches == 0
-                || context.Batches == null
-                || context.Schema == null
-            )
+            if (context == null || context.Schema == null)
             {
-                throw new ArgumentException($"Invalid ArrowContext provided for Table conversion: contains one or more null pointers with {context.NumBatches} Record Batches.");
+                throw new ArgumentException($"Invalid ArrowContext provided for Table conversion: cannot convert to Table without schema.");
             }
+            return Apache.Arrow.Table.TableFromRecordBatches(context.Schema, context.ToRecordBatches());
+        }
 
+        internal static unsafe List<RecordBatch> ToRecordBatches(this ArrowContext context)
+        {
+            if (context == null || context.NumBatches == 0 || context.Batches == null)
+            {
+                throw new ArgumentException($"Invalid ArrowContext provided for RecordBatch conversion: contains one or more null pointers with {context.NumBatches} Record Batches.");
+            }
             List<RecordBatch> recordBatches = new(context.NumBatches);
             for (int i = 0; i < context.NumBatches; i++) recordBatches.Add(*context.Batches[i]);
-            return Apache.Arrow.Table.TableFromRecordBatches(context.Schema, recordBatches);
+            return recordBatches;
         }
     }
 }

@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DeltaLake.Errors;
+using DeltaLake.Extensions;
 using DeltaLake.Interfaces;
 using Core = DeltaLake.Kernel.Core;
 
@@ -117,7 +118,10 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public Apache.Arrow.Table Read() => this.table.Read();
+        public Apache.Arrow.Table ReadAsArrowTable() => this.table.ReadAsArrowTable();
+
+        /// <inheritdoc/>
+        public string ReadAsString() => this.table.ReadFirstRecordBatchAsDataFrame().ToFormattedString();
 
         /// <inheritdoc/>
         public async Task InsertAsync(

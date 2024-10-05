@@ -136,7 +136,13 @@ namespace DeltaLake.Interfaces
         /// <summary>
         /// Read the delta table and return as <see cref="Apache.Arrow.Table"/>.
         /// </summary>
-        Apache.Arrow.Table Read();
+        Apache.Arrow.Table ReadAsArrowTable();
+
+        /// <summary>
+        /// Read the delta table and return as a <see cref="string"/> representation,
+        /// only displays the first <see cref="RecordBatch"/>.
+        /// </summary>
+        string ReadAsString();
 
         #endregion Read Operations
 
