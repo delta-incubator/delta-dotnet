@@ -16,6 +16,7 @@ using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DeltaLake.Table;
+using Microsoft.Data.Analysis;
 using CancellationToken = System.Threading.CancellationToken;
 
 namespace DeltaLake.Interfaces
@@ -139,10 +140,12 @@ namespace DeltaLake.Interfaces
         Apache.Arrow.Table ReadAsArrowTable();
 
         /// <summary>
-        /// Read the delta table and return as a <see cref="string"/> representation,
-        /// only displays the first <see cref="RecordBatch"/>.
+        /// Read the delta table and return as a <see cref="DataFrame"/>.
         /// </summary>
-        string ReadAsString();
+        /// <remarks>
+        /// This loads the entire table into memory.
+        /// </remarks>
+        DataFrame ReadAsDataFrame();
 
         #endregion Read Operations
 

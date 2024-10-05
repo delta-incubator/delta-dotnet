@@ -254,20 +254,32 @@ namespace DeltaLake.Kernel.Core
         }
 
         /// <remarks>
-        /// <see cref="DataFrame"/> does not have a good way to combine multiple
-        /// <see cref="RecordBatch"/>. If/when it does, we can expose a method
-        /// to convert all Record Batches to a single DataFrame.
-        ///
-        /// For now, this is only used as a convenient way to convert a <see
-        /// cref="Table"/> to a visual representation, which is why we don't
-        /// expose DataFrame in the public interface.
+        /// Inspired from https://github.com/apache/arrow/issues/35371, this is
+        /// the only documented way to convert a list of <see
+        /// cref="RecordBatch"/>es reliably to a single <see cref="DataFrame"/>.
         /// </remarks>
-        internal DataFrame ReadFirstRecordBatchAsDataFrame()
+        internal DataFrame ReadAsDataFrame()
         {
             (_, List<RecordBatch> recordBatches) = this.ReadAsRecordBatchesAndSchema();
-            RecordBatch firstRecordBatch = recordBatches.FirstOrDefault();
-            if (firstRecordBatch == null) return new DataFrame();
-            return DataFrame.FromArrowRecordBatch(firstRecordBatch);
+            if (recordBatches == null || recordBatches.Count == 0)
+            {
+                throw new ArgumentException("Cannot read as DataFrame, the list of Arrow Record Batches from Delta Kernel is null or empty.");
+            }
+            Schema schema = recordBatches[0].Schema;
+            List<IArrowArray> concatenatedColumns = new();
+
+            foreach (Field field in schema.FieldsList)
+            {
+                List<IArrowArray> columnArrays = new();
+                foreach (RecordBatch recordBatch in recordBatches)
+                {
+                    IArrowArray column = recordBatch.Column(field.Name);
+                    columnArrays.Add(column);
+                }
+                IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
+                concatenatedColumns.Add(concatenatedColumn);
+            }
+            return DataFrame.FromArrowRecordBatch(new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length));
         }
 
         internal override long Version()

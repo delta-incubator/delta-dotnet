@@ -8,8 +8,10 @@ using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using Azure.Core;
 using Azure.Identity;
+using DeltaLake.Extensions;
 using DeltaLake.Interfaces;
 using DeltaLake.Table;
+using Microsoft.Data.Analysis;
 
 namespace local;
 
@@ -93,16 +95,20 @@ public class Program
             Console.WriteLine($"Table root path: {table.Location()}");
             Console.WriteLine($"Table partition columns: {string.Join(", ", table.Metadata().PartitionColumns)}");
             Console.WriteLine($"Table version before transaction: {table.Version()}");
+
             var options = new InsertOptions
             {
                 SaveMode = SaveMode.Append,
             };
             await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
+
             Console.WriteLine($"Table version after transaction: {table.Version()}");
 
             Apache.Arrow.Table readTable = table.ReadAsArrowTable();
             Console.WriteLine(readTable.ToString());
-            Console.WriteLine(table.ReadAsString());
+            
+            DataFrame df = table.ReadAsDataFrame();
+            Console.WriteLine(df.ToMarkdown());
         }
     }
 

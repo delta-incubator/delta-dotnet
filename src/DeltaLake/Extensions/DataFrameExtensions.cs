@@ -23,17 +23,22 @@ namespace DeltaLake.Extensions
         # region Public methods
 
         /// <summary>
+        /// Converts the <see cref="DataFrame"/> to a markdown <see cref="string"/>.
+        /// </summary>
+        /// <param name="dataFrame">The DataFrame to convert to markdown string.</param>
+        /// <returns>The markdown representation of the DataFrame.</returns>
+        public static string ToMarkdown(this DataFrame dataFrame) => ToStringArray2D(dataFrame).ToMarkdown();
+
+        /// <summary>
         /// Converts the <see cref="DataFrame"/> to a formatted <see cref="string"/>.
         /// </summary>
         /// <param name="dataFrame">The DataFrame to convert to formatted string.</param>
-        /// <returns>The formatted string representation of the DataFrame.</returns>
-        public static string ToFormattedString(this DataFrame dataFrame) => ToStringArray2D(dataFrame).ToMarkdown();
+        /// <returns>The formatted representation of the DataFrame.</returns>
+        public static string ToPrettyText(this DataFrame dataFrame) => ToStringArray2D(dataFrame).ToFormattedText();
 
         # endregion Public methods
 
         #region private methods
-
-        private static string ToPrettyText(this DataFrame df) => ToStringArray2D(df).ToFormattedText();
 
         private static string[,] ToStringArray2D(DataFrame df)
         {
