@@ -60,7 +60,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             RecordBatch** newBatchPointersArrayPtr = (RecordBatch**)Marshal.AllocHGlobal(sizeof(RecordBatch*) * (context->NumBatches + 1));
 
             Apache.Arrow.Schema arrowSchema = ConvertFFISchemaToArrowSchema(&arrowData->schema);
-            context->Schema = arrowSchema;
+            context->Schema = AddPartitionColumnsToSchema(arrowSchema, partitionCols, partitionValues);
 
             *recordBatchPtr = ConvertFFIArrayToArrowRecordBatch(&arrowData->array, arrowSchema);
             *recordBatchPtr = AddPartitionColumnsToRecordBatch(*recordBatchPtr, partitionCols, partitionValues);
@@ -135,7 +135,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
         #region Private methods
 
-        private unsafe Apache.Arrow.Schema ConvertFFISchemaToArrowSchema(FFI_ArrowSchema* ffiSchema)
+        private static unsafe Apache.Arrow.Schema ConvertFFISchemaToArrowSchema(FFI_ArrowSchema* ffiSchema)
         {
             CArrowSchema* clonedSchema = CArrowSchema.Create();
             Apache.Arrow.Schema convertedSchema = CArrowSchemaImporter.ImportSchema(ArrowFfiSchemaConverter.ConvertFFISchema(ffiSchema, clonedSchema));
@@ -174,6 +174,14 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 fields.Add(field);
 
                 StringArray.Builder columnBuilder = new();
+
+                // The Kernel can currently only report String values back as
+                // partition values, even if it's a different type (like
+                // Integer, DateTime etc). This is a limitation of the Kernel
+                // today, more information here:
+                //
+                // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
+                //
                 void* partitionValPtr = Methods.get_from_map(
                     partitionValues,
                     new KernelStringSlice
@@ -192,6 +200,39 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 columns.Add(columnBuilder.Build());
             }
             return new RecordBatch(schemaBuilder.Build(), columns, recordBatch.Length);
+        }
+
+        private static unsafe IArrowType DeterminePartitionColumnType(string colName, CStringMap* partitionValues)
+        {
+            // Currently, there's no way to determine the type of the partition,
+            // because the Kernel always represents partition values as strings in CStringMap.
+            //
+            // We have a request with Kernel team here to get back the Arrow Schema from
+            // the Delta Transaction Log:
+            //
+            // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728001059452499?thread_ts=1727999835.930339&cid=C04TRPG3LHZ
+            //
+            return StringType.Default;
+        }
+
+        private static unsafe Apache.Arrow.Schema AddPartitionColumnsToSchema(Apache.Arrow.Schema originalSchema, PartitionList* partitionCols, CStringMap* partitionValues)
+        {
+            Apache.Arrow.Schema.Builder schemaBuilder = new();
+            foreach (Field field in originalSchema.FieldsList)
+            {
+                schemaBuilder = schemaBuilder.Field(field);
+            }
+
+            for (int i = 0; i < partitionCols->Len; i++)
+            {
+                string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
+                IArrowType dataType = DeterminePartitionColumnType(colName, partitionValues);
+
+                Field field = new(colName, dataType, nullable: true);
+                schemaBuilder = schemaBuilder.Field(field);
+            }
+
+            return schemaBuilder.Build();
         }
 
         #endregion Private methods
