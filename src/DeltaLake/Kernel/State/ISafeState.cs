@@ -1,6 +1,7 @@
 // -----------------------------------------------------------------------------
 // <summary>
-// Memory safe kernel state.
+// Memory safe kernel state that makes it easy to encapsulate parent/child
+// relationships.
 // </summary>
 //
 // <copyright company="The Delta Lake Project Authors">
