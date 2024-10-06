@@ -84,7 +84,7 @@
     <!-- RELEASE Rust Build -->
 
     <Target Name="CargoBridgeBuildRelease" BeforeTargets="DispatchToInnerBuilds"
-        Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
+        Condition="'$(Configuration)' == 'Release' AND '$(RustLibraryRoot)' == ''">
         <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
     </Target>
 
@@ -96,7 +96,7 @@
     <!-- RELEASE binary copy -->
 
     <Target Name="CopyBridgeDLLRelease" BeforeTargets="PreBuildEvent"
-        Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
+        Condition="'$(Configuration)' == 'Release' AND '$(RustLibraryRoot)' == ''">
         <ItemGroup Condition="'$(Configuration)' == 'Release'">
             <Content Include="Bridge/target/release/$(BridgeLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -126,21 +126,21 @@
     <!-- Pack the binary if Bridge/KernelLibraryRoot property set -->
 
     <Target Name="PackBridgeRuntimes" BeforeTargets="DispatchToInnerBuilds"
-        Condition="'$(BridgeLibraryRoot)' != ''">
+        Condition="'$(RustLibraryRoot)' != ''">
         <ItemGroup>
-            <Content Include="$(BridgeLibraryRoot)/linux-x64-bridge/libdelta_rs_bridge.so">
+            <Content Include="$(RustLibraryRoot)/linux-x64-bridge/libdelta_rs_bridge.so">
                 <PackagePath>runtimes/linux-x64/native/libdelta_rs_bridge.so</PackagePath>
             </Content>
-            <Content Include="$(BridgeLibraryRoot)/linux-arm64-bridge/libdelta_rs_bridge.so">
+            <Content Include="$(RustLibraryRoot)/linux-arm64-bridge/libdelta_rs_bridge.so">
                 <PackagePath>runtimes/linux-arm64/native/libdelta_rs_bridge.so</PackagePath>
             </Content>
-            <Content Include="$(BridgeLibraryRoot)/osx-x64-bridge/libdelta_rs_bridge.dylib">
+            <Content Include="$(RustLibraryRoot)/osx-x64-bridge/libdelta_rs_bridge.dylib">
                 <PackagePath>runtimes/osx-x64/native/libdelta_rs_bridge.dylib</PackagePath>
             </Content>
-            <Content Include="$(BridgeLibraryRoot)/osx-arm64-bridge/libdelta_rs_bridge.dylib">
+            <Content Include="$(RustLibraryRoot)/osx-arm64-bridge/libdelta_rs_bridge.dylib">
                 <PackagePath>runtimes/osx-arm64/native/libdelta_rs_bridge.dylib</PackagePath>
             </Content>
-            <Content Include="$(BridgeLibraryRoot)/win-x64-bridge/delta_rs_bridge.dll">
+            <Content Include="$(RustLibraryRoot)/win-x64-bridge/delta_rs_bridge.dll">
                 <PackagePath>runtimes/win-x64/native/delta_rs_bridge.dll</PackagePath>
             </Content>
         </ItemGroup>

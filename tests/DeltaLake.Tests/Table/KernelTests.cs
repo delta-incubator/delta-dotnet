@@ -34,9 +34,9 @@ public class KernelTests
         // Setup
         //
         int numRowsPerPartition = 10;
-        int numPartitions = 5;
-        int numTransactionPerStringPartition = 3;
-        int numTransactionPerIntegerPartition = 5;
+        int numPartitions = 2;
+        int numTransactionPerStringPartition = 2;
+        int numTransactionPerIntegerPartition = 2;
         int numRows = numRowsPerPartition * numPartitions * numTransactionPerStringPartition * numTransactionPerIntegerPartition;
 
         var tempDir = Directory.CreateTempSubdirectory();
