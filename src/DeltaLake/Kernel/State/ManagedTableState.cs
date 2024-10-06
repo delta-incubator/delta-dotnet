@@ -1,6 +1,6 @@
 // -----------------------------------------------------------------------------
 // <summary>
-// A disposable handle for a shared, auto-refreshed Kernel Table state.
+// A disposable handle for a shared, on-demand-refreshable Kernel Table state.
 // </summary>
 //
 // <copyright company="The Delta Lake Project Authors">
