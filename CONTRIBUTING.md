@@ -33,7 +33,7 @@ All 3 of these things are tightly coupled and must happen sequentially when you 
 2. The `dll` and `.h` must be built
 3. The `.h` header is used to generate the interop `.cs` classes
 
-So, since C# code in this repo will not change the Kernal DLL/Header that's generated, so there's no point in continuously rebuilding the `.dll` via `csproj`.
+So, since C# code in this repo will not change the Kernal DLL/Header that's generated, there's no point in continuously rebuilding the `.dll` via `csproj`.
 
 #### Build Kernel DLL
 
