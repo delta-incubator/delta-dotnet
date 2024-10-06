@@ -69,7 +69,9 @@ Copy-Item -Path $GENERATED_FFI_HEADER -Destination $CSHARP_FRIENDLY_FFI_HEADER -
 
 # Prepare header for ClangSharp conversion.
 #
-# TODO: we should work out a solution with delta-kernel folks for  a future release.
+# TODO: we should work out a solution with delta-kernel folks for a future release,
+# on a solution for removing the build flags at the C header level, and instead pushing
+# it up to a Rust feature flag.
 #
 Get-ChildItem "$GIT_ROOT/src/DeltaLake/Kernel/include" -Filter delta_kernel_ffi.h -Recurse | ForEach-Object {
     $content = Get-Content $_.FullName -Raw
