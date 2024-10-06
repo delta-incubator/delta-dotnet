@@ -16,7 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-		<PackageReference Include="Microsoft.Data.Analysis" Version="0.21.1" />
+        <PackageReference Include="Microsoft.Data.Analysis" Version="0.21.1" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
         <PackageReference Include="Apache.Arrow" Version="15.0.0" />
     </ItemGroup>
@@ -31,7 +31,7 @@
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
         <BridgeLibraryFile>delta_rs_bridge.dll</BridgeLibraryFile>
-		<KernelLibraryFile>delta_kernel_ffi.dll</KernelLibraryFile>
+        <KernelLibraryFile>delta_kernel_ffi.dll</KernelLibraryFile>
     </PropertyGroup>
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
         <BridgeLibraryFile>libdelta_rs_bridge.so</BridgeLibraryFile>
@@ -40,7 +40,8 @@
         <BridgeLibraryFile>libdelta_rs_bridge.dylib</BridgeLibraryFile>
     </PropertyGroup>
 
-    <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds" Condition="'$(Configuration)' == 'Debug'">
+    <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds"
+        Condition="'$(Configuration)' == 'Debug'">
         <Exec Command="cargo build" WorkingDirectory="Bridge" />
     </Target>
     <Target Name="CopyBridgeDLLDebug" BeforeTargets="PreBuildEvent" Condition="'$(Configuration)' == 'Debug'">
