@@ -59,7 +59,7 @@ cargo build --manifest-path $FFI_PROJ_PATH/Cargo.toml --features "delta_kernel/c
 
 ```powershell
 
-# Copy the built header from cargo into this repo
+# Copy the built header from cargo into C# Interop project
 #
 $HEADER_FILE = "delta_kernel_ffi.h"
 $GENERATED_FFI_HEADER = "${GIT_ROOT}/src/DeltaLake/Kernel/delta-kernel-rs/target/ffi-headers/${HEADER_FILE}"
