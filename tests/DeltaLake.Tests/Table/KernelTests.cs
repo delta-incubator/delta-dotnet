@@ -6,6 +6,7 @@ using DeltaLake.Extensions;
 using DeltaLake.Interfaces;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
+using Polly;
 
 namespace DeltaLake.Tests.Table;
 
@@ -16,6 +17,16 @@ public class KernelTests
     private static readonly string partitionStringColumnName = "colPartitionStringTest";
     private static readonly string partitionIntegerColumnName = "colPartitionIntegerTest";
     private const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    private const int numRetriesOnThrow = 10;
+    private static readonly string[] unsafeRetriableErrorsWeMustNotRetryOn = new[]
+{
+        @"The metadata of your Delta table couldn't be recovered",
+    };
+    private static readonly string[] safeRetriableErrorsDeltaRustDoesNotRetryOn = new[]
+    {
+        @"Failed to read delta log object.*Unable to open file.*\.json.*Access is denied\.",
+        @"Failed to commit transaction"
+    };
 
     [Fact]
     public async Task Multi_Partitioned_Table_Parallelized_Bridge_Write_Can_Be_Read_By_Kernel()
@@ -27,7 +38,6 @@ public class KernelTests
         int numTransactionPerStringPartition = 3;
         int numTransactionPerIntegerPartition = 5;
         int numRows = numRowsPerPartition * numPartitions * numTransactionPerStringPartition * numTransactionPerIntegerPartition;
-        int numColumns = 4;
 
         var tempDir = Directory.CreateTempSubdirectory();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
@@ -37,6 +47,7 @@ public class KernelTests
                                 .Field(fb => { fb.Name(partitionIntegerColumnName); fb.DataType(Int32Type.Default); fb.Nullable(false); })
                                 .Field(fb => { fb.Name(intColumnName); fb.DataType(Int32Type.Default); fb.Nullable(false); });
         var schema = builder.Build();
+        int numColumns = schema.FieldsList.Count;
         var tableCreateOptions = new TableCreateOptions(tempDir.FullName, schema)
         {
             Configuration = new Dictionary<string, string> { ["delta.dataSkippingNumIndexedCols"] = "32" },
@@ -46,28 +57,50 @@ public class KernelTests
         var allocator = new NativeMemoryAllocator();
         var randomValueGenerator = new Random();
         var hostNamePrefix = Environment.MachineName;
+        AsyncPolicy policy = Policy
+            .Handle<Exception>(ex =>
+            {
+                foreach (var pattern in unsafeRetriableErrorsWeMustNotRetryOn) if (Regex.IsMatch(ex.Message, pattern)) return false;
+                foreach (var pattern in safeRetriableErrorsDeltaRustDoesNotRetryOn) if (Regex.IsMatch(ex.Message, pattern)) return true;
+                return false;
+            })
+            .WaitAndRetryAsync(
+                numRetriesOnThrow,
+                retryAttempt => TimeSpan.FromSeconds(retryAttempt),
+                (exception, timeSpan, retryCount, context) =>
+                {
+                    Console.WriteLine($"[{Thread.CurrentThread.ManagedThreadId}] Retry {retryCount} encountered an expected error: '{exception.Message}'. Waiting {timeSpan} before next retry.");
+                }
+            );
 
         try
         {
-            // Exercise: Writes via Bridge
+            // Exercise: Parallelized writes via Bridge
             //
             using ITable table = await engine.CreateTableAsync(tableCreateOptions, CancellationToken.None);
+            var tasks = new List<Task>();
             for (int i = 0; i < numPartitions; i++)
             {
                 for (int j = 0; j < numTransactionPerStringPartition; j++)
                 {
                     for (int k = 0; k < numTransactionPerIntegerPartition; k++)
                     {
-                        var partition = $"{hostNamePrefix}_{i}";
-                        var recordBatchBuilder = new RecordBatch.Builder(allocator)
-                                                            .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => GenerateRandomString(randomValueGenerator)))))
-                                                            .Append(partitionStringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => partition))))
-                                                            .Append(partitionIntegerColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => i * j * k))))
-                                                            .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => randomValueGenerator.Next()))));
-                        await table.InsertAsync(new[] { recordBatchBuilder.Build() }, schema, tableWriteOptions, CancellationToken.None);
+                        tasks.Add(Task.Run(async () =>
+                        {
+                            await policy.ExecuteAsync(async () => {
+                                var partition = $"{hostNamePrefix}_{i}";
+                                var recordBatchBuilder = new RecordBatch.Builder(allocator)
+                                    .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => GenerateRandomString(randomValueGenerator)))))
+                                    .Append(partitionStringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => partition))))
+                                    .Append(partitionIntegerColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => i * j * k))))
+                                    .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => randomValueGenerator.Next()))));
+                                await table.InsertAsync(new[] { recordBatchBuilder.Build() }, schema, tableWriteOptions, CancellationToken.None);
+                            });
+                        }));
                     }
                 }
             }
+            await Task.WhenAll(tasks);
 
             // Exercise: Reads via Kernel
             //
