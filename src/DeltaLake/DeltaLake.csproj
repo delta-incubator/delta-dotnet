@@ -1,4 +1,5 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
     <PropertyGroup>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Description>DeltaLake for .NET</Description>
@@ -27,23 +28,37 @@
         </AssemblyAttribute>
     </ItemGroup>
 
-    <!-- Build/copy debug/release bridge DLL -->
+    <!-- OS localization props for Bridge + Kernel compiled binaries -->
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
         <BridgeLibraryFile>delta_rs_bridge.dll</BridgeLibraryFile>
         <KernelLibraryFile>delta_kernel_ffi.dll</KernelLibraryFile>
     </PropertyGroup>
+
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
         <BridgeLibraryFile>libdelta_rs_bridge.so</BridgeLibraryFile>
-    </PropertyGroup>
-    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
-        <BridgeLibraryFile>libdelta_rs_bridge.dylib</BridgeLibraryFile>
+        <KernelLibraryFile>libdelta_kernel_ffi.so</KernelLibraryFile>
     </PropertyGroup>
 
-    <Target Name="CargoBuildDebug" BeforeTargets="DispatchToInnerBuilds"
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <BridgeLibraryFile>libdelta_rs_bridge.dylib</BridgeLibraryFile>
+        <KernelLibraryFile>libdelta_kernel_ffi.dylib</KernelLibraryFile>
+    </PropertyGroup>
+
+    <!-- DEBUG Rust Build -->
+
+    <Target Name="CargoBridgeBuildDebug" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(Configuration)' == 'Debug'">
         <Exec Command="cargo build" WorkingDirectory="Bridge" />
     </Target>
+
+    <Target Name="CargoKernelBuildDebug" BeforeTargets="DispatchToInnerBuilds"
+        Condition="'$(Configuration)' == 'Debug'">
+        <Exec Command="cargo build --features delta_kernel/cloud" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
+    </Target>
+
+    <!-- DEBUG binary copy -->
+
     <Target Name="CopyBridgeDLLDebug" BeforeTargets="PreBuildEvent"
         Condition="'$(Configuration)' == 'Debug'">
         <ItemGroup Condition="'$(Configuration)' == 'Debug'">
@@ -52,6 +67,12 @@
                 <Link>$(BridgeLibraryFile)</Link>
                 <PublishState>Included</PublishState>
             </Content>
+        </ItemGroup>
+    </Target>
+
+    <Target Name="CopyKernelDLLDebug" BeforeTargets="PreBuildEvent"
+        Condition="'$(Configuration)' == 'Debug'">
+        <ItemGroup Condition="'$(Configuration)' == 'Debug'">
             <Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
                 <Link>$(KernelLibraryFile)</Link>
@@ -60,13 +81,22 @@
         </ItemGroup>
     </Target>
 
-    <Target Name="CargoBuildRelease" BeforeTargets="DispatchToInnerBuilds"
+    <!-- RELEASE Rust Build -->
+
+    <Target Name="CargoBridgeBuildRelease" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
         <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
     </Target>
+
+    <Target Name="CargoKernelBuildRelease" BeforeTargets="DispatchToInnerBuilds"
+        Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
+        <Exec Command="cargo build --features delta_kernel/cloud --release" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
+    </Target>
+
+    <!-- RELEASE binary copy -->
+
     <Target Name="CopyBridgeDLLRelease" BeforeTargets="PreBuildEvent"
         Condition="'$(Configuration)' == 'Release' AND '$(BridgeLibraryRoot)' == ''">
-        <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
         <ItemGroup Condition="'$(Configuration)' == 'Release'">
             <Content Include="Bridge/target/release/$(BridgeLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -76,12 +106,25 @@
         </ItemGroup>
     </Target>
 
+    <Target Name="CopyKernelDLLRelease" BeforeTargets="PreBuildEvent"
+        Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
+        <ItemGroup Condition="'$(Configuration)' == 'Release'">
+            <Content Include="Kernel/delta-kernel-rs/target/release/$(KernelLibraryFile)">
+                <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                <Link>$(KernelLibraryFile)</Link>
+                <PublishState>Included</PublishState>
+            </Content>
+        </ItemGroup>
+    </Target>
+
     <!-- Pack the README and targets file -->
+
     <ItemGroup>
         <None Include="../../README.md" Pack="true" PackagePath="\" />
     </ItemGroup>
 
-    <!-- Pack the C if BridgeLibraryRoot property set -->
+    <!-- Pack the binary if Bridge/KernelLibraryRoot property set -->
+
     <Target Name="PackBridgeRuntimes" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(BridgeLibraryRoot)' != ''">
         <ItemGroup>
@@ -89,7 +132,7 @@
                 <PackagePath>runtimes/linux-x64/native/libdelta_rs_bridge.so</PackagePath>
             </Content>
             <Content Include="$(BridgeLibraryRoot)/linux-arm64-bridge/libdelta_rs_bridge.so">
-                <PackagePath>runtimes/linux-arm64/native/libdelta_rs_bridge .so</PackagePath>
+                <PackagePath>runtimes/linux-arm64/native/libdelta_rs_bridge.so</PackagePath>
             </Content>
             <Content Include="$(BridgeLibraryRoot)/osx-x64-bridge/libdelta_rs_bridge.dylib">
                 <PackagePath>runtimes/osx-x64/native/libdelta_rs_bridge.dylib</PackagePath>
@@ -102,4 +145,26 @@
             </Content>
         </ItemGroup>
     </Target>
+
+    <Target Name="PackKernelRuntimes" BeforeTargets="DispatchToInnerBuilds"
+        Condition="'$(KernelLibraryRoot)' != ''">
+        <ItemGroup>
+            <Content Include="$(KernelLibraryRoot)/linux-x64-kernel/libdelta_kernel_ffi.so">
+                <PackagePath>runtimes/linux-x64/native/libdelta_kernel_ffi.so</PackagePath>
+            </Content>
+            <Content Include="$(KernelLibraryRoot)/linux-arm64-kernel/libdelta_kernel_ffi.so">
+                <PackagePath>runtimes/linux-arm64/native/libdelta_kernel_ffi.so</PackagePath>
+            </Content>
+            <Content Include="$(KernelLibraryRoot)/osx-x64-kernel/libdelta_kernel_ffi.dylib">
+                <PackagePath>runtimes/osx-x64/native/libdelta_kernel_ffi.dylib</PackagePath>
+            </Content>
+            <Content Include="$(KernelLibraryRoot)/osx-arm64-kernel/libdelta_kernel_ffi.dylib">
+                <PackagePath>runtimes/osx-arm64/native/libdelta_kernel_ffi.dylib</PackagePath>
+            </Content>
+            <Content Include="$(KernelLibraryRoot)/win-x64-kernel/delta_kernel_ffi.dll">
+                <PackagePath>runtimes/win-x64/native/delta_kernel_ffi.dll</PackagePath>
+            </Content>
+        </ItemGroup>
+    </Target>
+
 </Project>
