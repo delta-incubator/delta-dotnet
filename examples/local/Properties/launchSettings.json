@@ -6,7 +6,7 @@
     },
     "azure": {
       "commandName": "Project",
-      "commandLineArgs": "\"abfss://onelake@monitoringtestadls.dfs.core.windows.net/synapse/workspaces/monitoring-test-synapse/temp/demo-table/\" \"20\""
+      "commandLineArgs": "\"abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table\" \"20\""
     }
   }
 }
