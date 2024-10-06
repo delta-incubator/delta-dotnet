@@ -95,7 +95,6 @@ namespace DeltaLake.Kernel.Callbacks.Visit
             DvInfo* dvInfo,
             CStringMap* partitionMap
         );
-
         internal static unsafe ProcessScanDataDelegate ProcessScanData =
             new(
                 (
