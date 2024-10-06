@@ -15,7 +15,6 @@ using System.Threading.Tasks;
 using DeltaLake.Interfaces;
 using DeltaLake.Kernel.Core;
 using CancellationToken = System.Threading.CancellationToken;
-using Core = DeltaLake.Kernel.Core;
 
 namespace DeltaLake.Table
 {
@@ -40,12 +39,9 @@ namespace DeltaLake.Table
             CancellationToken cancellationToken
         ) =>
             new DeltaTable(
-                new Core.Table(
-                    await Runtime
-                        .CreateTableAsync(options, cancellationToken)
-                        .ConfigureAwait(false),
-                    options
-                )
+                await Runtime
+                    .CreateTableAsync(options, cancellationToken)
+                    .ConfigureAwait(false)
             );
 
         /// <inheritdoc/>
@@ -54,12 +50,9 @@ namespace DeltaLake.Table
             CancellationToken cancellationToken
         ) =>
             new DeltaTable(
-                new Core.Table(
-                    await Runtime
-                        .LoadTableAsync(options, cancellationToken)
-                        .ConfigureAwait(false),
-                    options
-                )
+                await Runtime
+                    .LoadTableAsync(options, cancellationToken)
+                    .ConfigureAwait(false)
             );
 
         #endregion IEngineRuntime implementation

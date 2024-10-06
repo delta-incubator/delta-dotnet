@@ -34,7 +34,7 @@ public class KernelTests
         // Setup
         //
         int numRowsPerPartition = 10;
-        int numPartitions = 2;
+        int numPartitions = 3;
         int numTransactionPerStringPartition = 2;
         int numTransactionPerIntegerPartition = 2;
         int numRows = numRowsPerPartition * numPartitions * numTransactionPerStringPartition * numTransactionPerIntegerPartition;
@@ -67,10 +67,7 @@ public class KernelTests
             .WaitAndRetryAsync(
                 numRetriesOnThrow,
                 retryAttempt => TimeSpan.FromSeconds(retryAttempt),
-                (exception, timeSpan, retryCount, context) =>
-                {
-                    Console.WriteLine($"[{Thread.CurrentThread.ManagedThreadId}] Retry {retryCount} encountered an expected error: '{exception.Message}'. Waiting {timeSpan} before next retry.");
-                }
+                (exception, timeSpan, retryCount, context) => { }
             );
 
         try

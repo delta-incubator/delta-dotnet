@@ -90,7 +90,20 @@
 
     <Target Name="CargoKernelBuildRelease" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
-        <Exec Command="cargo build --features delta_kernel/cloud --release" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
+        <!-- 
+            The 'release' version of the cargo build doesn't seem to expose the FFI methods 
+            and the tests go into spinlock, need to work with FFI team on understanding why this
+            happens.
+
+            Cargo supposedly "optimizes" the code when 'release' is passed in, but that doesn't explain this:
+
+            >>> https://users.rust-lang.org/t/ffi-compiling-release-does-not-return-from-foreign-c-function/113252
+
+            For reference, it seems the folks at duckdb are having different but interesting issues with the FFI header:
+
+            >>> https://github.com/duckdb/duckdb_delta/blob/811db25f5bd405dea186d6c461a642a387502ad8/CMakeLists.txt#L97
+        -->
+        <Exec Command="cargo build --features delta_kernel/cloud" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
     </Target>
 
     <!-- RELEASE binary copy -->
@@ -109,7 +122,8 @@
     <Target Name="CopyKernelDLLRelease" BeforeTargets="PreBuildEvent"
         Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
         <ItemGroup Condition="'$(Configuration)' == 'Release'">
-            <Content Include="Kernel/delta-kernel-rs/target/release/$(KernelLibraryFile)">
+            <!--  See note above on not using 'release' binary -->
+            <Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
                 <Link>$(KernelLibraryFile)</Link>
                 <PublishState>Included</PublishState>

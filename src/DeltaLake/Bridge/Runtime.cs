@@ -10,10 +10,16 @@ using DeltaLake.Errors;
 namespace DeltaLake.Bridge
 {
     /// <summary>
-    /// Core-owned Delta Rust runtime.
+    /// Core-owned Delta Rust runtime provisions physical Delta Tables at the
+    /// storage level and delta-rs owned pointers to the table.
     /// </summary>
     internal class Runtime : SafeHandle
     {
+        /// <summary>
+        /// Gets the pointer to the bridged delta-rs runtime.
+        /// </summary>
+        internal unsafe Interop.Runtime* Ptr { get; private init; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="Runtime"/> class.
         /// </summary>
@@ -41,7 +47,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> LoadTableAsync(
+        internal virtual async Task<IntPtr> LoadTablePtrAsync(
             DeltaLake.Table.TableOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
@@ -49,7 +55,7 @@ namespace DeltaLake.Bridge
             var encodedLength = System.Text.Encoding.UTF8.GetBytes(options.TableLocation, buffer);
             try
             {
-                return await LoadTableAsync(buffer.AsMemory(0, encodedLength), options, cancellationToken).ConfigureAwait(false);
+                return await LoadTablePtrAsync(buffer.AsMemory(0, encodedLength), options, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -57,12 +63,12 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> LoadTableAsync(
+        internal virtual async Task<IntPtr> LoadTablePtrAsync(
             Memory<byte> tableUri,
             DeltaLake.Table.TableOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<Table>();
+            var tsc = new TaskCompletionSource<IntPtr>();
             using (var scope = new Scope())
             {
                 unsafe
@@ -93,7 +99,7 @@ namespace DeltaLake.Bridge
                         }
                         else
                         {
-                            _ = Task.Run(() => tsc.TrySetResult(new Table(this, success)));
+                            _ = Task.Run(() => tsc.TrySetResult((IntPtr)success));
                         }
                     }));
                 }
@@ -102,11 +108,11 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal async Task<Table> CreateTableAsync(
+        internal virtual async Task<IntPtr> CreateTablePtrAsync(
             DeltaLake.Table.TableCreateOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<Table>();
+            var tsc = new TaskCompletionSource<IntPtr>();
             using (var scope = new Scope())
             {
                 unsafe
@@ -147,7 +153,7 @@ namespace DeltaLake.Bridge
                                 }
                                 else
                                 {
-                                    _ = Task.Run(() => tsc.TrySetResult(new Table(this, success)));
+                                    _ = Task.Run(() => tsc.TrySetResult((IntPtr)success));
                                 }
                             }));
                     }
@@ -160,11 +166,6 @@ namespace DeltaLake.Bridge
                 return await tsc.Task.ConfigureAwait(false);
             }
         }
-
-        /// <summary>
-        /// Gets the pointer to the runtime.
-        /// </summary>
-        internal unsafe Interop.Runtime* Ptr { get; private init; }
 
         /// <summary>
         /// Free a byte array.

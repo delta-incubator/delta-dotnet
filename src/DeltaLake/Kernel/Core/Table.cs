@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Apache.Arrow;
+using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
@@ -27,6 +28,7 @@ using Microsoft.Data.Analysis;
 using static DeltaLake.Kernel.Callbacks.Visit.VisitCallbacks;
 using DeltaRustBridge = DeltaLake.Bridge;
 using ICancellationToken = System.Threading.CancellationToken;
+using Methods = DeltaLake.Kernel.Interop.Methods;
 
 namespace DeltaLake.Kernel.Core
 {
@@ -99,19 +101,30 @@ namespace DeltaLake.Kernel.Core
         /// <remarks>
         /// If the user passes in a version at load time, Kernel cannot be used.
         /// </remarks>
-        /// <param name="table">The Delta Rust table.</param>
+        /// <param name="bridgeRuntime">The Delta Bridge runtime.</param>
+        /// <param name="rawBridgetablePtr">The pre-allocated delta table pointer.</param>
         /// <param name="options">The table options.</param>
-        internal unsafe Table(DeltaRustBridge.Table table, TableOptions options)
-            : this(table, options, options.IsKernelSupported()) { }
+        internal unsafe Table(
+            DeltaRustBridge.Runtime bridgeRuntime,
+            RawDeltaTable* rawBridgetablePtr,
+            DeltaLake.Table.TableOptions options
+        )
+            : this(bridgeRuntime, rawBridgetablePtr, options, options.IsKernelSupported()) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Table"/> class.
         /// </summary>
-        /// <param name="table">The Delta Rust table.</param>
+        /// <param name="bridgeRuntime">The Delta Bridge runtime.</param>
+        /// <param name="rawBridgetablePtr">The pre-allocated delta table pointer.</param>
         /// <param name="tableStorageOptions">The table storage options.</param>
         /// <param name="useKernel">Whether to use the Kernel or not.</param>
-        internal unsafe Table(DeltaRustBridge.Table table, TableStorageOptions tableStorageOptions, Boolean useKernel = true)
-            : base(table._runtime, table._ptr)
+        internal unsafe Table(
+            DeltaRustBridge.Runtime bridgeRuntime,
+            RawDeltaTable* rawBridgetablePtr,
+            TableStorageOptions tableStorageOptions,
+            Boolean useKernel = true
+        )
+            : base(bridgeRuntime, rawBridgetablePtr)
         {
             this.tableStorageOptions = tableStorageOptions;
             this.isKernelSupported = useKernel && tableStorageOptions.IsKernelSupported();
@@ -349,9 +362,9 @@ namespace DeltaLake.Kernel.Core
         /// is, as Kernel exposes more metadata that delta-rs does not, we can
         /// continue to expose the Kernel view to end users.
         /// </remarks>
-        internal override TableMetadata Metadata()
+        internal override DeltaLake.Table.TableMetadata Metadata()
         {
-            TableMetadata metadata = base.Metadata();
+            DeltaLake.Table.TableMetadata metadata = base.Metadata();
             if (this.isKernelAllocated && this.isKernelSupported)
             {
                 unsafe
