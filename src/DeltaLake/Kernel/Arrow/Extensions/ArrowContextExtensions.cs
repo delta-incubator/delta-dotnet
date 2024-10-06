@@ -39,7 +39,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         {
             if (context == null || context.NumBatches == 0 || context.Batches == null)
             {
-                throw new ArgumentException($"Invalid ArrowContext provided for RecordBatch conversion: contains one or more null pointers with {context.NumBatches} Record Batches.");
+                throw new ArgumentException($"Invalid ArrowContext provided for RecordBatch conversion: contains one or more null pointers with {context?.NumBatches} Record Batches.");
             }
             List<RecordBatch> recordBatches = new(context.NumBatches);
             for (int i = 0; i < context.NumBatches; i++) recordBatches.Add(*context.Batches[i]);

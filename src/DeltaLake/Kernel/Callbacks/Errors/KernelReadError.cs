@@ -23,10 +23,12 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         public EngineError etype;
         public IntPtr msg;
 
+#pragma warning disable CS8603, IDE0251 // Possible pointer null reference return is possible when we work with Kernel if the Kernel has a bug
         public string Message
         {
             get => Marshal.PtrToStringAnsi(msg);
             set => msg = Marshal.StringToHGlobalAnsi(value);
         }
+#pragma warning restore CS8603, IDE0251
     }
 }

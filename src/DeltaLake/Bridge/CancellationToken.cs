@@ -9,7 +9,7 @@ namespace DeltaLake.Bridge
     /// </summary>
     internal sealed class CancellationToken : SafeHandle
     {
-        private readonly List<IDisposable> _cancellationRegistrations = new List<IDisposable>();
+        private readonly List<IDisposable> _cancellationRegistrations = new();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CancellationToken"/> class.

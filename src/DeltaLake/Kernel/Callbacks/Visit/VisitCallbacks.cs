@@ -71,7 +71,9 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                         engineData,
                         selectionVec,
                         engineContext,
+#pragma warning disable CS8604 // ProcessScanData is not null, the delegate is defined literally 2 blocks below
                         Marshal.GetFunctionPointerForDelegate<ProcessScanDataDelegate>(ProcessScanData)
+#pragma warning restore CS8604
                     );
                     Methods.free_bool_slice(selectionVec);
                 }

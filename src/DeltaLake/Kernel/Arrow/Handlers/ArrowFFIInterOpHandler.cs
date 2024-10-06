@@ -41,7 +41,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         /// <inheritdoc/>
         /// <remarks>
         /// Caller is responsible for freeing the allocated <see
-        /// cref="RecordBatch*"/> AND <see cref="RecordBatch**"/> when disposing
+        /// cref="RecordBatch"/>* AND <see cref="RecordBatch"/>** when disposing
         /// <see cref="ArrowContext"/>.
         /// </remarks>
         public unsafe void ZeroCopyRecordBatchToArrowContext(
@@ -62,7 +62,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             context->Schema = AddPartitionColumnsToSchema(arrowSchema, partitionCols, partitionValues);
 
             *recordBatchPtr = ConvertFFIArrayToArrowRecordBatch(&arrowData->array, arrowSchema);
+#pragma warning disable CA2000
             *recordBatchPtr = AddPartitionColumnsToRecordBatch(*recordBatchPtr, partitionCols, partitionValues);
+#pragma warning restore CA2000
 
             if (recordBatchPtr == null)
             {
@@ -96,7 +98,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             KernelBoolSlice selectionVector
         )
         {
+#pragma warning disable CS8600
             string tableRoot = Marshal.PtrToStringAnsi((IntPtr)context->TableRoot);
+#pragma warning restore CS8600
             string parquetAbsolutePath = $"{tableRoot}{Marshal.PtrToStringAnsi((IntPtr)path.ptr, (int)path.len)}";
 
             (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedSBytePointer();
@@ -167,7 +171,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
             for (int i = 0; i < partitionCols->Len; i++)
             {
+#pragma warning disable CS8600
                 string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
+#pragma warning restore CS8600
                 Field field = new(colName, StringType.Default, nullable: true);
                 schemaBuilder = schemaBuilder.Field(field);
                 fields.Add(field);
@@ -181,16 +187,18 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 //
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
                 //
+#pragma warning disable CS1024, CS8629, CS8600 // If Kernel sends us back null pointers, we are in trouble anyway
                 void* partitionValPtr = Methods.get_from_map(
                     partitionValues,
                     new KernelStringSlice
                     {
                         ptr = (sbyte*)partitionCols->Cols[i],
-                        len = (ulong)colName.Length
+                        len = (ulong)colName?.Length
                     },
                     Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
                 );
                 string partitionVal = partitionValPtr != null ? Marshal.PtrToStringAnsi((IntPtr)partitionValPtr) : String.Empty;
+#pragma warning restore CS1024, CS8629, CS8600
 
                 for (int j = 0; j < recordBatch.Length; j++)
                 {
@@ -201,6 +209,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             return new RecordBatch(schemaBuilder.Build(), columns, recordBatch.Length);
         }
 
+#pragma warning disable CA1859, IDE0060 // Although we're not using partitionValues right now, it will be used when Kernel supports reporting Arrow Schema
         private static unsafe IArrowType DeterminePartitionColumnType(string colName, CStringMap* partitionValues)
         {
             // Currently, there's no way to determine the type of the partition,
@@ -213,6 +222,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             //
             return StringType.Default;
         }
+#pragma warning restore CA1859, IDE0060
 
         private static unsafe Apache.Arrow.Schema AddPartitionColumnsToSchema(Apache.Arrow.Schema originalSchema, PartitionList* partitionCols, CStringMap* partitionValues)
         {
@@ -224,8 +234,10 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
             for (int i = 0; i < partitionCols->Len; i++)
             {
+#pragma warning disable CS8600, CS8604 // If Kernel sends us back null pointers, we are in trouble anyway
                 string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
                 IArrowType dataType = DeterminePartitionColumnType(colName, partitionValues);
+#pragma warning restore CS8600, CS8604
 
                 Field field = new(colName, dataType, nullable: true);
                 schemaBuilder = schemaBuilder.Field(field);

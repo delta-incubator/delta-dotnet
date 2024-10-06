@@ -40,6 +40,7 @@ namespace DeltaLake.Extensions
 
         #region private methods
 
+# pragma warning disable CA1814, IDE0055 // Jagged arrays would make the logic tougher to follow
         private static string[,] ToStringArray2D(DataFrame df)
         {
             string[,] strings = new string[df.Rows.Count + 1, df.Columns.Count];
@@ -107,7 +108,7 @@ namespace DeltaLake.Extensions
                         sb.Append(new String('-', bars));
 
                         if (i < strings.GetLength(1) - 1)
-                            sb.Append("|");
+                            sb.Append('|');
                     }
                     sb.AppendLine();
                 }
@@ -115,6 +116,7 @@ namespace DeltaLake.Extensions
 
             return sb.ToString();
         }
+# pragma warning restore CA1814,IDE0055 // Jagged arrays would make the logic tougher to follow
 
         #endregion private methods
     }

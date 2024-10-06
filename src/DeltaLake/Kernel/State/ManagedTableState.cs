@@ -46,9 +46,11 @@ namespace DeltaLake.Kernel.State
             this.sharedExternEnginePtr = sharedExternEnginePtr;
         }
 
+#pragma warning disable CS1587
         /// <remarks>
         /// Refreshes state if requested or if not exists.
         /// </remarks>
+#pragma warning restore CS1587
         #region ISafeState implementation
 
         /// <inheritdoc/>

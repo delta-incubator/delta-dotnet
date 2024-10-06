@@ -35,7 +35,9 @@ namespace DeltaLake.Table
         /// <summary>
         /// Dictionary of formatting options
         /// </summary>
+#pragma warning disable CS8619
         public IReadOnlyDictionary<string, string?> FormatOptions { get; init; } = EmptySettings;
+#pragma warning restore CS8619
 
         /// <summary>
         /// Serialized table schema

@@ -64,7 +64,9 @@ namespace DeltaLake.Kernel.Core
         /// <remarks>
         /// It is our responsibility to dispose of these alongside this <see cref="Table"/> class.
         /// </remarks>
+#pragma warning disable IDE0090, CA1859, CA2213 // state is disposed of in ReleaseHandle but the IDE does not recognize it as IDisposable
         private readonly ISafeState state;
+#pragma warning restore IDE0090, CA1859, CA2213
 
         /// <summary>
         /// Pointers **WE** manage alongside this <see cref="Table"/> class.
@@ -278,7 +280,9 @@ namespace DeltaLake.Kernel.Core
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
                 concatenatedColumns.Add(concatenatedColumn);
             }
+#pragma warning disable CA2000 // The RecordBatch is disposed in the ArrowContext
             return DataFrame.FromArrowRecordBatch(new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length));
+#pragma warning restore CA2000
         }
 
         internal override long Version()

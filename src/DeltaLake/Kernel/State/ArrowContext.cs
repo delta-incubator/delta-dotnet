@@ -20,7 +20,9 @@ namespace DeltaLake.Kernel.State
     /// </summary>
     internal class ArrowContext : IDisposable
     {
+#pragma warning disable IDE0044 // Add readonly modifier
         private bool disposed;
+#pragma warning restore IDE0044
 
         public int NumBatches;
         public Schema Schema;
@@ -32,6 +34,7 @@ namespace DeltaLake.Kernel.State
         /// </summary>
         public ArrowContext()
         {
+#pragma warning disable CS8625
             NumBatches = 0;
             Schema = null;
 
@@ -43,6 +46,7 @@ namespace DeltaLake.Kernel.State
 
             disposed = false;
         }
+#pragma warning restore CS8625
 
         #region IDisposable implementation
 
