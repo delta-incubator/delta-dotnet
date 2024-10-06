@@ -38,6 +38,7 @@ jobs:
           submodules: false
 
       - name: Checkout specific delta-kernel-rs release
+        shell: bash
         run: |
           GIT_ROOT=$(git rev-parse --show-toplevel)
           git submodule update --init
