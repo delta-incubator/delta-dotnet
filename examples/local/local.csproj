@@ -21,6 +21,10 @@
     <Target Name="PostBuild" AfterTargets="PostBuildEvent">
         <Exec Command="copy /Y $(ProjectDir)..\..\src\DeltaLake\bin\Debug\net8.0\delta_rs_bridge.dll $(OutDir)" Condition=" '$(OS)' == 'Windows_NT' " />
 		<Exec Command="copy /Y $(ProjectDir)..\..\src\DeltaLake\bin\Debug\net8.0\delta_kernel_ffi.dll $(OutDir)" Condition=" '$(OS)' == 'Windows_NT' " />
+        <Exec Command="cp $(ProjectDir)..\..\src\DeltaLake\bin\Debug/net8.0/libdelta_rs_bridge.so $(OutDir)" Condition=" '$(OS)' == 'Unix' " />
+        <Exec Command="cp $(ProjectDir)..\..\src\DeltaLake\bin\Debug/net8.0/libdelta_kernel_ffi.so $(OutDir)" Condition=" '$(OS)' == 'Unix' " />
+        <Exec Command="cp $(ProjectDir)..\..\src\DeltaLake\bin\Debug/net8.0/libdelta_rs_bridge.dylib $(OutDir)" Condition=" '$(OS)' == 'OSX' " />
+        <Exec Command="cp $(ProjectDir)..\..\src\DeltaLake\bin\Debug/net8.0/libdelta_kernel_ffi.dylib $(OutDir)" Condition=" '$(OS)' == 'OSX' " />
     </Target>
 
 </Project>
