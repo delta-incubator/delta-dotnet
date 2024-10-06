@@ -24,7 +24,7 @@
 
     <ItemGroup>
         <ProjectReference Include="../../src/DeltaLake/DeltaLake.csproj" />
-		<PackageReference Include="Polly" Version="8.4.2" />
+        <PackageReference Include="Polly" Version="8.4.2" />
     </ItemGroup>
     <ItemGroup>
         <Content Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
