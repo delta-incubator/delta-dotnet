@@ -9,9 +9,9 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-using DeltaLake.Kernel.Interop;
-using System.Runtime.InteropServices;
 using System;
+using System.Runtime.InteropServices;
+using DeltaLake.Kernel.Interop;
 
 namespace DeltaLake.Kernel.Callbacks.Allocators
 {

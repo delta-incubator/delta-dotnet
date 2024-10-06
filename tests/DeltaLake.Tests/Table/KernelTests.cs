@@ -87,7 +87,8 @@ public class KernelTests
                     {
                         tasks.Add(Task.Run(async () =>
                         {
-                            await policy.ExecuteAsync(async () => {
+                            await policy.ExecuteAsync(async () =>
+                            {
                                 var partition = $"{hostNamePrefix}_{i}";
                                 var recordBatchBuilder = new RecordBatch.Builder(allocator)
                                     .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => GenerateRandomString(randomValueGenerator)))))
