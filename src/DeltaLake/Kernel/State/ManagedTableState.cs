@@ -68,7 +68,7 @@ namespace DeltaLake.Kernel.State
         /// <inheritdoc/>
         public unsafe SharedGlobalScanState* GlobalScanState(bool refresh)
         {
-            if (refresh || managedGlobalScanState == null) RefreshGlobalScanState();
+            if (refresh || managedGlobalScanState == null) this.RefreshGlobalScanState();
             return managedGlobalScanState;
         }
 
