@@ -23,6 +23,9 @@ namespace DeltaLake.Extensions
         /// <summary>
         /// Converts a string to a pinned sbyte pointer.
         /// </summary>
+        /// <remarks>
+        /// Caller is responsible for freeing the GCHandle when done with the pointer.
+        /// </remarks>
         /// <param name="str">The string to convert.</param>
         /// <returns>A tuple containing the pinned handle and the sbyte pointer.</returns>
         public static unsafe (GCHandle handle, IntPtr pointer) ToPinnedSBytePointer(this string str)
