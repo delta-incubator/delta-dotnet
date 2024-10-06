@@ -17,7 +17,6 @@ using Apache.Arrow;
 using Apache.Arrow.C;
 using Apache.Arrow.Types;
 using DeltaLake.Extensions;
-using DeltaLake.Kernel.Arrow.Converters;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Callbacks.Visit;
@@ -138,7 +137,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         private static unsafe Apache.Arrow.Schema ConvertFFISchemaToArrowSchema(FFI_ArrowSchema* ffiSchema)
         {
             CArrowSchema* clonedSchema = CArrowSchema.Create();
-            Apache.Arrow.Schema convertedSchema = CArrowSchemaImporter.ImportSchema(ArrowFfiSchemaConverter.ConvertFFISchema(ffiSchema, clonedSchema));
+            Apache.Arrow.Schema convertedSchema = CArrowSchemaImporter.ImportSchema((CArrowSchema*)ffiSchema);
             CArrowSchema.Free(clonedSchema);
             return convertedSchema;
         }
@@ -146,7 +145,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         private static unsafe RecordBatch ConvertFFIArrayToArrowRecordBatch(FFI_ArrowArray* ffiArray, Apache.Arrow.Schema schema)
         {
             CArrowArray* clonedArray = CArrowArray.Create();
-            RecordBatch generatedBatch = CArrowArrayImporter.ImportRecordBatch(ArrowFfiSchemaConverter.ConvertFFIArray(ffiArray, clonedArray), schema);
+            RecordBatch generatedBatch = CArrowArrayImporter.ImportRecordBatch((CArrowArray*)ffiArray, schema);
             CArrowArray.Free(clonedArray);
             return generatedBatch;
         }
