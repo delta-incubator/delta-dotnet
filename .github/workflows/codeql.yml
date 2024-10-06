@@ -49,6 +49,16 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          submodules: false
+      
+      - name: Checkout specific delta-kernel-rs release
+        shell: bash
+        run: |
+          GIT_ROOT=$(git rev-parse --show-toplevel)
+          git submodule update --init
+          DELTA_KERNEL_RS_TAG=$(cat "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs.version.txt")
+          git -C "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs" checkout "$DELTA_KERNEL_RS_TAG"
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
