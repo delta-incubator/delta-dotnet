@@ -52,11 +52,11 @@
                 <Link>$(BridgeLibraryFile)</Link>
                 <PublishState>Included</PublishState>
             </Content>
-			<Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
-				<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-				<Link>$(KernelLibraryFile)</Link>
-				<PublishState>Included</PublishState>
-			</Content>
+            <Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
+                <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+                <Link>$(KernelLibraryFile)</Link>
+                <PublishState>Included</PublishState>
+            </Content>
         </ItemGroup>
     </Target>
 
