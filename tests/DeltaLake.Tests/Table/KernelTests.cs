@@ -28,7 +28,7 @@ public class KernelTests
         @"Failed to commit transaction"
     };
 
-    [Fact(Skip="Do not merge, attempting to run GCI green first")]
+    [Fact(Skip = "Do not merge, attempting to run GCI green first")]
     public async Task Multi_Partitioned_Table_Parallelized_Bridge_Write_Can_Be_Read_By_Kernel()
     {
         // Setup
