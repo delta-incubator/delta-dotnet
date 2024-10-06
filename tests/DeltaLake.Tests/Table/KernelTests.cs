@@ -19,7 +19,7 @@ public class KernelTests
     private const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     private const int numRetriesOnThrow = 10;
     private static readonly string[] unsafeRetriableErrorsWeMustNotRetryOn = new[]
-{
+    {
         @"The metadata of your Delta table couldn't be recovered",
     };
     private static readonly string[] safeRetriableErrorsDeltaRustDoesNotRetryOn = new[]
