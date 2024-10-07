@@ -35,11 +35,7 @@ jobs:
 
       - name: Checkout specific delta-kernel-rs release
         shell: bash
-        run: |
-          GIT_ROOT=$(git rev-parse --show-toplevel)
-          git submodule update --init
-          DELTA_KERNEL_RS_TAG=$(cat "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs.version.txt")
-          git -C "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs" checkout "$DELTA_KERNEL_RS_TAG"
+        run: .scripts/checkout-delta-kernel-rs.sh
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
