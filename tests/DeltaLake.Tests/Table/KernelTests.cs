@@ -108,16 +108,20 @@ public class KernelTests
                 {
                     for (int k = 0; k < numWritesPerIntegerPartition; k++)
                     {
+                        int localI = i;
+                        int localJ = j;
+                        int localK = k;
+
                         writeTasks.Add(Task.Run(async () =>
                         {
                             await policy.ExecuteAsync(async () =>
                             {
                                 using ITable threadIsolatedTable = await engine.LoadTableAsync(tableLoadOptions, CancellationToken.None);
-                                var partition = $"{hostNamePrefix}_{i}";
+                                var partition = $"{hostNamePrefix}_{localI}_{localJ}_{localK}";
                                 var recordBatchBuilder = new RecordBatch.Builder(allocator)
                                     .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => GenerateRandomString(randomValueGenerator)))))
                                     .Append(partitionStringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => partition))))
-                                    .Append(partitionIntegerColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => i * j * k))))
+                                    .Append(partitionIntegerColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => localI + localJ + localK))))
                                     .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRowsPerPartition).Select(_ => randomValueGenerator.Next()))));
                                 await threadIsolatedTable.InsertAsync(new[] { recordBatchBuilder.Build() }, schema, tableWriteOptions, CancellationToken.None);
                             });
@@ -157,6 +161,7 @@ public class KernelTests
                         Assert.Equal(numRows, Regex.Matches(stringResult, hostNamePrefix).Count);
                         Assert.Equal(numColumns, arrowTable.ColumnCount);
                         Assert.Equal(numColumns, dataFrame.Columns.Count);
+                        Assert.Equal(numConcurrentWriters, dataFrame[partitionStringColumnName].Cast<string>().Distinct().Count());
 
                         var writerSchemaFieldMap = schema.FieldsList.ToDictionary(field => field.Name);
                         var kernelSchemaFieldMap = arrowTable.Schema.FieldsList.ToDictionary(field => field.Name);
