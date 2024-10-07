@@ -54,7 +54,7 @@ jobs:
       
       - name: Checkout specific delta-kernel-rs release
         shell: bash
-        run: .scripts/checkout-delta-kernel-rs.sh
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL

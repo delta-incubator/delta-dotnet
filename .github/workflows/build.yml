@@ -35,7 +35,7 @@ jobs:
 
       - name: Checkout specific delta-kernel-rs release
         shell: bash
-        run: .scripts/checkout-delta-kernel-rs.sh
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
