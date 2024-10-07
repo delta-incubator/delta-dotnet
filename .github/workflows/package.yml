@@ -49,11 +49,6 @@ jobs:
         shell: bash
         run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
-      - name: Install OpenSSL
-        if: ${{ matrix.os == 'ubuntu-arm' }}
-        run: |
-          sudo apt-get update && sudo apt-get install -y openssl libssl-dev pkg-config
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
