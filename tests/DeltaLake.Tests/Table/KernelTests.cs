@@ -49,15 +49,14 @@ public class KernelTests
         // Setup
         //
         int numRowsPerPartition = 10;
-        int numPartitions = 3;
 
+        int numPartitions = 3;
         int numWritesPerStringPartition = 3;
         int numWritesPerIntegerPartition = 3;
-
-        int numReadsPerReader = 1; // TODO: Make this run with multiple passes
-
         int numConcurrentWriters = numPartitions * numWritesPerStringPartition * numWritesPerIntegerPartition;
-        int numConcurrentReaders = 5;
+
+        int numSerialReadsPerReader = 5;
+        int numConcurrentReaders = 2;
 
         int numRows = numRowsPerPartition * numConcurrentWriters;
 
@@ -146,7 +145,7 @@ public class KernelTests
 
                     // Multiple passes here ensures Kernel scan state is reset per read request
                     //
-                    for (int j = 0; j < numReadsPerReader; j++)
+                    for (int j = 0; j < numSerialReadsPerReader; j++)
                     {
                         // Exercise: Reads via Kernel
                         //

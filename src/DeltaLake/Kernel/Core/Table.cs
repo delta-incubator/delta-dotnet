@@ -65,10 +65,16 @@ namespace DeltaLake.Kernel.Core
         /// </summary>
         /// <remarks>
         /// It is our responsibility to dispose of these alongside this <see cref="Table"/> class.
+        ///
+        /// The inMem* data objects are required to expose Kernel data as <see cref="Apache.Arrow.Table"/> and
+        /// <see cref="Microsoft.Data.Analysis.DataFrame"/> objects.
         /// </remarks>
 #pragma warning disable IDE0090, CA1859, CA2213 // state is disposed of in ReleaseHandle but the IDE does not recognize it as IDisposable
         private readonly ISafeState state;
+        private RecordBatch inMemRecordBatch;
 #pragma warning restore IDE0090, CA1859, CA2213
+        private Schema inMemSchema;
+        private List<RecordBatch> inMemRecordBatchList;
 
         /// <summary>
         /// Pointers **WE** manage alongside this <see cref="Table"/> class.
@@ -263,8 +269,8 @@ namespace DeltaLake.Kernel.Core
 
         internal Apache.Arrow.Table ReadAsArrowTable()
         {
-            (Schema schema, List<RecordBatch> recordBatches) = this.ReadAsRecordBatchesAndSchema();
-            return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
+            (this.inMemSchema, this.inMemRecordBatchList) = this.ReadAsRecordBatchesAndSchema();
+            return Apache.Arrow.Table.TableFromRecordBatches(this.inMemSchema, this.inMemRecordBatchList);
         }
 
         /// <remarks>
@@ -274,18 +280,18 @@ namespace DeltaLake.Kernel.Core
         /// </remarks>
         internal DataFrame ReadAsDataFrame()
         {
-            (_, List<RecordBatch> recordBatches) = this.ReadAsRecordBatchesAndSchema();
-            if (recordBatches == null || recordBatches.Count == 0)
+            (this.inMemSchema, this.inMemRecordBatchList) = this.ReadAsRecordBatchesAndSchema();
+            if (this.inMemRecordBatchList == null || this.inMemRecordBatchList.Count == 0)
             {
                 throw new ArgumentException("Cannot read as DataFrame, the list of Arrow Record Batches from Delta Kernel is null or empty.");
             }
-            Schema schema = recordBatches[0].Schema;
+            Schema schema = this.inMemRecordBatchList[0].Schema;
             List<IArrowArray> concatenatedColumns = new();
 
             foreach (Field field in schema.FieldsList)
             {
                 List<IArrowArray> columnArrays = new();
-                foreach (RecordBatch recordBatch in recordBatches)
+                foreach (RecordBatch recordBatch in this.inMemRecordBatchList)
                 {
                     IArrowArray column = recordBatch.Column(field.Name);
                     columnArrays.Add(column);
@@ -293,9 +299,8 @@ namespace DeltaLake.Kernel.Core
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
                 concatenatedColumns.Add(concatenatedColumn);
             }
-#pragma warning disable CA2000 // The RecordBatch is disposed in the ArrowContext
-            return DataFrame.FromArrowRecordBatch(new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length));
-#pragma warning restore CA2000
+            this.inMemRecordBatch = new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+            return DataFrame.FromArrowRecordBatch(inMemRecordBatch);
         }
 
         internal override long Version()
@@ -384,6 +389,8 @@ namespace DeltaLake.Kernel.Core
             if (this.isKernelAllocated)
             {
                 this.state.Dispose();
+                this.inMemRecordBatch?.Dispose();
+                if (this.inMemRecordBatchList != null) foreach (RecordBatch recordBatch in this.inMemRecordBatchList) recordBatch?.Dispose();
 
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
