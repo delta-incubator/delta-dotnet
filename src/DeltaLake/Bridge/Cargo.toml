@@ -20,4 +20,3 @@ tokio-util = "0.7"
 
 [build-dependencies]
 cbindgen = { version="0.27", default-features=false }
-openssl = { version = "0.10", features = ["vendored"] }
