@@ -23,7 +23,7 @@ dotnet tool install --global ClangSharpPInvokeGenerator
 
 ### Rebuilding Kernel FFI and interop layer
 
-[delta-kernel-rs](https://github.com/delta-incubator/delta-kernel-rs) is linked as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) in this repo. 
+[delta-kernel-rs](https://github.com/delta-incubator/delta-kernel-rs) is linked as a [git submodule](https://git-scm.com/book/en/v2/Git-Tools-Submodules) in this repo.
 
 We first build the Kernel DLL and FFI header, and use the header to generate the C# Interop classes.
 
