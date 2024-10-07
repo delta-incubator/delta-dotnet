@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 #
-#       Checks out a specific version of the delta-kernel-rs git submodule, this is
+#       Check out a specific version of the delta-kernel-rs git submodule, this is
 #       the pinning mechanism we use during build.       
 #
 # ---------------------------------------------------------------------------------------
