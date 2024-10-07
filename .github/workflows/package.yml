@@ -81,9 +81,10 @@ jobs:
       - name: Build cross target
         if: ${{ matrix.use-cross }}
         run: |
-          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
+          # cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
           
-          CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/aarch64-unknown-linux-gnu/Cross.toml
+          cp src/DeltaLake/Kernel/Build/cross/aarch64-unknown-linux-gnu/Cross.toml src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cross.toml
+          cat src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cross.toml
           cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud" --target ${{ matrix.alternative-target }}
 
       - name: Build Bridge
