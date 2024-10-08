@@ -55,4 +55,33 @@ Step 4: Run the example project, which writes delta tables to Azure Storage and 
 ```bash
 az login --use-device-code
 dotnet run --project ${GIT_ROOT}/examples/local/local.csproj -- "abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table" "20"
+
+# Table root path: abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table
+# Table partition columns: colHostTest
+# Table version before transaction: 0
+# Table version after transaction: 1
+# Table: 3 columns by 20 rows
+#
+# colStringTest | colIntegerTest | colHostTest
+# --------------|----------------|-------------
+# yUnmZGYdeY    | 568935462      | Desktop    
+# PfAc0LT7ZQ    | 683443233      | Desktop    
+# Tg5xBKy3N3    | 897232561      | Desktop    
+# pGMIGfmtRI    | 415054756      | Desktop    
+# ormadktrAp    | 1114613767     | Desktop    
+# OUYjEQpMxs    | 1159354204     | Desktop    
+# J3mECDWmoc    | 1059212885     | Desktop    
+# KSlaMMYiaT    | 525569187      | Desktop    
+# KA5ZiD1ZTq    | 274902831      | Desktop    
+# GRcqxFnF87    | 727541254      | Desktop    
+# ZjFFAx6LZt    | 704318687      | Desktop    
+# GUBZOqmRU9    | 62468794       | Desktop    
+# 6sZdWl5xeV    | 439777191      | Desktop    
+# 3oDrKCMZ9c    | 330135342      | Desktop    
+# Goiltladv2    | 350043751      | Desktop    
+# ts0v56YIDN    | 1381983219     | Desktop    
+# 1dyWhaM7SU    | 1935291772     | Desktop    
+# 7lBUQeMdeQ    | 1339188314     | Desktop    
+# QFfm4Y7Q3w    | 498941470      | Desktop    
+# 9yRU65qBy1    | 1105953095     | Desktop  
 ```
