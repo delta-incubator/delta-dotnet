@@ -45,5 +45,14 @@ source ~/.bashrc
 Step 3: Run the unit tests, which also builds the Rust binaries:
 
 ```bash
-dotnet test -c Release --logger "console;verbosity=detailed"
+dotnet test -c Debug --logger "console;verbosity=detailed"
+```
+
+> All tests should run green ✅
+
+Step 4: Run the example project, which writes delta tables to Azure Storage and reads it back as a [DataFrame](https://learn.microsoft.com/en-us/dotnet/machine-learning/how-to-guides/getting-started-dataframe):
+
+```bash
+az login --use-device-code
+dotnet run --project ${GIT_ROOT}/examples/local/local.csproj -- "abfss://container@storageaccount.dfs.core.windows.net/a/b/demo-table" "20"
 ```
