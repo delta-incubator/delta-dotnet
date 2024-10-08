@@ -62,9 +62,6 @@ namespace DeltaLake.Kernel.Core
         /// </summary>
         /// <remarks>
         /// It is our responsibility to dispose of these alongside this <see cref="Table"/> class.
-        ///
-        /// The inMem* data objects are required to expose Kernel data as <see cref="Apache.Arrow.Table"/> and
-        /// <see cref="Microsoft.Data.Analysis.DataFrame"/> objects.
         /// </remarks>
 #pragma warning disable IDE0090, CA1859, CA2213 // state is disposed of in ReleaseHandle but the IDE does not recognize it as IDisposable
         private readonly ISafeState state;
