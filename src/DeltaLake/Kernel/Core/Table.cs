@@ -237,7 +237,7 @@ namespace DeltaLake.Kernel.Core
 
                         // Kernel returns an extra "/", delta-rs does not
                         //
-                        return Marshal.PtrToStringAnsi(tableRootPtr)?.TrimEnd('/') ?? string.Empty;
+                        return Marshal.PtrToStringUTF8(tableRootPtr)?.TrimEnd('/') ?? string.Empty;
                     }
                     finally
                     {
@@ -331,7 +331,7 @@ namespace DeltaLake.Kernel.Core
                     for (int i = 0; i < numPartitions; i++)
                     {
                         partitionColumns.Add(
-                            Marshal.PtrToStringAnsi((IntPtr)managedPartitionListPtr->Cols[i])
+                            Marshal.PtrToStringUTF8((IntPtr)managedPartitionListPtr->Cols[i])
                                 ?? throw new InvalidOperationException(
                                     $"Delta Kernel returned a null partition column name despite reporting {numPartitions} > 0 partition(s) exist."
                                 )

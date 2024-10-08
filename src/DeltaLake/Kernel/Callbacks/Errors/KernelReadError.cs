@@ -26,7 +26,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
 #pragma warning disable CS8603, IDE0251 // Possible pointer null reference return is possible when we work with Kernel if the Kernel has a bug
         public string Message
         {
-            get => Marshal.PtrToStringAnsi(msg);
+            get => Marshal.PtrToStringUTF8(msg);
             set => msg = Marshal.StringToHGlobalAnsi(value);
         }
 #pragma warning restore CS8603, IDE0251

@@ -96,9 +96,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         )
         {
 #pragma warning disable CS8600
-            string tableRoot = Marshal.PtrToStringAnsi((IntPtr)context->TableRoot);
+            string tableRoot = Marshal.PtrToStringUTF8((IntPtr)context->TableRoot);
 #pragma warning restore CS8600
-            string parquetAbsolutePath = $"{tableRoot}{Marshal.PtrToStringAnsi((IntPtr)path.ptr, (int)path.len)}";
+            string parquetAbsolutePath = $"{tableRoot}{Marshal.PtrToStringUTF8((IntPtr)path.ptr, (int)path.len)}";
 
             (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedSBytePointer();
             KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (sbyte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
@@ -146,7 +146,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             for (int i = 0; i < partitionCols->Len; i++)
             {
 #pragma warning disable CS8600
-                string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
+                string colName = Marshal.PtrToStringUTF8((IntPtr)partitionCols->Cols[i]);
 #pragma warning restore CS8600
 
                 // The Kernel can currently only report String values back as
@@ -166,7 +166,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                     },
                     Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
                 );
-                string colVal = colValPtr != null ? Marshal.PtrToStringAnsi((IntPtr)colValPtr) : String.Empty;
+                string colVal = colValPtr != null ? Marshal.PtrToStringUTF8((IntPtr)colValPtr) : String.Empty;
 #pragma warning restore CS1024, CS8629, CS8600
 
                 if (!string.IsNullOrEmpty(colName) && !string.IsNullOrEmpty(colVal))

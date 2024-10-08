@@ -31,7 +31,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
             KernelStringSlice msg
         )
         {
-            string message = Marshal.PtrToStringAnsi((IntPtr)msg.ptr) ?? string.Empty;
+            string message = Marshal.PtrToStringUTF8((IntPtr)msg.ptr) ?? string.Empty;
             throw new InvalidOperationException(
                 $"Kernel engine error of type {etype} occurred with message: {message}"
             );
