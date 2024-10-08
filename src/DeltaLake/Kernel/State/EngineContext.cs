@@ -47,9 +47,10 @@ namespace DeltaLake.Kernel.State
         internal unsafe PartitionList* PartitionList;
 
         /// <summary>
-        /// Kernel reported list of values in a partition this Delta Table has.
+        /// Kernel reported list of key:values in a partition this Delta Table has.
+        /// To actually get a value, we need to invoke [get_from_map].
         /// </summary>
-        internal unsafe CStringMap* PartitionValues;
+        internal unsafe CStringMap* PartitionKeyValueMap;
 
         /// <summary>
         /// The ArrowContext holds all state pointers as we load the table from

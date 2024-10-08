@@ -33,7 +33,7 @@ public class KernelTests
     /// Re: "Parallelism":
     ///
     /// The test attempts to simulate real-life concurrency situations (parallel writers across processes),
-    /// such as performing writes into Delta Partitions and ensure these core scenarios do not regress.
+    /// such as performing writes into Delta Delta Partitions and ensure these core scenarios do not regress.
     ///
     /// The test DOES NOT attempt to test concurrency of a singleton <see cref="ITable"/> client etc.,
     /// because both the <see cref="Bridge.Table"/> and the <see cref="Kernel.Core.Table"/> does not have
@@ -55,8 +55,8 @@ public class KernelTests
         int numWritesPerIntegerPartition = 3;
         int numConcurrentWriters = numPartitions * numWritesPerStringPartition * numWritesPerIntegerPartition;
 
-        int numSerialReadsPerReader = 5;
-        int numConcurrentReaders = 2;
+        int numSerialReadsPerReader = 10;
+        int numConcurrentReaders = 5;
 
         int numRows = numRowsPerPartition * numConcurrentWriters;
 

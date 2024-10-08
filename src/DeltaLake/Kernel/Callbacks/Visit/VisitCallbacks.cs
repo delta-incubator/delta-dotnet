@@ -116,15 +116,15 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     }
                     KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
 
-                    context->PartitionValues = partitionMap;
-                    new ArrowFFIInterOpHandler().ReadParquetFileAsArrow(
+                    context->PartitionKeyValueMap = partitionMap;
+                    new ArrowFFIInterOpHandler().ReadParquetAsArrow(
                         context,
                         parquetFilePath,
                         selectionVector
                     );
 
                     Methods.free_bool_slice(selectionVector);
-                    context->PartitionValues = null;
+                    context->PartitionKeyValueMap = null;
                 }
             );
 
@@ -152,11 +152,11 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                         throw new InvalidOperationException("Could not read raw Arrow data with Delta Kernel");
                     }
                     ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1.ok;
-                    new ArrowFFIInterOpHandler().ZeroCopyRecordBatchToArrowContext(
+                    new ArrowFFIInterOpHandler().StoreArrowInContext(
                         context->ArrowContext,
                         arrowData,
                         context->PartitionList,
-                        context->PartitionValues
+                        context->PartitionKeyValueMap
                     );
                 }
             );

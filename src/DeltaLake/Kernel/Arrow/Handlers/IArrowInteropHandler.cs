@@ -17,14 +17,14 @@ namespace DeltaLake.Kernel.Arrow.Handlers
     internal interface IArrowInteropHandler
     {
         /// <summary>
-        /// Appends a batch of Kernel FFI data as globally allocated RecordBatch
-        /// pointers to the existing Arrow context with zero-copy.
+        /// Appends a batch of Kernel FFI data as globally allocated 
+        /// pointers.
         /// </summary>
         /// <param name="context">The Arrow Context.</param>
         /// <param name="arrowData">The Arrow/FFI interOp data.</param>
         /// <param name="partitionCols">The partition columns.</param>
         /// <param name="partitionValues">The partition values.</param>
-        public unsafe void ZeroCopyRecordBatchToArrowContext(
+        public unsafe void StoreArrowInContext(
             ArrowContext* context,
             ArrowFFIData* arrowData,
             PartitionList* partitionCols,
@@ -32,12 +32,12 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         );
 
         /// <summary>
-        /// Reads a Parquet file as Arrow.
+        /// Reads a Parquet file as Arrow by invoking Arrow iterator callback.
         /// </summary>
         /// <param name="context">The Engine Context.</param>
         /// <param name="path">The parquet file path.</param>
         /// <param name="selectionVector">The selection vector.</param>
-        public unsafe void ReadParquetFileAsArrow(
+        public unsafe void ReadParquetAsArrow(
             EngineContext* context,
             KernelStringSlice path,
             KernelBoolSlice selectionVector

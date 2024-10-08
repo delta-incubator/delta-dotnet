@@ -14,18 +14,15 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Apache.Arrow;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
-using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
-using static DeltaLake.Kernel.Callbacks.Visit.VisitCallbacks;
 using DeltaRustBridge = DeltaLake.Bridge;
 using ICancellationToken = System.Threading.CancellationToken;
 using Methods = DeltaLake.Kernel.Interop.Methods;
@@ -71,10 +68,7 @@ namespace DeltaLake.Kernel.Core
         /// </remarks>
 #pragma warning disable IDE0090, CA1859, CA2213 // state is disposed of in ReleaseHandle but the IDE does not recognize it as IDisposable
         private readonly ISafeState state;
-        private RecordBatch inMemRecordBatch;
 #pragma warning restore IDE0090, CA1859, CA2213
-        private Schema inMemSchema;
-        private List<RecordBatch> inMemRecordBatchList;
 
         /// <summary>
         /// Pointers **WE** manage alongside this <see cref="Table"/> class.
@@ -196,111 +190,24 @@ namespace DeltaLake.Kernel.Core
 
         #region Delta Kernel table operations
 
-        internal (Apache.Arrow.Schema, List<RecordBatch>) ReadAsRecordBatchesAndSchema()
+        internal Apache.Arrow.Table ReadAsArrowTable()
         {
-            if (!this.isKernelAllocated || !this.isKernelSupported)
-            {
-                // There's currently no direct equivalent to this in delta-rs,
-                // so we throw if the Kernel is not being used.
-                //
-                throw new InvalidOperationException("Direct read operation is not supported without using the Delta Kernel.");
-            }
+            this.ThrowIfKernelNotSupported();
 
             unsafe
             {
-                // Refresh the necessary Kernel state together before initiating
-                // the scan.
-                //
-                SharedSnapshot* managedSnapshotPtr = this.state.Snapshot(true);
-                SharedSchema* managedSchemaPtr = this.state.Schema(true);
-                PartitionList* managedPartitionListPtr = this.state.PartitionList(true);
-                SharedScan* managedScanPtr = this.state.Scan(true);
-                SharedGlobalScanState* managedGlobalScanStatePtr = this.state.GlobalScanState(true);
-
-                // Memory scoped to this ReadAsArrowTable operation
-                //
-                SharedScanDataIterator* kernelOwnedScanDataIteratorPtr = null;
-                IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
-
-                // We don't explicitly pin the memory for these complex objects,
-                // since they will not be GC-ed until the vars go out of scope
-                // of this method, which encapsulates the complete scan
-                // operation.
-                //
-                ArrowContext methodScopedArrowContext = new();
-                ArrowContext* arrowContextPtr = &methodScopedArrowContext;
-
-                EngineContext methodScopedEngineContext = new()
-                {
-                    GlobalScanState = managedGlobalScanStatePtr,
-                    Schema = managedSchemaPtr,
-                    TableRoot = (char*)tableRootPtr,
-                    Engine = this.kernelOwnedSharedExternEnginePtr,
-                    PartitionList = managedPartitionListPtr,
-                    PartitionValues = null,
-                    ArrowContext = arrowContextPtr
-                };
-                EngineContext* engineContextPtr = &methodScopedEngineContext;
-
-                try
-                {
-                    ExternResultHandleSharedScanDataIterator dataIteratorHandle = Methods.kernel_scan_data_init(this.kernelOwnedSharedExternEnginePtr, managedScanPtr);
-                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanDataIterator_Tag.OkHandleSharedScanDataIterator)
-                    {
-                        throw new InvalidOperationException("Failed to construct kernel scan data iterator.");
-                    }
-                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
-                    for (; ; )
-                    {
-                        ExternResultbool isScanOk = Methods.kernel_scan_data_next(kernelOwnedScanDataIteratorPtr, engineContextPtr, Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
-                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
-                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
-                    }
-                    return (methodScopedArrowContext.Schema, methodScopedArrowContext.ToRecordBatches());
-                }
-                finally
-                {
-                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_kernel_scan_data(kernelOwnedScanDataIteratorPtr);
-                    if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
-                    methodScopedArrowContext.Dispose();
-                }
+                return this.state.ArrowContext(true)->ToTable();
             }
         }
 
-        internal Apache.Arrow.Table ReadAsArrowTable()
-        {
-            (this.inMemSchema, this.inMemRecordBatchList) = this.ReadAsRecordBatchesAndSchema();
-            return Apache.Arrow.Table.TableFromRecordBatches(this.inMemSchema, this.inMemRecordBatchList);
-        }
-
-        /// <remarks>
-        /// Inspired from https://github.com/apache/arrow/issues/35371, this is
-        /// the only documented way to convert a list of <see
-        /// cref="RecordBatch"/>es reliably to a single <see cref="DataFrame"/>.
-        /// </remarks>
         internal DataFrame ReadAsDataFrame()
         {
-            (this.inMemSchema, this.inMemRecordBatchList) = this.ReadAsRecordBatchesAndSchema();
-            if (this.inMemRecordBatchList == null || this.inMemRecordBatchList.Count == 0)
-            {
-                throw new ArgumentException("Cannot read as DataFrame, the list of Arrow Record Batches from Delta Kernel is null or empty.");
-            }
-            Schema schema = this.inMemRecordBatchList[0].Schema;
-            List<IArrowArray> concatenatedColumns = new();
+            this.ThrowIfKernelNotSupported();
 
-            foreach (Field field in schema.FieldsList)
+            unsafe
             {
-                List<IArrowArray> columnArrays = new();
-                foreach (RecordBatch recordBatch in this.inMemRecordBatchList)
-                {
-                    IArrowArray column = recordBatch.Column(field.Name);
-                    columnArrays.Add(column);
-                }
-                IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
-                concatenatedColumns.Add(concatenatedColumn);
+                return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
             }
-            this.inMemRecordBatch = new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
-            return DataFrame.FromArrowRecordBatch(inMemRecordBatch);
         }
 
         internal override long Version()
@@ -389,8 +296,6 @@ namespace DeltaLake.Kernel.Core
             if (this.isKernelAllocated)
             {
                 this.state.Dispose();
-                this.inMemRecordBatch?.Dispose();
-                if (this.inMemRecordBatchList != null) foreach (RecordBatch recordBatch in this.inMemRecordBatchList) recordBatch?.Dispose();
 
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
@@ -433,6 +338,17 @@ namespace DeltaLake.Kernel.Core
                 }
 
                 return partitionColumns;
+            }
+        }
+
+        private void ThrowIfKernelNotSupported()
+        {
+            if (!this.isKernelAllocated || !this.isKernelSupported)
+            {
+                // There's currently no direct equivalent to this in delta-rs,
+                // so we throw if the Kernel is not being used.
+                //
+                throw new InvalidOperationException("This operation is not supported without using the Delta Kernel.");
             }
         }
 

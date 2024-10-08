@@ -15,7 +15,7 @@ namespace DeltaLake.Kernel.State
     /// The list of partitions.
     /// </summary>
 #pragma warning disable CA1815, CA1051 // Override equals and operator equals on value types
-    public struct PartitionList
+    internal struct PartitionList
     {
         /// <summary>
         /// The number of partitions.

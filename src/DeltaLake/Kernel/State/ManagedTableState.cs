@@ -11,8 +11,10 @@
 
 using System;
 using System.Runtime.InteropServices;
+using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
+using static DeltaLake.Kernel.Callbacks.Visit.VisitCallbacks;
 
 namespace DeltaLake.Kernel.State
 {
@@ -31,6 +33,7 @@ namespace DeltaLake.Kernel.State
         private unsafe SharedGlobalScanState* managedGlobalScanState = null;
         private unsafe SharedSchema* managedSchema = null;
         private unsafe PartitionList* partitionList = null;
+        private unsafe ArrowContext* arrowContext = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
@@ -88,6 +91,13 @@ namespace DeltaLake.Kernel.State
             return partitionList;
         }
 
+        /// <inheritdoc/>
+        public unsafe ArrowContext* ArrowContext(bool refresh)
+        {
+            if (refresh || arrowContext == null) this.RefreshArrowContext();
+            return arrowContext;
+        }
+
         #endregion ISafeState implementation
 
         #region IDisposable implementation
@@ -104,6 +114,7 @@ namespace DeltaLake.Kernel.State
         {
             if (!disposed)
             {
+                this.DisposeArrowContext();
                 this.DisposePartitionList();
                 this.DisposeSnapshot();
                 this.DisposeSchema();
@@ -119,6 +130,43 @@ namespace DeltaLake.Kernel.State
         #endregion IDisposable implementation
 
         #region Private Dispose methods
+
+        private void DisposeArrowContext()
+        {
+            unsafe
+            {
+                if (this.arrowContext != null && this.arrowContext->NumBatches != 0)
+                {
+                    for (int i = 0; i < this.arrowContext->NumBatches; i++)
+                    {
+                        ArrowFFIData* arrowStruct = this.arrowContext->ArrowStructs[i];
+                        ParquetStringPartitions* partitions = this.arrowContext->Partitions[i];
+
+                        if (arrowStruct != null)
+                        {
+                            Marshal.FreeHGlobal((IntPtr)arrowStruct);
+                            this.arrowContext->ArrowStructs[i] = null;
+                        }
+
+                        if (partitions != null)
+                        {
+                            for (int j = 0; j < partitions->Len; j++)
+                            {
+                                Marshal.FreeHGlobal((IntPtr)partitions->ColNames[j]);
+                                Marshal.FreeHGlobal((IntPtr)partitions->ColValues[j]);
+                            }
+                            Marshal.FreeHGlobal((IntPtr)partitions);
+                            this.arrowContext->Partitions[i] = null;
+                        }
+                    }
+                    Marshal.FreeHGlobal((IntPtr)this.arrowContext->ArrowStructs);
+                    Marshal.FreeHGlobal((IntPtr)this.arrowContext->Partitions);
+
+                    Marshal.FreeHGlobal((IntPtr)this.arrowContext);
+                }
+                this.arrowContext = null;
+            }
+        }
 
         private void DisposePartitionList()
         {
@@ -193,9 +241,11 @@ namespace DeltaLake.Kernel.State
 
         private void RefreshPartitionList()
         {
+
+            this.DisposePartitionList();
+
             unsafe
             {
-                this.DisposePartitionList();
                 int partitionColumnCount = (int)Methods.get_partition_column_count(this.GlobalScanState(false));
                 this.partitionList = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
 
@@ -231,9 +281,11 @@ namespace DeltaLake.Kernel.State
 
         private void RefreshScan()
         {
+
+            this.DisposeScan();
+
             unsafe
             {
-                this.DisposeScan();
                 ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
@@ -245,33 +297,111 @@ namespace DeltaLake.Kernel.State
 
         private void RefreshSchema()
         {
+
+            this.DisposeSchema();
+
             unsafe
             {
-                this.DisposeSchema();
                 this.managedSchema = Methods.get_global_read_schema(this.GlobalScanState(false));
             }
         }
 
         private void RefreshGlobalScanState()
         {
+
+            this.DisposeGlobalScanState();
+
             unsafe
             {
-                this.DisposeGlobalScanState();
                 this.managedGlobalScanState = Methods.get_global_scan_state(this.Scan(false));
             }
         }
 
         private void RefreshSnapshot()
         {
+
+            this.DisposeSnapshot();
+
             unsafe
             {
-                this.DisposeSnapshot();
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {
                     throw new InvalidOperationException("Failed to retrieve table snapshot from Delta Kernel.");
                 }
                 this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1.ok;
+            }
+        }
+
+        private void RefreshArrowContext()
+        {
+
+            this.DisposeArrowContext();
+
+            unsafe
+            {
+                // Generate a fresh arrow context and pin it. The pattern here
+                // is a little bit different, because we're the ones
+                // pre-allocating the struct, and not the Kernel. We pass the
+                // Kernel the struct pointer and it will pass it right back to
+                // us via a callback, alongside the actual Arrow data, so we can
+                // fill up the struct with on-the-fly allocated RecordBatches.
+                //
+                // ...If only the Kernel had a method like delta-rs to return Arrow
+                // Stream...
+                //
+                this.arrowContext = (ArrowContext*)Marshal.AllocHGlobal(Marshal.SizeOf<ArrowContext>());
+                *arrowContext = new ArrowContext()
+                {
+                    NumBatches = 0
+                };
+
+                // Refresh the necessary Kernel state together before initiating
+                // the fresh scan - no stale reads allowed!
+                //
+                SharedSnapshot* managedSnapshotPtr = this.Snapshot(true);
+                SharedSchema* managedSchemaPtr = this.Schema(true);
+                PartitionList* managedPartitionListPtr = this.PartitionList(true);
+                SharedScan* managedScanPtr = this.Scan(true);
+                SharedGlobalScanState* managedGlobalScanStatePtr = this.GlobalScanState(true);
+
+                // Memory scoped to this scan
+                //
+                SharedScanDataIterator* kernelOwnedScanDataIteratorPtr = null;
+                IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+                EngineContext scanScopedEngineContext = new()
+                {
+                    GlobalScanState = managedGlobalScanStatePtr,
+                    Schema = managedSchemaPtr,
+                    TableRoot = (char*)tableRootPtr,
+                    Engine = this.sharedExternEnginePtr,
+                    PartitionList = managedPartitionListPtr,
+                    PartitionKeyValueMap = null,
+                    ArrowContext = this.arrowContext
+                };
+                EngineContext* scanScopedEngineContextPtr = &scanScopedEngineContext;
+
+                try
+                {
+                    ExternResultHandleSharedScanDataIterator dataIteratorHandle = Methods.kernel_scan_data_init(this.sharedExternEnginePtr, managedScanPtr);
+                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanDataIterator_Tag.OkHandleSharedScanDataIterator)
+                    {
+                        throw new InvalidOperationException("Failed to construct kernel scan data iterator.");
+                    }
+                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
+                    for (; ; )
+                    {
+                        ExternResultbool isScanOk = Methods.kernel_scan_data_next(kernelOwnedScanDataIteratorPtr, scanScopedEngineContextPtr, Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
+                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
+                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
+                        else continue;
+                    }
+                }
+                finally
+                {
+                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_kernel_scan_data(kernelOwnedScanDataIteratorPtr);
+                    if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
+                }
             }
         }
 

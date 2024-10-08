@@ -54,5 +54,12 @@ namespace DeltaLake.Kernel.State
         /// <param name="refresh">Whether to refresh.</param>
         /// <returns>The managed partition list.</returns>
         public unsafe PartitionList* PartitionList(bool refresh);
+
+        /// <summary>
+        /// Gets the <see cref="ArrowContext"/> representing the table data.
+        /// </summary>
+        /// <param name="refresh">Whether to refresh.</param>
+        /// <returns>The managed arrow context.</returns>
+        public unsafe ArrowContext* ArrowContext(bool refresh);
     }
 }

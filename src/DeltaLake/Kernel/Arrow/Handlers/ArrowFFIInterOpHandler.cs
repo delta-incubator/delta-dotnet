@@ -13,9 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using Apache.Arrow;
-using Apache.Arrow.C;
-using Apache.Arrow.Types;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
@@ -40,59 +37,59 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
         /// <inheritdoc/>
         /// <remarks>
-        /// Caller is responsible for freeing the allocated <see
-        /// cref="RecordBatch"/>* AND <see cref="RecordBatch"/>** when disposing
+        /// Caller is responsible for freeing the allocated memory when disposing
         /// <see cref="ArrowContext"/>.
         /// </remarks>
-        public unsafe void ZeroCopyRecordBatchToArrowContext(
+        public unsafe void StoreArrowInContext(
             ArrowContext* context,
             ArrowFFIData* arrowData,
             PartitionList* partitionCols,
-            CStringMap* partitionValues
+            CStringMap* partitionValue
         )
         {
-            // Allocate memory for the new RecordBatch and a newly expanded (old
-            // size + 1) RecordBatch pointers array that will replace the old
-            // pointers array in ArrowContext.Batches.
+            // Allocate memory for the new set of arriving data.
             //
-            RecordBatch* recordBatchPtr = (RecordBatch*)Marshal.AllocHGlobal(sizeof(RecordBatch));
-            RecordBatch** newBatchPointersArrayPtr = (RecordBatch**)Marshal.AllocHGlobal(sizeof(RecordBatch*) * (context->NumBatches + 1));
+            ArrowFFIData* thisArrowStructPtr = (ArrowFFIData*)Marshal.AllocHGlobal(sizeof(ArrowFFIData));
+            ParquetStringPartitions* thisPartitionsPtr = (ParquetStringPartitions*)Marshal.AllocHGlobal(sizeof(ParquetStringPartitions));
 
-            Apache.Arrow.Schema arrowSchema = ConvertFFISchemaToArrowSchema(&arrowData->schema);
-            context->Schema = AddPartitionColumnsToSchema(arrowSchema, partitionCols, partitionValues);
+            // Allocate memory for the pointers array that will replace the old
+            // pointers array.
+            //
+            ArrowFFIData** newArrowStructsArrayPtr = (ArrowFFIData**)Marshal.AllocHGlobal(sizeof(ArrowFFIData*) * (context->NumBatches + 1));
+            ParquetStringPartitions** newPartitionsArrayPtr = (ParquetStringPartitions**)Marshal.AllocHGlobal(sizeof(ParquetStringPartitions*) * (context->NumBatches + 1));
 
-            *recordBatchPtr = ConvertFFIArrayToArrowRecordBatch(&arrowData->array, arrowSchema);
-#pragma warning disable CA2000
-            *recordBatchPtr = AddPartitionColumnsToRecordBatch(*recordBatchPtr, partitionCols, partitionValues);
-#pragma warning restore CA2000
+            // Copy incoming values into the newly globally allocated memory.
+            //
+            *thisArrowStructPtr = *arrowData;
+            *thisPartitionsPtr = ArrowFFIInterOpHandler.ParseParquetStringPartitions(partitionCols, partitionValue);
 
-            if (recordBatchPtr == null)
-            {
-                throw new InvalidOperationException("Failed to add partition columns, not adding Record Batch");
-            }
-
-            // Copy old pre-allocated RecordBatch pointers from the
-            // ArrowContext, if exists. This is a zero-copy operation,
-            // since we're just copying the pointers around rapidly.
+            // Copy old pre-allocated pointers from the ArrowContext, if exists.
+            // This is a zero-copy operation, since we're just copying the
+            // pointers around rapidly.
             //
             if (context->NumBatches > 0)
             {
                 for (int i = 0; i < context->NumBatches; i++)
                 {
-                    newBatchPointersArrayPtr[i] = context->Batches[i];
+                    newArrowStructsArrayPtr[i] = context->ArrowStructs[i];
+                    newPartitionsArrayPtr[i] = context->Partitions[i];
                 }
             }
 
-            // Append the new RecordBatch that just got read from the Kernel to
+            // Append the new set that just got read from the Kernel to
             // the end, and set the final size from this operation.
             //
-            newBatchPointersArrayPtr[context->NumBatches] = recordBatchPtr;
-            context->Batches = newBatchPointersArrayPtr;
+            newArrowStructsArrayPtr[context->NumBatches] = thisArrowStructPtr;
+            newPartitionsArrayPtr[context->NumBatches] = thisPartitionsPtr;
+
+            context->ArrowStructs = newArrowStructsArrayPtr;
+            context->Partitions = newPartitionsArrayPtr;
+
             context->NumBatches++;
         }
 
         /// <inheritdoc/>
-        public unsafe void ReadParquetFileAsArrow(
+        public unsafe void ReadParquetAsArrow(
             EngineContext* context,
             KernelStringSlice path,
             KernelBoolSlice selectionVector
@@ -136,49 +133,21 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
         #endregion IArrowInteropHandler implementation
 
-        #region Private methods
+        #region Private Methods
 
-        private static unsafe Apache.Arrow.Schema ConvertFFISchemaToArrowSchema(FFI_ArrowSchema* ffiSchema)
+        private static unsafe ParquetStringPartitions ParseParquetStringPartitions(
+            PartitionList* partitionCols,
+            CStringMap* partitionKeyValueMap
+        )
         {
-            CArrowSchema* clonedSchema = CArrowSchema.Create();
-            Apache.Arrow.Schema convertedSchema = CArrowSchemaImporter.ImportSchema((CArrowSchema*)ffiSchema);
-            CArrowSchema.Free(clonedSchema);
-            return convertedSchema;
-        }
-
-        private static unsafe RecordBatch ConvertFFIArrayToArrowRecordBatch(FFI_ArrowArray* ffiArray, Apache.Arrow.Schema schema)
-        {
-            CArrowArray* clonedArray = CArrowArray.Create();
-            RecordBatch generatedBatch = CArrowArrayImporter.ImportRecordBatch((CArrowArray*)ffiArray, schema);
-            CArrowArray.Free(clonedArray);
-            return generatedBatch;
-        }
-
-        private static unsafe RecordBatch AddPartitionColumnsToRecordBatch(RecordBatch recordBatch, PartitionList* partitionCols, CStringMap* partitionValues)
-        {
-            Apache.Arrow.Schema.Builder schemaBuilder = new();
-            foreach (Field field in recordBatch.Schema.FieldsList)
-            {
-                schemaBuilder = schemaBuilder.Field(field);
-            }
-
-            var fields = new List<Field>(recordBatch.Schema.FieldsList);
-            var columns = new List<IArrowArray>();
-            for (int i = 0; i < recordBatch.Schema.FieldsList.Count; i++)
-            {
-                columns.Add(recordBatch.Column(i));
-            }
+            List<string> colNames = new();
+            List<string> colValues = new();
 
             for (int i = 0; i < partitionCols->Len; i++)
             {
 #pragma warning disable CS8600
                 string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
 #pragma warning restore CS8600
-                Field field = new(colName, StringType.Default, nullable: true);
-                schemaBuilder = schemaBuilder.Field(field);
-                fields.Add(field);
-
-                StringArray.Builder columnBuilder = new();
 
                 // The Kernel can currently only report String values back as
                 // partition values, even if it's a different type (like
@@ -188,8 +157,8 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
                 //
 #pragma warning disable CS1024, CS8629, CS8600 // If Kernel sends us back null pointers, we are in trouble anyway
-                void* partitionValPtr = Methods.get_from_map(
-                    partitionValues,
+                void* colValPtr = Methods.get_from_map(
+                    partitionKeyValueMap,
                     new KernelStringSlice
                     {
                         ptr = (sbyte*)partitionCols->Cols[i],
@@ -197,55 +166,37 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                     },
                     Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
                 );
-                string partitionVal = partitionValPtr != null ? Marshal.PtrToStringAnsi((IntPtr)partitionValPtr) : String.Empty;
+                string colVal = colValPtr != null ? Marshal.PtrToStringAnsi((IntPtr)colValPtr) : String.Empty;
 #pragma warning restore CS1024, CS8629, CS8600
 
-                for (int j = 0; j < recordBatch.Length; j++)
+                if (!string.IsNullOrEmpty(colName) && !string.IsNullOrEmpty(colVal))
                 {
-                    columnBuilder = columnBuilder.Append(partitionVal ?? "");
+                    colNames.Add(colName);
+                    colValues.Add(colVal);
                 }
-                columns.Add(columnBuilder.Build());
+                else
+                {
+                    throw new InvalidOperationException($"Failed to parse partition columns (got {colName}) and values (got {colVal}) from the Kernel");
+                }
             }
-            return new RecordBatch(schemaBuilder.Build(), columns, recordBatch.Length);
-        }
 
-#pragma warning disable CA1859, IDE0060 // Although we're not using partitionValues right now, it will be used when Kernel supports reporting Arrow Schema
-        private static unsafe IArrowType DeterminePartitionColumnType(string colName, CStringMap* partitionValues)
-        {
-            // Currently, there's no way to determine the type of the partition,
-            // because the Kernel always represents partition values as strings in CStringMap.
-            //
-            // We have a request with Kernel team here to get back the Arrow Schema from
-            // the Delta Transaction Log:
-            //
-            // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728001059452499?thread_ts=1727999835.930339&cid=C04TRPG3LHZ
-            //
-            return StringType.Default;
-        }
-#pragma warning restore CA1859, IDE0060
+            char** colNamesPtr = (char**)Marshal.AllocHGlobal(colNames.Count * sizeof(char*));
+            char** colValuesPtr = (char**)Marshal.AllocHGlobal(colValues.Count * sizeof(char*));
 
-        private static unsafe Apache.Arrow.Schema AddPartitionColumnsToSchema(Apache.Arrow.Schema originalSchema, PartitionList* partitionCols, CStringMap* partitionValues)
-        {
-            Apache.Arrow.Schema.Builder schemaBuilder = new();
-            foreach (Field field in originalSchema.FieldsList)
+            for (int i = 0; i < colNames.Count; i++)
             {
-                schemaBuilder = schemaBuilder.Field(field);
+                colNamesPtr[i] = (char*)Marshal.StringToHGlobalAnsi(colNames[i]);
+                colValuesPtr[i] = (char*)Marshal.StringToHGlobalAnsi(colValues[i]);
             }
 
-            for (int i = 0; i < partitionCols->Len; i++)
+            return new ParquetStringPartitions
             {
-#pragma warning disable CS8600, CS8604 // If Kernel sends us back null pointers, we are in trouble anyway
-                string colName = Marshal.PtrToStringAnsi((IntPtr)partitionCols->Cols[i]);
-                IArrowType dataType = DeterminePartitionColumnType(colName, partitionValues);
-#pragma warning restore CS8600, CS8604
-
-                Field field = new(colName, dataType, nullable: true);
-                schemaBuilder = schemaBuilder.Field(field);
-            }
-
-            return schemaBuilder.Build();
+                Len = colNames.Count,
+                ColNames = colNamesPtr,
+                ColValues = colValuesPtr
+            };
         }
 
-        #endregion Private methods
+        #endregion Private Methods
     }
 }
