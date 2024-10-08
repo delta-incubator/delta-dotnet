@@ -96,9 +96,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         )
         {
 #pragma warning disable CS8600
-            string tableRoot = Marshal.PtrToStringUTF8((IntPtr)context->TableRoot);
+            string tableRoot = Marshal.PtrToStringUTF8((IntPtr)context->TableRoot)?.TrimEnd('/');
+            string parquetAbsolutePath = $"{tableRoot}/{Marshal.PtrToStringUTF8((IntPtr)path.ptr, (int)path.len)}";
 #pragma warning restore CS8600
-            string parquetAbsolutePath = $"{tableRoot}{Marshal.PtrToStringUTF8((IntPtr)path.ptr, (int)path.len)}";
 
             (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedSBytePointer();
             KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (sbyte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
