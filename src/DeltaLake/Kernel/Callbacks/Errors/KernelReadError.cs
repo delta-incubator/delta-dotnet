@@ -27,7 +27,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         public string Message
         {
             get => Marshal.PtrToStringUTF8(msg);
-            set => msg = Marshal.StringToHGlobalAnsi(value);
+            set => msg = Marshal.StringToCoTaskMemUTF8(value);
         }
 #pragma warning restore CS8603, IDE0251
     }

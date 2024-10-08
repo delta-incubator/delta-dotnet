@@ -185,8 +185,8 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
             for (int i = 0; i < colNames.Count; i++)
             {
-                colNamesPtr[i] = (byte*)Marshal.StringToHGlobalAnsi(colNames[i]);
-                colValuesPtr[i] = (byte*)Marshal.StringToHGlobalAnsi(colValues[i]);
+                colNamesPtr[i] = (byte*)Marshal.StringToCoTaskMemUTF8(colNames[i]);
+                colValuesPtr[i] = (byte*)Marshal.StringToCoTaskMemUTF8(colValues[i]);
             }
 
             return new ParquetStringPartitions
