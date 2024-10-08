@@ -6,15 +6,19 @@
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-This package is a C# wrapper around [delta-rs](https://github.com/delta-io/delta-rs/tree/rust-v0.17.0).
+This package is a C# wrapper around [delta-rs](https://github.com/delta-io/delta-rs/tree/rust-v0.17.0) and implements the FFI ([Foreign Function Interface](https://en.wikipedia.org/wiki/Foreign_function_interface)) for [delta-kernel-rs](https://github.com/delta-incubator/delta-kernel-rs).
 
 It uses the [tokio-rs](https://tokio.rs/) runtime to provide asynchronous behavior. This allows the usage of .NET Tasks and async/await to take advantage of the same behavior provided by the underlying rust library.
 This library also takes advantage of the [Apache Arrow](https://github.com/apache/arrow/blob/main/csharp/README.md) [C Data Interface](https://arrow.apache.org/docs/format/CDataInterface.html) to minimize the amount of copying required to move data between runtimes.
 
-![alt text](/media/images/delta-dot-net-pkg.png "Using a Rust bridge library with .NET p/invoke")
+![alt text](/media/images/delta-dot-net-pkg.png "Using a Rust bridge and Kernel library with .NET p/invoke")
 
-The bridge library incorporates delta-rs and [tokio-rs](https://tokio.rs/) as shown in the image below.
-![alt text](/media/images/bridge-library.png "Rust bridge library with tokio")
+The bridge library incorporates delta-rs, delta-kernel-rs and [tokio-rs](https://tokio.rs/) as shown in the image below.
+
+> The [Delta Kernel FFI](https://delta.io/blog/delta-kernel/) integration is pinned to releases of the Kernel, as new support is added to Kernel, support in C# will be easily extended as a fast follower.
+> The library also benefits from [Apache DataFusion](https://datafusion.apache.org/) SQL support, which is [part of delta-rs](https://delta-io.github.io/delta-rs/integrations/delta-lake-datafusion/)
+
+![alt text](/media/images/bridge-library.png "Rust bridge library with tokio and Kernel FFI")
 
 NOTE: On unix systems, there is the possibility of a stack overflow due to small stack sizes for the .NET framework. The default size should correspond to `ulimit -s`, but we can override this by setting the environment variable `DOTNET_DefaultStackSize` to a hexadecimal number of bytes. The unit tests use `180000`.
 
