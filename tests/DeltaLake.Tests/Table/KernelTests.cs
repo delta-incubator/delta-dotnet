@@ -94,7 +94,7 @@ public class KernelTests
 
         try
         {
-            // Exercise: Parallelized writes via Bridge
+            // Exercise: Parallelized reads via Kernel
             //
             // >>> sharedTable: Simulates the original author of the table, doesn't need to support concurrent creates
             // >>> threadIsolatedTable: Simulates partitioned writers to the table, needs concurrent writes
