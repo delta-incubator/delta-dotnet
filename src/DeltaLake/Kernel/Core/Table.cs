@@ -206,7 +206,9 @@ namespace DeltaLake.Kernel.Core
 
             unsafe
             {
+# pragma warning disable CA2000 // DataFrames use the RecordBatch, so we don't need to dispose of it
                 return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
+#pragma warning restore CA2000
             }
         }
 
