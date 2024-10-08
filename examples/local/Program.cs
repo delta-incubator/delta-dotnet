@@ -8,8 +8,10 @@ using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using Azure.Core;
 using Azure.Identity;
-using DeltaLake.Runtime;
+using DeltaLake.Extensions;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
+using Microsoft.Data.Analysis;
 
 namespace local;
 
@@ -17,6 +19,7 @@ public class Program
 {
     private static readonly string stringColumnName = "colStringTest";
     private static readonly string intColumnName = "colIntegerTest";
+    private static readonly string partitionColumnName = "colHostTest";
 
     private static string envVarIfRunningInVisualStudio = Environment.GetEnvironmentVariable("VisualStudioVersion");
 
@@ -45,13 +48,19 @@ public class Program
             storageOptions.Add("bearer_token", GenerateAzureStorageOAuthToken());
         }
 
-        var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
         {
             var builder = new Apache.Arrow.Schema.Builder();
             builder
                 .Field(fb =>
                 {
                     fb.Name(stringColumnName);
+                    fb.DataType(StringType.Default);
+                    fb.Nullable(false);
+                })
+                .Field(fb =>
+                {
+                    fb.Name(partitionColumnName);
                     fb.DataType(StringType.Default);
                     fb.Nullable(false);
                 })
@@ -64,29 +73,43 @@ public class Program
             var schema = builder.Build();
             var allocator = new NativeMemoryAllocator();
             var randomValueGenerator = new Random();
+            var hostName = Environment.MachineName;
+
             var recordBatchBuilder = new RecordBatch.Builder(allocator)
                 .Append(stringColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => GenerateRandomString(randomValueGenerator)))))
+                .Append(partitionColumnName, false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => hostName))))
                 .Append(intColumnName, false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, numRows).Select(_ => randomValueGenerator.Next()))));
 
-            using var table = await DeltaTable.CreateAsync(
-                runtime,
+            using var table = await engine.CreateTableAsync(
                 new TableCreateOptions(uri, schema)
                 {
                     Configuration = new Dictionary<string, string>
                     {
                         ["delta.dataSkippingNumIndexedCols"] = "32"
                     },
+                    PartitionBy = new[] { partitionColumnName },
                     StorageOptions = storageOptions,
                 },
                 CancellationToken.None);
+
+            Console.WriteLine($"Table root path: {table.Location()}");
+            Console.WriteLine($"Table partition columns: {string.Join(", ", table.Metadata().PartitionColumns)}");
+            Console.WriteLine($"Table version before transaction: {table.Version()}");
+
             var options = new InsertOptions
             {
                 SaveMode = SaveMode.Append,
             };
             await table.InsertAsync([recordBatchBuilder.Build()], schema, options, CancellationToken.None);
-        }
 
-        runtime.Dispose();
+            Console.WriteLine($"Table version after transaction: {table.Version()}");
+
+            Apache.Arrow.Table readTable = table.ReadAsArrowTable();
+            Console.WriteLine(readTable.ToString());
+            
+            DataFrame df = table.ReadAsDataFrame();
+            Console.WriteLine(df.ToMarkdown());
+        }
     }
 
     private static string GenerateRandomString(Random random, int length = 10)

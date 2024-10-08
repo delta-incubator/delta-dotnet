@@ -8,7 +8,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Metadata for the table
     /// </summary>
-    public class TableMetadata
+    public record TableMetadata
     {
         private static readonly Dictionary<string, string> EmptySettings = new();
 
@@ -35,7 +35,9 @@ namespace DeltaLake.Table
         /// <summary>
         /// Dictionary of formatting options
         /// </summary>
+#pragma warning disable CS8619
         public IReadOnlyDictionary<string, string?> FormatOptions { get; init; } = EmptySettings;
+#pragma warning restore CS8619
 
         /// <summary>
         /// Serialized table schema
@@ -45,7 +47,7 @@ namespace DeltaLake.Table
         /// <summary>
         /// List of partition columns
         /// </summary>
-        public IReadOnlyList<string> PartitionColumns { get; init; } = Array.Empty<string>();
+        public IReadOnlyList<string> PartitionColumns { get; internal set; } = Array.Empty<string>();
 
         /// <summary>
         /// Created time

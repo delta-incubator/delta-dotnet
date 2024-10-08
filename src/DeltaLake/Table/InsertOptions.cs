@@ -3,7 +3,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options for inserting data into a table
     /// </summary>
-    public class InsertOptions
+    public record InsertOptions
     {
         /// <summary>
         /// Predicate for insertion.

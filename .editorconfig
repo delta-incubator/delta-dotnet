@@ -46,11 +46,52 @@ dotnet_diagnostic.CA1848.severity = none
 # cross-AppDomain currently
 dotnet_diagnostic.CA2237.severity = none
 
+# Do not warn against use of [EnumeratorCancellation]
+dotnet_diagnostic.CS8424.severity = none
+
+# Do not warn on using casted pointers - this is needed for interop
+dotnet_diagnostic.CS8500.severity = none
+
+# Constructors don't need to always set prop values, specially for pointers
+dotnet_diagnostic.CS8618.severity = none
+
 # Warn on unused imports
 dotnet_diagnostic.IDE0005.severity = warning
 
+# Do not require using explicit types during variable declaration, var is perfectly fine
+dotnet_diagnostic.IDE0008.severity = none
+
+# Terser switch statements are fine
+dotnet_diagnostic.IDE0010.severity = none
+
+# Do not require braces to single line if statements
+dotnet_diagnostic.IDE0011.severity = none
+
+# Do not require using expression body syntax
+dotnet_diagnostic.IDE0021.severity = none
+dotnet_diagnostic.IDE0022.severity = none
+
+# Do not enforce modifiers to be ordered, it ends up compiling to the same thing
+dotnet_diagnostic.IDE0036.severity = none
+
+# Do not warn on simplifying if statements
+dotnet_diagnostic.IDE0045.severity = none
+dotnet_diagnostic.IDE0046.severity = none
+
 # Cannot use range operator on older versions
 dotnet_diagnostic.IDE0057.severity = none
+
+# Certain statements do not need/should use the return from expresseion values, piping into '_ = ...' is often unintuitive
+dotnet_diagnostic.IDE0058.severity = none
+
+# Do not warn on simplifying using statements
+dotnet_diagnostic.IDE0063.severity = none
+
+# Do not require file header
+dotnet_diagnostic.IDE0073.severity = none
+
+# Do not warn on new SomeClass(...)
+dotnet_diagnostic.IDE0090.severity = none
 
 # Do not require "this." prefix, devs are smart enough to know when to qualify
 dotnet_diagnostic.SA1101.severity = none

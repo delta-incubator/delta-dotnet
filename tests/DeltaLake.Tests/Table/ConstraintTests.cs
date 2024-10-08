@@ -2,7 +2,7 @@ using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using DeltaLake.Errors;
-using DeltaLake.Runtime;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table
@@ -45,7 +45,6 @@ namespace DeltaLake.Tests.Table
         public async Task Invalid_Constraint_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
-            using var runtime = tableParts.runtime;
             using var table = tableParts.table;
             await Assert.ThrowsAsync<DeltaRuntimeException>(() => table.AddConstraintsAsync(
                 new Dictionary<string, string>
@@ -60,7 +59,6 @@ namespace DeltaLake.Tests.Table
         public async Task Add_Constraint_Cancellation_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
-            using var runtime = tableParts.runtime;
             using var table = tableParts.table;
             var version = table.Version();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => table.AddConstraintsAsync(
@@ -77,7 +75,6 @@ namespace DeltaLake.Tests.Table
         public async Task Empty_Constraint_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
-            using var runtime = tableParts.runtime;
             using var table = tableParts.table;
             var version = table.Version();
             await table.AddConstraintsAsync(
@@ -118,12 +115,12 @@ namespace DeltaLake.Tests.Table
 
         private async Task BaseConstraintTest(
             string path,
-            Func<DeltaTable, Task> addConstraints,
+            Func<ITable, Task> addConstraints,
             int first,
             string second,
             long third)
         {
-            using var runtime = new DeltaRuntime(RuntimeOptions.Default);
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
             var builder = new Schema.Builder();
             builder.Field(fb =>
             {
@@ -144,8 +141,7 @@ namespace DeltaLake.Tests.Table
                 fb.Nullable(false);
             });
             var schema = builder.Build();
-            using var table = await DeltaTable.CreateAsync(
-                runtime,
+            using var table = await engine.CreateTableAsync(
                 new TableCreateOptions(path, schema),
                 CancellationToken.None);
             await addConstraints(table);

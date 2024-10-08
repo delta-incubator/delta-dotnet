@@ -31,7 +31,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: Checkout specific delta-kernel-rs release
+        shell: bash
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1

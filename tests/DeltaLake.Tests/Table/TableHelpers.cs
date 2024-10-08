@@ -1,7 +1,7 @@
 using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
-using DeltaLake.Runtime;
+using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
@@ -96,7 +96,7 @@ public static class TableHelpers
         return Path.Join(pathRoot ?? Settings.TestRoot, Tables[tid]);
     }
 
-    public static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(string path, int length)
+    public static Task<(IEngine engine, ITable table)> SetupTable(string path, int length)
     {
         var options = new InsertOptions
         {
@@ -105,12 +105,12 @@ public static class TableHelpers
         return SetupTable(path, length, options);
     }
 
-    public async static Task<(DeltaRuntime runtime, DeltaTable table)> SetupTable(
+    public async static Task<(IEngine engine, ITable table)> SetupTable(
         string path,
         int length,
         InsertOptions options)
     {
-        var runtime = new DeltaRuntime(RuntimeOptions.Default);
+        IEngine engine = new DeltaEngine(new EngineOptions());
         var builder = new Schema.Builder();
         builder.Field(fb =>
         {
@@ -131,14 +131,13 @@ public static class TableHelpers
             fb.Nullable(false);
         });
         var schema = builder.Build();
-        var table = await DeltaTable.CreateAsync(
-            runtime,
+        var table = await engine.CreateTableAsync(
             new TableCreateOptions(path, schema),
             CancellationToken.None);
         Assert.NotNull(table);
 
         await table.InsertAsync([BuildBasicRecordBatch(length)], schema, options, CancellationToken.None);
-        return (runtime, table);
+        return (engine, table);
     }
 
     public static RecordBatch BuildBasicRecordBatch(int length)

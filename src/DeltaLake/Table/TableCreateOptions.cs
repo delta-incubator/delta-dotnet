@@ -7,7 +7,7 @@ namespace DeltaLake.Table
     /// <summary>
     /// Options passed when creating a table
     /// </summary>
-    public class TableCreateOptions
+    public record TableCreateOptions : TableStorageOptions
     {
         /// <summary>
         /// Creates an instance of create options, ensuring its mandatory properties
@@ -24,12 +24,6 @@ namespace DeltaLake.Table
         /// Arrow Schema for the table
         /// </summary>
         public Schema Schema { get; }
-
-        /// <summary>
-        /// Location of the delta table
-        /// memory://, s3://, azure://, etc
-        /// </summary>
-        public string TableLocation { get; }
 
         /// <summary>
         /// List of columns to use for partitioning
@@ -56,11 +50,6 @@ namespace DeltaLake.Table
         /// </summary>
 
         public Dictionary<string, string>? Configuration { get; init; }
-
-        /// <summary>
-        /// Storage options to pass to table builder
-        /// </summary>
-        public Dictionary<string, string>? StorageOptions { get; init; }
 
         /// <summary>
         /// Table metadata
