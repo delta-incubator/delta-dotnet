@@ -24,12 +24,12 @@ namespace DeltaLake.Kernel.State
         /// <summary>
         /// The list of partition column names.
         /// </summary>
-        public unsafe char** ColNames;
+        public unsafe byte** ColNames;
 
         /// <summary>
         /// The list of partition column values, all strings, even if they are
         /// numbers - as they are stored as strings in the parquet the Kernel reads back.
         /// </summary>
-        public unsafe char** ColValues;
+        public unsafe byte** ColValues;
     }
 }

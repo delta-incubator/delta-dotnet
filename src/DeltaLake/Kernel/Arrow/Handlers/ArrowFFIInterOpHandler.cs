@@ -180,13 +180,13 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 }
             }
 
-            char** colNamesPtr = (char**)Marshal.AllocHGlobal(colNames.Count * sizeof(char*));
-            char** colValuesPtr = (char**)Marshal.AllocHGlobal(colValues.Count * sizeof(char*));
+            byte** colNamesPtr = (byte**)Marshal.AllocHGlobal(colNames.Count * sizeof(byte*));
+            byte** colValuesPtr = (byte**)Marshal.AllocHGlobal(colValues.Count * sizeof(byte*));
 
             for (int i = 0; i < colNames.Count; i++)
             {
-                colNamesPtr[i] = (char*)Marshal.StringToHGlobalAnsi(colNames[i]);
-                colValuesPtr[i] = (char*)Marshal.StringToHGlobalAnsi(colValues[i]);
+                colNamesPtr[i] = (byte*)Marshal.StringToHGlobalAnsi(colNames[i]);
+                colValuesPtr[i] = (byte*)Marshal.StringToHGlobalAnsi(colValues[i]);
             }
 
             return new ParquetStringPartitions
