@@ -20,4 +20,30 @@ NOTE: On unix systems, there is the possibility of a stack overflow due to small
 
 ## Quick Start
 
-`TODO`: Add docs on how to run the example project using dotnet cli.
+This section explains how build and run Delta Dotnet locally from scratch on a fresh Linux Machine. 
+> If you're on windows, [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) provides a great way to spinup Linux VMs rapidly for testing.
+
+Step 1: Clone this repo, and initiate the `delta-kernel-rs` submodule:
+
+```bash
+cd ~/
+git clone https://github.com/delta-incubator/delta-dotnet.git
+cd delta-dotnet
+
+GIT_ROOT=$(git rev-parse --show-toplevel)
+
+chmod +x ${GIT_ROOT}/.scripts/checkout-delta-kernel-rs.sh && ${GIT_ROOT}/.scripts/checkout-delta-kernel-rs.sh
+```
+
+Step 2: Install dev dependencies:
+
+```bash
+chmod +x ${GIT_ROOT}/.scripts/bootstrap-dev-env.sh && ${GIT_ROOT}/.scripts/bootstrap-dev-env.sh
+source ~/.bashrc
+```
+
+Step 3: Run the unit tests, which also builds the Rust binaries:
+
+```bash
+dotnet test -c Release --logger "console;verbosity=detailed"
+```

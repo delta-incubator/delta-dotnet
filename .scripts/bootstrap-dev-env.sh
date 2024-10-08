@@ -19,7 +19,8 @@ echo ""
 PACKAGES=""
 if ! dpkg -l | grep -q build-essential; then PACKAGES="build-essential"; fi
 if ! dpkg -l | grep -q pkg-config; then PACKAGES="$PACKAGES pkg-config"; fi
-if ! command -v openssl &> /dev/null; then PACKAGES="$PACKAGES openssl libssl-dev"; fi
+if ! dpkg -l | grep -q libssl-dev; then PACKAGES="$PACKAGES libssl-dev"; fi
+if ! command -v openssl &> /dev/null; then PACKAGES="$PACKAGES openssl"; fi
 if [ ! -z "$PACKAGES" ]; then
     echo "Packages $PACKAGES not found - installing..."
     sudo apt-get update 2>&1 > /dev/null
