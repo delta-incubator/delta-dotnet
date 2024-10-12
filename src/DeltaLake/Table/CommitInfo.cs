@@ -8,7 +8,7 @@ namespace DeltaLake.Table
     /// CommitInfo for history command
     /// </summary>
 #pragma warning disable CA2227 // Collection properties should be read only
-    public class CommitInfo
+    public record CommitInfo
     {
         /// <summary>
         /// Timestamp in millis when the commit was created

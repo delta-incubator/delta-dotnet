@@ -6,38 +6,47 @@ on:
       - "releases/*"
 
 jobs:
-  build-bridge-libraries:
+  build-rust-libraries:
     strategy:
       fail-fast: true
       matrix:
         os: [ubuntu-latest, ubuntu-arm, macos-latest, macos-arm, windows-latest]
         include:
           - os: ubuntu-latest
-            out-file: libdelta_rs_bridge.so
+            bridge-out-file: libdelta_rs_bridge.so
+            kernel-out-file: libdelta_kernel_ffi.so
             out-prefix: linux-x64
           - os: ubuntu-arm
-            out-file: libdelta_rs_bridge.so
+            bridge-out-file: libdelta_rs_bridge.so
+            kernel-out-file: libdelta_kernel_ffi.so
             out-prefix: linux-arm64
             runsOn: ubuntu-latest
             use-cross: true
             alternative-target: aarch64-unknown-linux-gnu
           - os: macos-latest
-            out-file: libdelta_rs_bridge.dylib
+            bridge-out-file: libdelta_rs_bridge.dylib
+            kernel-out-file: libdelta_kernel_ffi.dylib
             out-prefix: osx-x64
             alternative-target: x86_64-apple-darwin
           - os: macos-arm
-            out-file: libdelta_rs_bridge.dylib
+            bridge-out-file: libdelta_rs_bridge.dylib
+            kernel-out-file: libdelta_kernel_ffi.dylib
             out-prefix: osx-arm64
             runsOn: macos-latest
           - os: windows-latest
-            out-file: delta_rs_bridge.dll
+            bridge-out-file: delta_rs_bridge.dll
+            kernel-out-file: delta_kernel_ffi.dll
             out-prefix: win-x64
     runs-on: ${{ matrix.runsOn || matrix.os }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
         with:
-          submodules: recursive
+          submodules: false
+      
+      - name: Checkout specific delta-kernel-rs release
+        shell: bash
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -60,53 +69,86 @@ jobs:
         run: |
           cargo install cross
 
+        # Note: Kernel builds are currently using non-release builds, see .csproj for details
+        #
       - name: Build alternative target
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
           cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud" --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
         run: |
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
+          
+          CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
+              cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml \
+                          --features "delta_kernel/cloud" \
+                          --target ${{ matrix.alternative-target }}
 
-      - name: Build
+      - name: Build Bridge
         if: ${{ !matrix.alternative-target }}
         run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
+      
+      - name: Build Kernel
+        if: ${{ !matrix.alternative-target }}
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud"
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
-          path: src/DeltaLake/Bridge/target/release/${{ matrix.out-file }}
+          path: src/DeltaLake/Bridge/target/release/${{ matrix.bridge-out-file }}
+      
+      - name: Upload kernel library
+        if: ${{ !matrix.alternative-target }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out-prefix }}-kernel
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/debug/${{ matrix.kernel-out-file }}
 
       - name: Upload bridge library alternative target
         if: ${{ matrix.alternative-target != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
-          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.out-file }}
+          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.bridge-out-file }}
+          if-no-files-found: "error"
+      
+      - name: Upload kernel library alternative target
+        if: ${{ matrix.alternative-target != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out-prefix }}-kernel
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/debug/${{ matrix.kernel-out-file }}
           if-no-files-found: "error"
 
   build-nuget-package:
     needs:
-      - build-bridge-libraries
+      - build-rust-libraries
     runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+        with:
+          submodules: false
+      
+      - name: Checkout specific delta-kernel-rs release
+        shell: bash
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
 
-      - name: Download bridge libraries
+      - name: Download rust libraries
         uses: actions/download-artifact@v4
         with:
-          path: bridge-libraries
+          path: rust-libraries
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
 
       - name: Build package
-        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:BridgeLibraryRoot=${{ github.workspace }}/bridge-libraries
+        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:RustLibraryRoot=${{ github.workspace }}/rust-libraries
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v4
@@ -118,4 +160,4 @@ jobs:
       - name: Push nuget artifacts
         run: |
           dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/delta-incubator/index.json"
-          dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source "github"
+          dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source "github" --skip-duplicate
