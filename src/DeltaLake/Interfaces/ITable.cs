@@ -137,15 +137,17 @@ namespace DeltaLake.Interfaces
         /// <summary>
         /// Read the delta table and return as <see cref="Apache.Arrow.Table"/>.
         /// </summary>
-        Apache.Arrow.Table ReadAsArrowTable();
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        Task<Apache.Arrow.Table> ReadAsArrowTableAsync(CancellationToken cancellationToken);
 
         /// <summary>
         /// Read the delta table and return as a <see cref="DataFrame"/>.
         /// </summary>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
         /// <remarks>
         /// This loads the entire table into memory.
         /// </remarks>
-        DataFrame ReadAsDataFrame();
+        Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken);
 
         #endregion Read Operations
 

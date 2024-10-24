@@ -149,8 +149,8 @@ public class KernelTests
                     {
                         // Exercise: Reads via Kernel
                         //
-                        Apache.Arrow.Table arrowTable = threadIsolatedTable.ReadAsArrowTable();
-                        DataFrame dataFrame = threadIsolatedTable.ReadAsDataFrame();
+                        Apache.Arrow.Table arrowTable = await threadIsolatedTable.ReadAsArrowTableAsync(default);
+                        DataFrame dataFrame = await threadIsolatedTable.ReadAsDataFrameAsync(default);
                         string stringResult = dataFrame.ToMarkdown();
 
                         // Validate: Data Integrity
