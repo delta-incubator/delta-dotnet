@@ -104,10 +104,10 @@ public class Program
 
             Console.WriteLine($"Table version after transaction: {table.Version()}");
 
-            Apache.Arrow.Table readTable = table.ReadAsArrowTable();
+            Apache.Arrow.Table readTable = await table.ReadAsArrowTableAsync(CancellationToken.None);
             Console.WriteLine(readTable.ToString());
             
-            DataFrame df = table.ReadAsDataFrame();
+            DataFrame df = await table.ReadAsDataFrameAsync(CancellationToken.None);
             Console.WriteLine(df.ToMarkdown());
         }
     }

@@ -20,6 +20,7 @@ using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
+using DeltaLake.Kernel.Shim.Async;
 using DeltaLake.Kernel.State;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
@@ -187,26 +188,44 @@ namespace DeltaLake.Kernel.Core
 
         #region Delta Kernel table operations
 
-        internal Apache.Arrow.Table ReadAsArrowTable()
+        internal async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+            ICancellationToken cancellationToken
+        )
         {
             this.ThrowIfKernelNotSupported();
 
-            unsafe
-            {
-                return this.state.ArrowContext(true)->ToTable();
-            }
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
+                            return this.state.ArrowContext(true)->ToTable();
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
         }
 
-        internal DataFrame ReadAsDataFrame()
+        internal async Task<DataFrame> ReadAsDataFrameAsync(ICancellationToken cancellationToken)
         {
             this.ThrowIfKernelNotSupported();
 
-            unsafe
-            {
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
 #pragma warning disable CA2000 // DataFrames use the RecordBatch, so we don't need to dispose of it
-                return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
+                            return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
 #pragma warning restore CA2000
-            }
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
         }
 
         internal override long Version()

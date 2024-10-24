@@ -118,10 +118,13 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public Apache.Arrow.Table ReadAsArrowTable() => this.table.ReadAsArrowTable();
+        public async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+            CancellationToken cancellationToken
+        ) => await this.table.ReadAsArrowTableAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>
-        public DataFrame ReadAsDataFrame() => this.table.ReadAsDataFrame();
+        public async Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
+            await this.table.ReadAsDataFrameAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>
         public async Task InsertAsync(
