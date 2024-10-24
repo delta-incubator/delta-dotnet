@@ -50,6 +50,7 @@ namespace DeltaLake.Kernel.Shim.Async
                     catch (Exception ex)
                     {
                         tsc.TrySetException(ex);
+                        throw;
                     }
                 },
                 cancellationToken
