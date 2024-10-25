@@ -32,31 +32,7 @@ namespace DeltaLake.Kernel.Shim.Async
             CancellationToken cancellationToken
         )
         {
-            var tsc = new TaskCompletionSource<T>();
-
-            _ = Task.Run(
-                () =>
-                {
-                    try
-                    {
-                        if (cancellationToken.IsCancellationRequested)
-                        {
-                            tsc.TrySetCanceled(cancellationToken);
-                            return;
-                        }
-
-                        tsc.TrySetResult(action());
-                    }
-                    catch (Exception ex)
-                    {
-                        tsc.TrySetException(ex);
-                        throw;
-                    }
-                },
-                cancellationToken
-            );
-
-            return await tsc.Task.ConfigureAwait(false);
+            return await Task.Run(() => action(), cancellationToken).ConfigureAwait(false);
         }
     }
 }
