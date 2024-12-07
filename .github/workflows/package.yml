@@ -161,3 +161,4 @@ jobs:
         run: |
           dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/delta-incubator/index.json"
           dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source "github" --skip-duplicate
+          dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
