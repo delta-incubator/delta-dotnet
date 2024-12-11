@@ -9,6 +9,7 @@ on:
 
 jobs:
   build-rust-libraries:
+    if: false
     strategy:
       fail-fast: true
       matrix:
@@ -129,8 +130,8 @@ jobs:
           if-no-files-found: "error"
 
   build-nuget-package:
-    needs:
-      - build-rust-libraries
+#    needs:
+#      - build-rust-libraries
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -146,14 +147,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: rust-libraries
+          run-id: 12283572483
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
 
       - name: Build package
         run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release \
-          --property:RustLibraryRoot=${{ github.workspace }}/rust-libraries \
-          --property:KernelLibraryRoot=${{ github.workspace }}/rust-libraries
+          --property:RustLibraryRoot=${{ github.workspace }}\rust-libraries \
+          --property:KernelLibraryRoot=${{ github.workspace }}\rust-libraries
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v4
