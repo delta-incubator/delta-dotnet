@@ -153,8 +153,8 @@ jobs:
         uses: actions/setup-dotnet@v3
 
       - name: Build package
-        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release \
-          --property:RustLibraryRoot=${{ github.workspace }}\rust-libraries \
+        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release `
+          --property:RustLibraryRoot=${{ github.workspace }}\rust-libraries `
           --property:KernelLibraryRoot=${{ github.workspace }}\rust-libraries
 
       - name: Upload NuGet artifact
