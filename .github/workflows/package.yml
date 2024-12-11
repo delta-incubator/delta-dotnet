@@ -4,6 +4,7 @@ on:
     branches:
       - main
       - "releases/*"
+  workflow_dispatch:
 
 jobs:
   build-rust-libraries:
@@ -75,7 +76,7 @@ jobs:
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
           cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud" --target ${{ matrix.alternative-target }}
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud" --release --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
@@ -93,7 +94,7 @@ jobs:
       
       - name: Build Kernel
         if: ${{ !matrix.alternative-target }}
-        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud"
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --features "delta_kernel/cloud"
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
@@ -107,7 +108,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
-          path: src/DeltaLake/Kernel/delta-kernel-rs/target/debug/${{ matrix.kernel-out-file }}
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/release/${{ matrix.kernel-out-file }}
 
       - name: Upload bridge library alternative target
         if: ${{ matrix.alternative-target != '' }}
@@ -122,7 +123,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
-          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/debug/${{ matrix.kernel-out-file }}
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/release/${{ matrix.kernel-out-file }}
           if-no-files-found: "error"
 
   build-nuget-package:
@@ -148,7 +149,9 @@ jobs:
         uses: actions/setup-dotnet@v3
 
       - name: Build package
-        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:RustLibraryRoot=${{ github.workspace }}/rust-libraries
+        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release \
+          /p:RustLibraryRoot=${{ github.workspace }}/rust-libraries \
+          /p:KernelLibraryRoot=${{ github.workspace }}/rust-libraries
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v4
