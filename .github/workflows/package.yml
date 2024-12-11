@@ -86,6 +86,7 @@ jobs:
           
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
               cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml \
+                          --release \
                           --features "delta_kernel/cloud" \
                           --target ${{ matrix.alternative-target }}
 
