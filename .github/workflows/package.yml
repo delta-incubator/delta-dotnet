@@ -81,6 +81,7 @@ jobs:
       - name: Build cross target
         if: ${{ matrix.use-cross }}
         run: |
+          CROSS_CONFIG=src/DeltaLake/Bridge/cross/${{ matrix.alternative-target }}/Cross.toml \
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
           
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
