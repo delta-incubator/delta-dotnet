@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>0.2.1</Version>
+    <Version>0.22.3</Version>
     <!--
       .NET does not allow the above version format for AssemblyVersion, and this
       is the version used in gRPC headers. The format is
@@ -28,7 +28,7 @@
       and 0.2.0 then is 0.2.0.5. But if there is no prerelease version, just
       leave revision off.
     -->
-    <AssemblyVersion>0.2.1</AssemblyVersion>
+    <AssemblyVersion>0.22.3</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
