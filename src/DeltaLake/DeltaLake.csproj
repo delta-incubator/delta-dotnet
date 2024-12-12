@@ -103,7 +103,7 @@
 
             >>> https://github.com/duckdb/duckdb_delta/blob/811db25f5bd405dea186d6c461a642a387502ad8/CMakeLists.txt#L97
         -->
-        <Exec Command="cargo build --features delta_kernel/cloud" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
+        <Exec Command="cargo build --release --features delta_kernel/cloud" WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
     </Target>
 
     <!-- RELEASE binary copy -->
@@ -123,7 +123,7 @@
         Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
         <ItemGroup Condition="'$(Configuration)' == 'Release'">
             <!--  See note above on not using 'release' binary -->
-            <Content Include="Kernel/delta-kernel-rs/target/debug/$(KernelLibraryFile)">
+            <Content Include="Kernel/delta-kernel-rs/target/release/$(KernelLibraryFile)">
                 <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
                 <Link>$(KernelLibraryFile)</Link>
                 <PublishState>Included</PublishState>
