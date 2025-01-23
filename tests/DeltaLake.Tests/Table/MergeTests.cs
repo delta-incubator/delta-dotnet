@@ -198,6 +198,23 @@ public class MergeTests
         Assert.Equal(version, table.Version());
     }
 
+    [Fact]
+    public async Task Merge_When_Matched_Delete_Test()
+    {
+        const string query = @"MERGE INTO mytable USING newdata
+                              ON mytable.test = newdata.test
+                              WHEN MATCHED THEN DELETE;";
+        await BaseMergeTest(query, batches =>
+          {
+              var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
+              Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4]));
+              var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+              Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4",]));
+              var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
+              Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L]));
+          });
+    }
+
     private async Task BaseMergeTest(string query, Action<IReadOnlyList<RecordBatch>> assertions)
     {
         var pair = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);
