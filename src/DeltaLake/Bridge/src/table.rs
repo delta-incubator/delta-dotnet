@@ -734,7 +734,7 @@ pub extern "C" fn table_merge(
                             make_update!(update, predicate, assignments)
                         }),
                         crate::sql::MergeClause::MatchedDelete(predicate) => mb
-                            .when_not_matched_by_source_delete(|delete| match predicate {
+                            .when_matched_delete(|delete| match predicate {
                                 Some(predicate) => delete.predicate(predicate.to_string()),
                                 None => delete,
                             }),

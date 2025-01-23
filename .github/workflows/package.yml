@@ -1,9 +1,12 @@
 name: Build Package
 on:
+  pull_request:
+    branches: ["main"]
   push:
     branches:
       - main
       - "releases/*"
+  workflow_dispatch:
 
 jobs:
   build-rust-libraries:
@@ -69,21 +72,20 @@ jobs:
         run: |
           cargo install cross
 
-        # Note: Kernel builds are currently using non-release builds, see .csproj for details
-        #
       - name: Build alternative target
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
           cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud" --target ${{ matrix.alternative-target }}
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --features "delta_kernel/cloud" --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
         run: |
+          CROSS_CONFIG=src/DeltaLake/Bridge/cross/${{ matrix.alternative-target }}/Cross.toml \
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
           
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
-              cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml \
+              cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
                           --features "delta_kernel/cloud" \
                           --target ${{ matrix.alternative-target }}
 
@@ -93,7 +95,7 @@ jobs:
       
       - name: Build Kernel
         if: ${{ !matrix.alternative-target }}
-        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --features "delta_kernel/cloud"
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --features "delta_kernel/cloud"
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}
@@ -107,7 +109,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
-          path: src/DeltaLake/Kernel/delta-kernel-rs/target/debug/${{ matrix.kernel-out-file }}
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/release/${{ matrix.kernel-out-file }}
 
       - name: Upload bridge library alternative target
         if: ${{ matrix.alternative-target != '' }}
@@ -122,7 +124,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
-          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/debug/${{ matrix.kernel-out-file }}
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/release/${{ matrix.kernel-out-file }}
           if-no-files-found: "error"
 
   build-nuget-package:
@@ -148,7 +150,9 @@ jobs:
         uses: actions/setup-dotnet@v3
 
       - name: Build package
-        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release /p:RustLibraryRoot=${{ github.workspace }}/rust-libraries
+        run: dotnet pack src/DeltaLake/DeltaLake.csproj -c Release `
+          --property:RustLibraryRoot=${{ github.workspace }}\rust-libraries `
+          --property:KernelLibraryRoot=${{ github.workspace }}\rust-libraries
 
       - name: Upload NuGet artifact
         uses: actions/upload-artifact@v4
@@ -158,6 +162,8 @@ jobs:
             src/DeltaLake/bin/Release/*.nupkg
             src/DeltaLake/bin/Release/*.snupkg
       - name: Push nuget artifacts
+        if: github.ref == 'refs/heads/main'
         run: |
           dotnet nuget add source --username USERNAME --password ${{ secrets.GITHUB_TOKEN }} --store-password-in-clear-text --name github "https://nuget.pkg.github.com/delta-incubator/index.json"
           dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.GITHUB_TOKEN }} --source "github" --skip-duplicate
+          dotnet nuget push .\src\DeltaLake\bin\Release\DeltaLake.Net.*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
