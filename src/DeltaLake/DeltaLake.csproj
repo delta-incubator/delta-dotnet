@@ -10,7 +10,7 @@
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <Nullable>enable</Nullable>
-        <TargetFrameworks>net6.0;net8.0;</TargetFrameworks>
+        <TargetFrameworks>net472;net8.0;</TargetFrameworks>
         <VersionSuffix>rc-1</VersionSuffix>
         <PackageTags>deltalake csharp</PackageTags>
         <PackageId>DeltaLake.Net</PackageId>
@@ -19,8 +19,9 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Data.Analysis" Version="0.21.1" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-        <PackageReference Include="Apache.Arrow" Version="15.0.0" />
-    </ItemGroup>
+		<PackageReference Include="Apache.Arrow" Version="15.0.0" />
+		<PackageReference Include="System.Text.Json" Version="9.0.0" />
+	</ItemGroup>
 
     <ItemGroup>
         <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
