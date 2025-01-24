@@ -1,3 +1,14 @@
+// -----------------------------------------------------------------------------
+// <summary>
+// Runtime-specific helpers for marshaling to and from UTF8 strings
+// </summary>
+//
+// <copyright company="The Delta Lake Project Authors">
+// Copyright (2025) The Delta Lake Project Authors.  All rights reserved.
+// Licensed under the Apache license. See LICENSE file in the project root for full license information.
+// </copyright>
+// -----------------------------------------------------------------------------
+
 using System;
 #pragma warning disable IDE0005 // Using directive is unnecessary.
 using System.Diagnostics.CodeAnalysis;
@@ -82,4 +93,3 @@ namespace DeltaLake.Extensions
 #endif
     }
 }
-

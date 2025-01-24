@@ -1,6 +1,17 @@
-#pragma warning disable IDE0130 // Namespace does not match folder structure
+// -----------------------------------------------------------------------------
+// <summary>
+// Shims for .NET 6+ functionality that's not available to Desktop Framework
+// </summary>
+//
+// <copyright company="The Delta Lake Project Authors">
+// Copyright (2025) The Delta Lake Project Authors.  All rights reserved.
+// Licensed under the Apache license. See LICENSE file in the project root for full license information.
+// </copyright>
+// -----------------------------------------------------------------------------
 
 #if !NETCOREAPP
+
+#pragma warning disable IDE0130 // Namespace does not match folder structure
 
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -110,10 +121,6 @@ namespace System.Threading.Tasks
     }
 }
 
-#endif
-
-namespace System.IO
-{
-}
-
 #pragma warning restore IDE0130 // Namespace does not match folder structure
+
+#endif
