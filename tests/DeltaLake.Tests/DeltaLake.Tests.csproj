@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFrameworks>net472;net8.0</TargetFrameworks>
+        <TargetFrameworks Condition="'$(IsWindows)'=='true'>net472;net8.0</TargetFrameworks>
+        <TargetFrameworks Condition="'$(IsWindows)'!='true'>net8.0</TargetFrameworks>
         <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
         <ImplicitUsings>enable</ImplicitUsings>
         <IsPackable>false</IsPackable>
