@@ -52,11 +52,6 @@ namespace DeltaLake.Tests.Table
                     length,
                     async table =>
                     {
-                        await table.VacuumAsync(new VacuumOptions
-                        {
-                            DryRun = true,
-                        },
-                        CancellationToken.None);
                         await table.VacuumAsync(new VacuumOptions(),
                         CancellationToken.None);
                     });

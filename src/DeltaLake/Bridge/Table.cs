@@ -614,7 +614,7 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal virtual async Task VacuumAsync(VacuumOptions options, ICancellationToken cancellationToken)
+        internal virtual async Task VacuumAsync(DeltaLake.Table.VacuumOptions options, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
             using (var scope = new Scope())
@@ -633,7 +633,7 @@ namespace DeltaLake.Bridge
                         _runtime.Ptr,
                         _ptr,
                         scope.Pointer(interopOptions),
-                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        scope.FunctionPointer<Interop.GenericErrorCallback>((_success, fail) =>
                         {
                             if (cancellationToken.IsCancellationRequested)
                             {

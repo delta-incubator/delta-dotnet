@@ -83,6 +83,7 @@ public static class TableHelpers
     {
         TableIdentifier.TableWithColumnMapping => false,
         TableIdentifier.CheckpointsTombstones => false,
+        TableIdentifier.SimpleTableFeatures => false,
         _ => true,
     });
 
