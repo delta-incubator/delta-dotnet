@@ -207,7 +207,8 @@ namespace DeltaLake.Table
         ) => this.AddConstraintsAsync(constraints, null, cancellationToken);
 
         /// <inheritdoc/>
-        public async Task CheckpointAsync(CancellationToken cancellationToken) {
+        public async Task CheckpointAsync(CancellationToken cancellationToken)
+        {
             await table.CheckpointAsync(cancellationToken).ConfigureAwait(false);
         }
 
