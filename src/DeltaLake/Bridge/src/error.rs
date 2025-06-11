@@ -73,71 +73,73 @@ impl DeltaTableError {
             deltalake::DeltaTableError::Parquet { .. } => DeltaTableErrorCode::Parquet,
             deltalake::DeltaTableError::Arrow { .. } => DeltaTableErrorCode::Arrow,
             deltalake::DeltaTableError::InvalidJsonLog { .. } => {
-                DeltaTableErrorCode::InvalidJsonLog
-            }
+                        DeltaTableErrorCode::InvalidJsonLog
+                    }
             deltalake::DeltaTableError::InvalidStatsJson { .. } => {
-                DeltaTableErrorCode::InvalidStatsJson
-            }
+                        DeltaTableErrorCode::InvalidStatsJson
+                    }
             deltalake::DeltaTableError::InvalidInvariantJson { .. } => {
-                DeltaTableErrorCode::InvalidInvariantJson
-            }
+                        DeltaTableErrorCode::InvalidInvariantJson
+                    }
             deltalake::DeltaTableError::InvalidVersion(_) => DeltaTableErrorCode::InvalidVersion,
             deltalake::DeltaTableError::MissingDataFile { .. } => {
-                DeltaTableErrorCode::MissingDataFile
-            }
+                        DeltaTableErrorCode::MissingDataFile
+                    }
             deltalake::DeltaTableError::InvalidDateTimeString { .. } => {
-                DeltaTableErrorCode::InvalidDateTimeString
-            }
+                        DeltaTableErrorCode::InvalidDateTimeString
+                    }
             deltalake::DeltaTableError::InvalidData { .. } => DeltaTableErrorCode::InvalidData,
             deltalake::DeltaTableError::NotATable(_) => DeltaTableErrorCode::NotATable,
             deltalake::DeltaTableError::NoMetadata => DeltaTableErrorCode::NoMetadata,
             deltalake::DeltaTableError::NoSchema => DeltaTableErrorCode::NoSchema,
             deltalake::DeltaTableError::LoadPartitions => DeltaTableErrorCode::LoadPartitions,
             deltalake::DeltaTableError::SchemaMismatch { .. } => {
-                DeltaTableErrorCode::SchemaMismatch
-            }
+                        DeltaTableErrorCode::SchemaMismatch
+                    }
             deltalake::DeltaTableError::PartitionError { .. } => {
-                DeltaTableErrorCode::PartitionError
-            }
+                        DeltaTableErrorCode::PartitionError
+                    }
             deltalake::DeltaTableError::InvalidPartitionFilter { .. } => {
-                DeltaTableErrorCode::InvalidPartitionFilter
-            }
+                        DeltaTableErrorCode::InvalidPartitionFilter
+                    }
             deltalake::DeltaTableError::ColumnsNotPartitioned { .. } => {
-                DeltaTableErrorCode::ColumnsNotPartitioned
-            }
+                        DeltaTableErrorCode::ColumnsNotPartitioned
+                    }
             deltalake::DeltaTableError::Io { .. } => DeltaTableErrorCode::Io,
             deltalake::DeltaTableError::Transaction { .. } => DeltaTableErrorCode::Transaction,
             deltalake::DeltaTableError::VersionAlreadyExists(_) => {
-                DeltaTableErrorCode::VersionAlreadyExists
-            }
+                        DeltaTableErrorCode::VersionAlreadyExists
+                    }
             deltalake::DeltaTableError::VersionMismatch(_, _) => {
-                DeltaTableErrorCode::VersionMismatch
-            }
+                        DeltaTableErrorCode::VersionMismatch
+                    }
             deltalake::DeltaTableError::MissingFeature { .. } => {
-                DeltaTableErrorCode::MissingFeature
-            }
+                        DeltaTableErrorCode::MissingFeature
+                    }
             deltalake::DeltaTableError::InvalidTableLocation(_) => {
-                DeltaTableErrorCode::InvalidTableLocation
-            }
+                        DeltaTableErrorCode::InvalidTableLocation
+                    }
             deltalake::DeltaTableError::SerializeLogJson { .. } => {
-                DeltaTableErrorCode::SerializeLogJson
-            }
+                        DeltaTableErrorCode::SerializeLogJson
+                    }
             deltalake::DeltaTableError::SerializeSchemaJson { .. } => {
-                DeltaTableErrorCode::SerializeSchemaJson
-            }
+                        DeltaTableErrorCode::SerializeSchemaJson
+                    }
             deltalake::DeltaTableError::Generic(_) => DeltaTableErrorCode::Generic,
             deltalake::DeltaTableError::GenericError { .. } => DeltaTableErrorCode::GenericError,
             deltalake::DeltaTableError::Kernel { .. } => DeltaTableErrorCode::Kernel,
             deltalake::DeltaTableError::MetadataError(_) => DeltaTableErrorCode::MetaDataError,
             deltalake::DeltaTableError::NotInitialized => DeltaTableErrorCode::NotInitialized,
             deltalake::DeltaTableError::CommitValidation { source: _ } => {
-                DeltaTableErrorCode::InvalidData
-            }
+                        DeltaTableErrorCode::InvalidData
+                    }
             deltalake::DeltaTableError::KernelError(..) => DeltaTableErrorCode::Kernel,
             deltalake::DeltaTableError::NotInitializedWithFiles(_) => DeltaTableErrorCode::Generic,
             deltalake::DeltaTableError::ChangeDataNotRecorded { .. } => DeltaTableErrorCode::Generic,
             deltalake::DeltaTableError::ChangeDataNotEnabled { .. } => DeltaTableErrorCode::Generic,
             deltalake::DeltaTableError::ChangeDataInvalidVersionRange { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::ChangeDataTimestampGreaterThanCommit { .. } => DeltaTableErrorCode::Generic,
+            deltalake::DeltaTableError::NoStartingVersionOrTimestamp => DeltaTableErrorCode::Generic,
         };
 
         Self::new(_runtime, code, &error_string)

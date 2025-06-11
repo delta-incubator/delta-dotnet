@@ -20,10 +20,10 @@ use deltalake::{
         execution::context::{SQLOptions, SessionContext},
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
-    kernel::StructType,
+    kernel::{transaction::CommitProperties, StructType},
     operations::{
         constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        transaction::CommitProperties, update::UpdateBuilder, vacuum::VacuumBuilder,
+        update::UpdateBuilder, vacuum::VacuumBuilder,
         optimize::OptimizeBuilder,
         write::WriteBuilder,
     },
@@ -1316,7 +1316,7 @@ pub extern "C" fn table_checkpoint(
         rt,
         tbl,
         {
-            match deltalake::checkpoints::create_checkpoint(&tbl.table).await {
+            match deltalake::checkpoints::create_checkpoint(&tbl.table, None).await {
                 Ok(_) => unsafe {
                     callback(std::ptr::null());
                 },
@@ -1680,6 +1680,7 @@ async fn create_delta_table(
     description: Option<String>,
     configuration: Option<HashMap<String, Option<String>>>,
     storage_options: Option<HashMap<String, String>>,
+    #[allow(unused)]
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
     let table = DeltaTableBuilder::from_valid_uri(table_uri)
@@ -1707,11 +1708,11 @@ async fn create_delta_table(
         builder = builder.with_configuration(config);
     };
 
-    if let Some(metadata) = custom_metadata {
+    /*if let Some(metadata) = custom_metadata {
         let json_metadata: serde_json::Map<String, serde_json::Value> =
             metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
         builder = builder.with_metadata(json_metadata);
-    };
+    };*/
 
     let table = builder
         .await
