@@ -227,5 +227,23 @@ namespace DeltaLake.Interfaces
         Task AddConstraintsAsync(IReadOnlyDictionary<string, string> constraints, CancellationToken cancellationToken);
 
         #endregion Metadata Operations
+
+        #region Maintenance Operations
+        /// <summary>
+        /// Create a checkpoint at the latest transaction
+        /// </summary>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/>representing applying the constraint operation.</returns>
+        Task CheckpointAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Vacuum an existing table
+        /// </summary>
+        /// <param name="options">Options for the operation</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/>representing applying the constraint operation.</returns>
+        Task VacuumAsync(VacuumOptions options, CancellationToken cancellationToken);
+
+        #endregion Maintenance Operations
     }
 }

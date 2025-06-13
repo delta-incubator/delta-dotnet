@@ -292,6 +292,8 @@ public partial class LoadTests
     public async Task Table_Will_Load_Test(TableIdentifier identifier)
     {
         var location = identifier.TablePath();
+        await Console.Out.WriteLineAsync($"Attempting to use this table identifier: {identifier}");
+        await Console.Out.FlushAsync();
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
         using var table = await engine.LoadTableAsync(new TableOptions() { TableLocation = location },
         CancellationToken.None);
