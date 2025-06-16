@@ -75,9 +75,9 @@ namespace DeltaLake.Kernel.Core
         /// It is our responsibility to release these pointers via the paired GC
         /// handles via <see cref="GCHandle.Free()"/>.
         /// </remarks>
-        private readonly unsafe sbyte* gcPinnedTableLocationPtr;
-        private readonly unsafe sbyte** gcPinnedStorageOptionsKeyPtrs;
-        private readonly unsafe sbyte** gcPinnedStorageOptionsValuePtrs;
+        private readonly unsafe byte* gcPinnedTableLocationPtr;
+        private readonly unsafe byte** gcPinnedStorageOptionsKeyPtrs;
+        private readonly unsafe byte** gcPinnedStorageOptionsValuePtrs;
 
         private readonly GCHandle tableLocationHandle;
         private readonly GCHandle[] storageOptionsKeyHandles;
@@ -131,9 +131,9 @@ namespace DeltaLake.Kernel.Core
             {
                 // Kernel String Slice is used to communicate the table location.
                 //
-                (GCHandle handle, IntPtr ptr) = tableStorageOptions.TableLocation.ToPinnedSBytePointer();
+                (GCHandle handle, IntPtr ptr) = tableStorageOptions.TableLocation.ToPinnedBytePointer();
                 this.tableLocationHandle = handle;
-                this.gcPinnedTableLocationPtr = (sbyte*)ptr.ToPointer();
+                this.gcPinnedTableLocationPtr = (byte*)ptr.ToPointer();
                 this.tableLocationSlice = new KernelStringSlice { ptr = this.gcPinnedTableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
@@ -153,20 +153,20 @@ namespace DeltaLake.Kernel.Core
                 int count = tableStorageOptions.StorageOptions.Count;
                 this.storageOptionsKeyHandles = new GCHandle[count];
                 this.storageOptionsValueHandles = new GCHandle[count];
-                this.gcPinnedStorageOptionsKeyPtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
-                this.gcPinnedStorageOptionsValuePtrs = (sbyte**)Marshal.AllocHGlobal(count * sizeof(sbyte*));
+                this.gcPinnedStorageOptionsKeyPtrs = (byte**)Marshal.AllocHGlobal(count * sizeof(byte*));
+                this.gcPinnedStorageOptionsValuePtrs = (byte**)Marshal.AllocHGlobal(count * sizeof(byte*));
                 this.storageOptionsKeySlices = new KernelStringSlice[count];
                 this.storageOptionsValueSlices = new KernelStringSlice[count];
 
                 foreach (KeyValuePair<string, string> kvp in tableStorageOptions.StorageOptions)
                 {
-                    (GCHandle keyHandle, IntPtr keyPtr) = kvp.Key.ToPinnedSBytePointer();
-                    (GCHandle valueHandle, IntPtr valuePtr) = kvp.Value.ToPinnedSBytePointer();
+                    (GCHandle keyHandle, IntPtr keyPtr) = kvp.Key.ToPinnedBytePointer();
+                    (GCHandle valueHandle, IntPtr valuePtr) = kvp.Value.ToPinnedBytePointer();
 
                     this.storageOptionsKeyHandles[index] = keyHandle;
                     this.storageOptionsValueHandles[index] = valueHandle;
-                    this.gcPinnedStorageOptionsKeyPtrs[index] = (sbyte*)keyPtr.ToPointer();
-                    this.gcPinnedStorageOptionsValuePtrs[index] = (sbyte*)valuePtr.ToPointer();
+                    this.gcPinnedStorageOptionsKeyPtrs[index] = (byte*)keyPtr.ToPointer();
+                    this.gcPinnedStorageOptionsValuePtrs[index] = (byte*)valuePtr.ToPointer();
                     this.storageOptionsKeySlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsKeyPtrs[index], len = (nuint)kvp.Key.Length };
                     this.storageOptionsValueSlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsValuePtrs[index], len = (nuint)kvp.Value.Length };
 
