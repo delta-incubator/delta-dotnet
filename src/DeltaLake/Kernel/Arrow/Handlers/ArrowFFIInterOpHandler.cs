@@ -100,8 +100,8 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             string parquetAbsolutePath = $"{tableRoot}/{MarshalExtensions.PtrToStringUTF8((IntPtr)path.ptr, (int)path.len)}";
 #pragma warning restore CS8600
 
-            (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedSBytePointer();
-            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (sbyte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
+            (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedBytePointer();
+            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (byte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
             FileMeta parquetMeta = new() { path = parquetAbsolutePathSlice };
 
             try
@@ -157,12 +157,12 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
                 //
 #pragma warning disable CS1024, CS8629, CS8600 // If Kernel sends us back null pointers, we are in trouble anyway
-                void* colValPtr = Methods.get_from_map(
+                void* colValPtr = Methods.get_from_string_map(
                     partitionKeyValueMap,
                     new KernelStringSlice
                     {
-                        ptr = (sbyte*)partitionCols->Cols[i],
-                        len = (ulong)colName?.Length
+                        ptr = (byte*)partitionCols->Cols[i],
+                        len = colName != null ? new UIntPtr((uint)colName.Length) : UIntPtr.Zero
                     },
                     Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
                 );
