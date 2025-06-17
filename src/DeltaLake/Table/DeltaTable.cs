@@ -206,6 +206,18 @@ namespace DeltaLake.Table
             CancellationToken cancellationToken
         ) => this.AddConstraintsAsync(constraints, null, cancellationToken);
 
+        /// <inheritdoc/>
+        public async Task CheckpointAsync(CancellationToken cancellationToken)
+        {
+            await table.CheckpointAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
+        public async Task VacuumAsync(VacuumOptions options, CancellationToken cancellationToken)
+        {
+            await table.VacuumAsync(options, cancellationToken).ConfigureAwait(false);
+        }
+
         #endregion ITable implementation
 
         #region IDisposable implementation

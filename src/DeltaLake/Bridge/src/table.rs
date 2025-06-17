@@ -17,7 +17,8 @@ use deltalake::{
     datafusion::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
-        execution::context::{SQLOptions, SessionContext}, sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
+        execution::context::{SQLOptions, SessionContext},
+        sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
     kernel::StructType,
     operations::{
@@ -926,11 +927,7 @@ fn table_update_internal(
 ) -> Result<(Option<Expr>, Vec<Assignment>), DeltaTableError> {
     let query_str = unsafe { query.as_ref().to_str() };
     let mut parser = DeltaLakeParser::new(query_str)
-    .map_err(|err| DeltaTableError::new(
-        rt,
-        DeltaTableErrorCode::Generic,
-        &err.to_string(),
-    ))?;
+        .map_err(|err| DeltaTableError::new(rt, DeltaTableErrorCode::Generic, &err.to_string()))?;
     parser.parse_update(rt)
 }
 
@@ -977,17 +974,17 @@ pub extern "C" fn table_update(
                         for col in object_name.0 {
                             ub = ub.with_update(col.to_string(), assign.value.to_string());
                         }
-                    },
+                    }
                     AssignmentTarget::Tuple(vec) => {
                         for item in vec {
                             for col in item.0 {
                                 ub = ub.with_update(col.to_string(), assign.value.to_string());
                             }
                         }
-                    },
+                    }
                 };
             }
-            
+
             match ub.await {
                 Ok((delta_table, metrics)) => {
                     tbl.table = delta_table;
@@ -1389,7 +1386,8 @@ async fn vacuum(
         cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(json_metadata));
     };
 
-    let (result, metrics) = cmd.await?;
+    let (result, metrics) = cmd
+        .await?;
     table.state = result.state;
     Ok(metrics.files_deleted)
 }
@@ -1646,7 +1644,6 @@ fn ffi_to_batches(
     }
     Ok((read_batches, schema))
 }
-
 
 #[cfg(test)]
 mod tests {
