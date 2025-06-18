@@ -35,13 +35,6 @@ namespace DeltaLake.Kernel.State
         public unsafe SharedScan* Scan(bool refresh);
 
         /// <summary>
-        /// Gets the managed point in time global table scan state.
-        /// </summary>
-        /// <param name="refresh">Whether to refresh.</param>
-        /// <returns>The managed point in time global scan state.</returns>
-        public unsafe SharedGlobalScanState* GlobalScanState(bool refresh);
-
-        /// <summary>
         /// Gets the managed point in time table shared schema.
         /// </summary>
         /// <param name="refresh">Whether to refresh.</param>

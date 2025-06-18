@@ -82,7 +82,7 @@ namespace DeltaLake.Kernel.Core
         private readonly GCHandle tableLocationHandle;
         private readonly GCHandle[] storageOptionsKeyHandles;
         private readonly GCHandle[] storageOptionsValueHandles;
-
+        private readonly GCHandle? allocatorHandle;
         /// <summary>
         /// Pointers **KERNEL** manages related to this <see cref="Table"/> class.
         /// </summary>
@@ -138,8 +138,9 @@ namespace DeltaLake.Kernel.Core
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
-                //
-                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, Marshal.GetFunctionPointerForDelegate<AllocateErrorFn>(AllocateErrorCallbacks.ThrowAllocationError));
+                var handleForAllocator = GCHandle.Alloc((AllocateErrorFn)AllocateErrorCallbacks.AllocateError);
+                ExternResultEngineBuilder engineBuilder = Methods.get_engine_builder(this.tableLocationSlice, Marshal.GetFunctionPointerForDelegate(handleForAllocator.Target!));
+                this.allocatorHandle = handleForAllocator;
                 if (engineBuilder.tag != ExternResultEngineBuilder_Tag.OkEngineBuilder)
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
@@ -314,7 +315,7 @@ namespace DeltaLake.Kernel.Core
             if (this.isKernelAllocated)
             {
                 this.state.Dispose();
-
+                this.allocatorHandle?.Free();
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
                 foreach (GCHandle handle in this.storageOptionsValueHandles) if (handle.IsAllocated) handle.Free();

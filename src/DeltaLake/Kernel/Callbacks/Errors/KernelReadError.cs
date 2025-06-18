@@ -10,7 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System;
-using DeltaLake.Extensions;
+using System.Runtime.InteropServices;
 using DeltaLake.Kernel.Interop;
 
 namespace DeltaLake.Kernel.Callbacks.Errors
@@ -18,17 +18,23 @@ namespace DeltaLake.Kernel.Callbacks.Errors
     /// <summary>
     /// Represents an error that occurred during reading operations via the Kernel.
     /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
     internal struct KernelReadError
     {
-        public EngineError etype;
-        public IntPtr msg;
-
-#pragma warning disable CS8603, IDE0251 // Possible pointer null reference return is possible when we work with Kernel if the Kernel has a bug
-        public string Message
+        public KernelReadError(EngineError engineError, KernelStringSlice kernelStringSlice)
         {
-            get => MarshalExtensions.PtrToStringUTF8(msg);
-            set => msg = MarshalExtensions.StringToCoTaskMemUTF8(value);
+            unsafe
+            {
+                msg = kernelStringSlice.ptr == null ? "test message" : System.Text.Encoding.UTF8.GetString(kernelStringSlice.ptr, (int)kernelStringSlice.len);
+            }
+
+            etype = engineError;
         }
-#pragma warning restore CS8603, IDE0251
+
+        // [FieldOffset(0)]
+        public EngineError etype;
+
+        // [FieldOffset(4)]
+        public string msg;
     }
 }

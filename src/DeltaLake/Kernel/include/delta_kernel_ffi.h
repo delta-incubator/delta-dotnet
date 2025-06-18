@@ -5,26 +5,30 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#ifdef __cplusplus
+namespace ffi {
+#endif  // __cplusplus
+
 typedef enum KernelError {
   UnknownError,
   FFIError,
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
   ArrowError,
 #endif
   EngineDataTypeError,
   ExtractError,
   GenericError,
   IOErrorError,
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
   ParquetError,
 #endif
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
   ObjectStoreError,
 #endif
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
   ObjectStorePathError,
 #endif
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
   ReqwestError,
 #endif
   FileNotFoundError,
@@ -136,7 +140,7 @@ typedef struct CTransforms CTransforms;
  */
 typedef struct DvInfo DvInfo;
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * A builder that allows setting options on the `Engine` before actually building it
  */
@@ -562,7 +566,7 @@ typedef struct FFI_ArrowSchema {
   void *private_data;
 } FFI_ArrowSchema;
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * Struct to allow binding to the arrow [C Data
  * Interface](https://arrow.apache.org/docs/format/CDataInterface.html). This includes the data and
@@ -1529,6 +1533,10 @@ typedef struct EngineSchemaVisitor {
                               const struct CStringMap *metadata);
 } EngineSchemaVisitor;
 
+#ifdef __cplusplus
+extern "C" {
+#endif // __cplusplus
+
 /**
  * # Safety
  *
@@ -1552,7 +1560,7 @@ void free_row_indexes(struct KernelRowIndexArray slice);
  */
 void free_engine_data(HandleExclusiveEngineData engine_data);
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * Get a "builder" that can be used to construct an engine. The function
  * [`set_builder_option`] can be used to set options on the builder prior to constructing the
@@ -1565,7 +1573,7 @@ struct ExternResultEngineBuilder get_engine_builder(struct KernelStringSlice pat
                                                     AllocateErrorFn allocate_error);
 #endif
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * Set an option on the builder
  *
@@ -1578,7 +1586,7 @@ void set_builder_option(struct EngineBuilder *builder,
                         struct KernelStringSlice value);
 #endif
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * Consume the builder and return a `default` engine. After calling, the passed pointer is _no
  * longer valid_. Note that this _consumes_ and frees the builder, so there is no need to
@@ -1592,7 +1600,7 @@ void set_builder_option(struct EngineBuilder *builder,
 struct ExternResultHandleSharedExternEngine builder_build(struct EngineBuilder *builder);
 #endif
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * # Safety
  *
@@ -1718,7 +1726,7 @@ uintptr_t engine_data_length(HandleExclusiveEngineData *data);
  */
 void *get_raw_engine_data(HandleExclusiveEngineData data);
 
-#if defined(DEFINE_DEFAULT_ENGINE)
+#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
 /**
  * Get an [`ArrowFFIData`] to allow binding to the arrow [C Data
  * Interface](https://arrow.apache.org/docs/format/CDataInterface.html). This includes the data and
@@ -2206,3 +2214,11 @@ HandleSharedExpression get_testing_kernel_expression(void);
  * [`crate::expressions::free_kernel_predicate`], or [`crate::handle::Handle::drop_handle`].
  */
 HandleSharedPredicate get_testing_kernel_predicate(void);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif  // __cplusplus
+
+#ifdef __cplusplus
+}  // namespace ffi
+#endif  // __cplusplus
