@@ -9,7 +9,6 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
-using System;
 using System.Runtime.InteropServices;
 using DeltaLake.Kernel.Interop;
 
@@ -35,20 +34,19 @@ namespace DeltaLake.Kernel.Callbacks.Allocators
             // terminator.
             //
             int len = (int)slice.len;
-            IntPtr unmanagedMemory = Marshal.AllocHGlobal(len + 1);
-
+            var unmanagedMemory = (byte*)Marshal.AllocHGlobal(len + 1);
             // Copy the string into the allocated unmanaged memory.
             //
             for (int i = 0; i < len; i++)
             {
-                Marshal.WriteByte(unmanagedMemory, i, Marshal.ReadByte((IntPtr)slice.ptr, i));
+                unmanagedMemory[i] = slice.ptr[i];
             }
 
             // Set the null terminator.
             //
-            Marshal.WriteByte(unmanagedMemory, len, 0);
+            unmanagedMemory[len] = 0;
 
-            return unmanagedMemory.ToPointer();
+            return unmanagedMemory;
         }
     }
 }

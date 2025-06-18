@@ -84,6 +84,10 @@ public static class TableHelpers
         TableIdentifier.TableWithColumnMapping => false,
         TableIdentifier.CheckpointsTombstones => false,
         TableIdentifier.SimpleTableFeatures => false,
+        TableIdentifier.DeltaLiveTable => false,
+        TableIdentifier.TableWithLiquidClustering => false,
+        TableIdentifier.TableWithDeletionLogs => false,
+        TableIdentifier.TableWithDvSmall => false,
         _ => true,
     });
 

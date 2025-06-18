@@ -9,7 +9,7 @@ public class RestoreTests
     [InlineData(false)]
     public async Task Restore_Cancellation_Test(bool useVersion)
     {
-        var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1);
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 1);
         using var table = data.table;
         var options = new RestoreOptions
         {

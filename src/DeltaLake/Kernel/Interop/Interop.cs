@@ -192,20 +192,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultEngineBuilder
     {
+        [NativeTypeName("ffi::ExternResultEngineBuilder_Tag")]
         public ExternResultEngineBuilder_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L277_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L281_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L278_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L282_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L281_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L285_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -244,25 +245,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleSharedExternEngine
     {
+        [NativeTypeName("ffi::ExternResultHandleSharedExternEngine_Tag")]
         public ExternResultHandleSharedExternEngine_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L365_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L369_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L366_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L370_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L369_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L373_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleSharedExternEngine")]
+                [NativeTypeName("ffi::HandleSharedExternEngine")]
                 public SharedExternEngine* ok;
             }
 
@@ -283,25 +285,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleSharedSnapshot
     {
+        [NativeTypeName("ffi::ExternResultHandleSharedSnapshot_Tag")]
         public ExternResultHandleSharedSnapshot_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L422_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L426_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L423_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L427_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L426_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L430_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleSharedSnapshot")]
+                [NativeTypeName("ffi::HandleSharedSnapshot")]
                 public SharedSnapshot* ok;
             }
 
@@ -314,7 +317,7 @@ namespace DeltaLake.Kernel.Interop
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    [return: NativeTypeName("NullableCvoid")]
+    [return: NativeTypeName("ffi::NullableCvoid")]
     internal unsafe delegate void* AllocateStringFn([NativeTypeName("struct KernelStringSlice")] KernelStringSlice kernel_str);
 
     internal unsafe partial struct FFI_ArrowArray
@@ -396,20 +399,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultArrowFFIData
     {
+        [NativeTypeName("ffi::ExternResultArrowFFIData_Tag")]
         public ExternResultArrowFFIData_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L588_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L592_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L589_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L593_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L592_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L596_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -435,20 +439,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultbool
     {
+        [NativeTypeName("ffi::ExternResultbool_Tag")]
         public ExternResultbool_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L609_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L613_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L610_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L614_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L613_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L617_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -473,25 +478,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleExclusiveFileReadResultIterator
     {
+        [NativeTypeName("ffi::ExternResultHandleExclusiveFileReadResultIterator_Tag")]
         public ExternResultHandleExclusiveFileReadResultIterator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L666_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L670_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L667_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L671_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L670_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L674_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleExclusiveFileReadResultIterator")]
+                [NativeTypeName("ffi::HandleExclusiveFileReadResultIterator")]
                 public ExclusiveFileReadResultIterator* ok;
             }
 
@@ -524,25 +530,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleExclusiveEngineData
     {
+        [NativeTypeName("ffi::ExternResultHandleExclusiveEngineData_Tag")]
         public ExternResultHandleExclusiveEngineData_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L729_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L733_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L730_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L734_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L733_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L737_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleExclusiveEngineData")]
+                [NativeTypeName("ffi::HandleExclusiveEngineData")]
                 public ExclusiveEngineData* ok;
             }
 
@@ -594,37 +601,37 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("uintptr_t (*)(void *, uintptr_t)")]
         public IntPtr make_field_list;
 
-        [NativeTypeName("VisitLiteralFni32")]
+        [NativeTypeName("ffi::VisitLiteralFni32")]
         public IntPtr visit_literal_int;
 
-        [NativeTypeName("VisitLiteralFni64")]
+        [NativeTypeName("ffi::VisitLiteralFni64")]
         public IntPtr visit_literal_long;
 
-        [NativeTypeName("VisitLiteralFni16")]
+        [NativeTypeName("ffi::VisitLiteralFni16")]
         public IntPtr visit_literal_short;
 
-        [NativeTypeName("VisitLiteralFni8")]
+        [NativeTypeName("ffi::VisitLiteralFni8")]
         public IntPtr visit_literal_byte;
 
-        [NativeTypeName("VisitLiteralFnf32")]
+        [NativeTypeName("ffi::VisitLiteralFnf32")]
         public IntPtr visit_literal_float;
 
-        [NativeTypeName("VisitLiteralFnf64")]
+        [NativeTypeName("ffi::VisitLiteralFnf64")]
         public IntPtr visit_literal_double;
 
-        [NativeTypeName("VisitLiteralFnKernelStringSlice")]
+        [NativeTypeName("ffi::VisitLiteralFnKernelStringSlice")]
         public IntPtr visit_literal_string;
 
-        [NativeTypeName("VisitLiteralFnbool")]
+        [NativeTypeName("ffi::VisitLiteralFnbool")]
         public IntPtr visit_literal_bool;
 
-        [NativeTypeName("VisitLiteralFni64")]
+        [NativeTypeName("ffi::VisitLiteralFni64")]
         public IntPtr visit_literal_timestamp;
 
-        [NativeTypeName("VisitLiteralFni64")]
+        [NativeTypeName("ffi::VisitLiteralFni64")]
         public IntPtr visit_literal_timestamp_ntz;
 
-        [NativeTypeName("VisitLiteralFni32")]
+        [NativeTypeName("ffi::VisitLiteralFni32")]
         public IntPtr visit_literal_date;
 
         [NativeTypeName("void (*)(void *, uintptr_t, const uint8_t *, uintptr_t)")]
@@ -645,43 +652,43 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("void (*)(void *, uintptr_t)")]
         public IntPtr visit_literal_null;
 
-        [NativeTypeName("VisitJunctionFn")]
+        [NativeTypeName("ffi::VisitJunctionFn")]
         public IntPtr visit_and;
 
-        [NativeTypeName("VisitJunctionFn")]
+        [NativeTypeName("ffi::VisitJunctionFn")]
         public IntPtr visit_or;
 
-        [NativeTypeName("VisitUnaryFn")]
+        [NativeTypeName("ffi::VisitUnaryFn")]
         public IntPtr visit_not;
 
-        [NativeTypeName("VisitUnaryFn")]
+        [NativeTypeName("ffi::VisitUnaryFn")]
         public IntPtr visit_is_null;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_lt;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_gt;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_eq;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_distinct;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_in;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_add;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_minus;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_multiply;
 
-        [NativeTypeName("VisitBinaryFn")]
+        [NativeTypeName("ffi::VisitBinaryFn")]
         public IntPtr visit_divide;
 
         [NativeTypeName("void (*)(void *, uintptr_t, struct KernelStringSlice)")]
@@ -708,20 +715,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultusize
     {
+        [NativeTypeName("ffi::ExternResultusize_Tag")]
         public ExternResultusize_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1074_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1078_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1075_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1079_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1078_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1082_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -771,20 +779,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultKernelBoolSlice
     {
+        [NativeTypeName("ffi::ExternResultKernelBoolSlice_Tag")]
         public ExternResultKernelBoolSlice_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1162_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1166_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1163_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1167_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1166_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1170_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -810,25 +819,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleSharedScan
     {
+        [NativeTypeName("ffi::ExternResultHandleSharedScan_Tag")]
         public ExternResultHandleSharedScan_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1219_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1223_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1220_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1224_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1223_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1227_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleSharedScan")]
+                [NativeTypeName("ffi::HandleSharedScan")]
                 public SharedScan* ok;
             }
 
@@ -857,25 +867,26 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultHandleSharedScanMetadataIterator
     {
+        [NativeTypeName("ffi::ExternResultHandleSharedScanMetadataIterator_Tag")]
         public ExternResultHandleSharedScanMetadataIterator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1293_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1297_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1294_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1298_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1297_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1301_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("HandleSharedScanMetadataIterator")]
+                [NativeTypeName("ffi::HandleSharedScanMetadataIterator")]
                 public SharedScanMetadataIterator* ok;
             }
 
@@ -896,20 +907,21 @@ namespace DeltaLake.Kernel.Interop
 
     internal unsafe partial struct ExternResultKernelRowIndexArray
     {
+        [NativeTypeName("ffi::ExternResultKernelRowIndexArray_Tag")]
         public ExternResultKernelRowIndexArray_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1314_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1318_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1315_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1319_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1318_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1322_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -933,7 +945,7 @@ namespace DeltaLake.Kernel.Interop
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal unsafe delegate void CScanCallback([NativeTypeName("NullableCvoid")] void* engine_context, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("int64_t")] IntPtr size, [NativeTypeName("const struct Stats *")] Stats* stats, [NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("const struct Expression *")] Expression* transform, [NativeTypeName("const struct CStringMap *")] CStringMap* partition_map);
+    internal unsafe delegate void CScanCallback([NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("int64_t")] IntPtr size, [NativeTypeName("const struct Stats *")] Stats* stats, [NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("const struct Expression *")] Expression* transform, [NativeTypeName("const struct CStringMap *")] CStringMap* partition_map);
 
     internal unsafe partial struct EngineSchemaVisitor
     {
@@ -993,287 +1005,287 @@ namespace DeltaLake.Kernel.Interop
 
     internal static unsafe partial class Methods
     {
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z15free_bool_slice15KernelBoolSlice", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void free_bool_slice([NativeTypeName("struct KernelBoolSlice")] KernelBoolSlice slice);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z16free_row_indexes19KernelRowIndexArray", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void free_row_indexes([NativeTypeName("struct KernelRowIndexArray")] KernelRowIndexArray slice);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z16free_engine_dataP19ExclusiveEngineData", ExactSpelling = true)]
-        public static extern void free_engine_data([NativeTypeName("HandleExclusiveEngineData")] ExclusiveEngineData* engine_data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_engine_data([NativeTypeName("ffi::HandleExclusiveEngineData")] ExclusiveEngineData* engine_data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18get_engine_builder17KernelStringSlicePFP11EngineError11KernelErrorS_E", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultEngineBuilder")]
-        public static extern ExternResultEngineBuilder get_engine_builder([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("AllocateErrorFn")] IntPtr allocate_error);
+        public static extern ExternResultEngineBuilder get_engine_builder([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18set_builder_optionP13EngineBuilder17KernelStringSliceS1_", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void set_builder_option([NativeTypeName("struct EngineBuilder *")] EngineBuilder* builder, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice key, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z13builder_buildP13EngineBuilder", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedExternEngine")]
         public static extern ExternResultHandleSharedExternEngine builder_build([NativeTypeName("struct EngineBuilder *")] EngineBuilder* builder);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18get_default_engine17KernelStringSlicePFP11EngineError11KernelErrorS_E", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedExternEngine")]
-        public static extern ExternResultHandleSharedExternEngine get_default_engine([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("AllocateErrorFn")] IntPtr allocate_error);
+        public static extern ExternResultHandleSharedExternEngine get_default_engine([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z11free_engineP18SharedExternEngine", ExactSpelling = true)]
-        public static extern void free_engine([NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_engine([NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z8snapshot17KernelStringSliceP18SharedExternEngine", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedSnapshot")]
-        public static extern ExternResultHandleSharedSnapshot snapshot([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine);
+        public static extern ExternResultHandleSharedSnapshot snapshot([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z13free_snapshotP14SharedSnapshot", ExactSpelling = true)]
-        public static extern void free_snapshot([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_snapshot([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z7versionP14SharedSnapshot", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uint64_t")]
-        public static extern UIntPtr version([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot);
+        public static extern UIntPtr version([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z14logical_schemaP14SharedSnapshot", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedSchema")]
-        public static extern SharedSchema* logical_schema([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedSchema")]
+        public static extern SharedSchema* logical_schema([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z11free_schemaP12SharedSchema", ExactSpelling = true)]
-        public static extern void free_schema([NativeTypeName("HandleSharedSchema")] SharedSchema* schema);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_schema([NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* schema);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19snapshot_table_rootP14SharedSnapshotPFPv17KernelStringSliceE", ExactSpelling = true)]
-        [return: NativeTypeName("NullableCvoid")]
-        public static extern void* snapshot_table_root([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("AllocateStringFn")] IntPtr allocate_fn);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::NullableCvoid")]
+        public static extern void* snapshot_table_root([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::AllocateStringFn")] IntPtr allocate_fn);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z26get_partition_column_countP14SharedSnapshot", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
-        public static extern UIntPtr get_partition_column_count([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot);
+        public static extern UIntPtr get_partition_column_count([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z21get_partition_columnsP14SharedSnapshot", ExactSpelling = true)]
-        [return: NativeTypeName("HandleStringSliceIterator")]
-        public static extern StringSliceIterator* get_partition_columns([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleStringSliceIterator")]
+        public static extern StringSliceIterator* get_partition_columns([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z17string_slice_nextP19StringSliceIteratorPvPFvS1_17KernelStringSliceE", ExactSpelling = true)]
-        public static extern bool string_slice_next([NativeTypeName("HandleStringSliceIterator")] StringSliceIterator* data, [NativeTypeName("NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, struct KernelStringSlice)")] IntPtr engine_visitor);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern bool string_slice_next([NativeTypeName("ffi::HandleStringSliceIterator")] StringSliceIterator* data, [NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, struct KernelStringSlice)")] IntPtr engine_visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z22free_string_slice_dataP19StringSliceIterator", ExactSpelling = true)]
-        public static extern void free_string_slice_data([NativeTypeName("HandleStringSliceIterator")] StringSliceIterator* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_string_slice_data([NativeTypeName("ffi::HandleStringSliceIterator")] StringSliceIterator* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18engine_data_lengthPP19ExclusiveEngineData", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
-        public static extern UIntPtr engine_data_length([NativeTypeName("HandleExclusiveEngineData *")] ExclusiveEngineData** data);
+        public static extern UIntPtr engine_data_length([NativeTypeName("ffi::HandleExclusiveEngineData *")] ExclusiveEngineData** data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19get_raw_engine_dataP19ExclusiveEngineData", ExactSpelling = true)]
-        public static extern void* get_raw_engine_data([NativeTypeName("HandleExclusiveEngineData")] ExclusiveEngineData* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void* get_raw_engine_data([NativeTypeName("ffi::HandleExclusiveEngineData")] ExclusiveEngineData* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18get_raw_arrow_dataP19ExclusiveEngineDataP18SharedExternEngine", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultArrowFFIData")]
-        public static extern ExternResultArrowFFIData get_raw_arrow_data([NativeTypeName("HandleExclusiveEngineData")] ExclusiveEngineData* data, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine);
+        public static extern ExternResultArrowFFIData get_raw_arrow_data([NativeTypeName("ffi::HandleExclusiveEngineData")] ExclusiveEngineData* data, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z16read_result_nextP31ExclusiveFileReadResultIteratorPvPFvS1_P19ExclusiveEngineDataE", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultbool")]
-        public static extern ExternResultbool read_result_next([NativeTypeName("HandleExclusiveFileReadResultIterator")] ExclusiveFileReadResultIterator* data, [NativeTypeName("NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, HandleExclusiveEngineData)")] IntPtr engine_visitor);
+        public static extern ExternResultbool read_result_next([NativeTypeName("ffi::HandleExclusiveFileReadResultIterator")] ExclusiveFileReadResultIterator* data, [NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, HandleExclusiveEngineData)")] IntPtr engine_visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z21free_read_result_iterP31ExclusiveFileReadResultIterator", ExactSpelling = true)]
-        public static extern void free_read_result_iter([NativeTypeName("HandleExclusiveFileReadResultIterator")] ExclusiveFileReadResultIterator* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_read_result_iter([NativeTypeName("ffi::HandleExclusiveFileReadResultIterator")] ExclusiveFileReadResultIterator* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z17read_parquet_fileP18SharedExternEnginePK8FileMetaP12SharedSchema", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveFileReadResultIterator")]
-        public static extern ExternResultHandleExclusiveFileReadResultIterator read_parquet_file([NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("const struct FileMeta *")] FileMeta* file, [NativeTypeName("HandleSharedSchema")] SharedSchema* physical_schema);
+        public static extern ExternResultHandleExclusiveFileReadResultIterator read_parquet_file([NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("const struct FileMeta *")] FileMeta* file, [NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* physical_schema);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z24new_expression_evaluatorP18SharedExternEngineP12SharedSchemaPK10ExpressionS2_", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedExpressionEvaluator")]
-        public static extern SharedExpressionEvaluator* new_expression_evaluator([NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("HandleSharedSchema")] SharedSchema* input_schema, [NativeTypeName("const struct Expression *")] Expression* expression, [NativeTypeName("HandleSharedSchema")] SharedSchema* output_type);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedExpressionEvaluator")]
+        public static extern SharedExpressionEvaluator* new_expression_evaluator([NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* input_schema, [NativeTypeName("const struct Expression *")] Expression* expression, [NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* output_type);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z25free_expression_evaluatorP25SharedExpressionEvaluator", ExactSpelling = true)]
-        public static extern void free_expression_evaluator([NativeTypeName("HandleSharedExpressionEvaluator")] SharedExpressionEvaluator* evaluator);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_expression_evaluator([NativeTypeName("ffi::HandleSharedExpressionEvaluator")] SharedExpressionEvaluator* evaluator);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19evaluate_expressionP18SharedExternEnginePP19ExclusiveEngineDataP25SharedExpressionEvaluator", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveEngineData")]
-        public static extern ExternResultHandleExclusiveEngineData evaluate_expression([NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("HandleExclusiveEngineData *")] ExclusiveEngineData** batch, [NativeTypeName("HandleSharedExpressionEvaluator")] SharedExpressionEvaluator* evaluator);
+        public static extern ExternResultHandleExclusiveEngineData evaluate_expression([NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("ffi::HandleExclusiveEngineData *")] ExclusiveEngineData** batch, [NativeTypeName("ffi::HandleSharedExpressionEvaluator")] SharedExpressionEvaluator* evaluator);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z22free_kernel_expressionP16SharedExpression", ExactSpelling = true)]
-        public static extern void free_kernel_expression([NativeTypeName("HandleSharedExpression")] SharedExpression* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_kernel_expression([NativeTypeName("ffi::HandleSharedExpression")] SharedExpression* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z21free_kernel_predicateP15SharedPredicate", ExactSpelling = true)]
-        public static extern void free_kernel_predicate([NativeTypeName("HandleSharedPredicate")] SharedPredicate* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_kernel_predicate([NativeTypeName("ffi::HandleSharedPredicate")] SharedPredicate* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z16visit_expressionPKP16SharedExpressionP23EngineExpressionVisitor", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression([NativeTypeName("const HandleSharedExpression *")] SharedExpression** expression, [NativeTypeName("struct EngineExpressionVisitor *")] EngineExpressionVisitor* visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z20visit_expression_refPK10ExpressionP23EngineExpressionVisitor", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_ref([NativeTypeName("const struct Expression *")] Expression* expression, [NativeTypeName("struct EngineExpressionVisitor *")] EngineExpressionVisitor* visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z15visit_predicatePKP15SharedPredicateP23EngineExpressionVisitor", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate([NativeTypeName("const HandleSharedPredicate *")] SharedPredicate** predicate, [NativeTypeName("struct EngineExpressionVisitor *")] EngineExpressionVisitor* visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19visit_predicate_refPK9PredicateP23EngineExpressionVisitor", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_ref([NativeTypeName("const struct Predicate *")] Predicate* predicate, [NativeTypeName("struct EngineExpressionVisitor *")] EngineExpressionVisitor* visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19visit_predicate_andP28KernelExpressionVisitorStateP14EngineIterator", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_and([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("struct EngineIterator *")] EngineIterator* children);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z21visit_expression_plusP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_plus([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z22visit_expression_minusP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_minus([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z25visit_expression_multiplyP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_multiply([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23visit_expression_divideP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_divide([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_ltP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_lt([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_leP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_le([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_gtP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_gt([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_geP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_ge([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_eqP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_eq([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18visit_predicate_neP28KernelExpressionVisitorStatemm", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_ne([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr a, [NativeTypeName("uintptr_t")] UIntPtr b);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23visit_expression_columnP28KernelExpressionVisitorState17KernelStringSlicePFP11EngineError11KernelErrorS1_E", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultusize")]
-        public static extern ExternResultusize visit_expression_column([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice name, [NativeTypeName("AllocateErrorFn")] IntPtr allocate_error);
+        public static extern ExternResultusize visit_expression_column([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice name, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19visit_predicate_notP28KernelExpressionVisitorStatem", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_not([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr inner_pred);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23visit_predicate_is_nullP28KernelExpressionVisitorStatem", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_predicate_is_null([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uintptr_t")] UIntPtr inner_expr);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z31visit_expression_literal_stringP28KernelExpressionVisitorState17KernelStringSlicePFP11EngineError11KernelErrorS1_E", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultusize")]
-        public static extern ExternResultusize visit_expression_literal_string([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice value, [NativeTypeName("AllocateErrorFn")] IntPtr allocate_error);
+        public static extern ExternResultusize visit_expression_literal_string([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice value, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z28visit_expression_literal_intP28KernelExpressionVisitorStatei", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_int([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("int32_t")] int value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z29visit_expression_literal_longP28KernelExpressionVisitorStatel", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_long([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("int64_t")] IntPtr value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z30visit_expression_literal_shortP28KernelExpressionVisitorStates", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_short([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("int16_t")] short value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z29visit_expression_literal_byteP28KernelExpressionVisitorStatea", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_byte([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("int8_t")] sbyte value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z30visit_expression_literal_floatP28KernelExpressionVisitorStatef", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_float([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, float value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z31visit_expression_literal_doubleP28KernelExpressionVisitorStated", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_double([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, double value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z29visit_expression_literal_boolP28KernelExpressionVisitorStateb", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
         public static extern UIntPtr visit_expression_literal_bool([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, bool value);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z20enable_event_tracingPFv5EventE5Level", ExactSpelling = true)]
-        public static extern bool enable_event_tracing([NativeTypeName("TracingEventFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern bool enable_event_tracing([NativeTypeName("ffi::TracingEventFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23enable_log_line_tracingPFv17KernelStringSliceE5Level", ExactSpelling = true)]
-        public static extern bool enable_log_line_tracing([NativeTypeName("TracingLogLineFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern bool enable_log_line_tracing([NativeTypeName("ffi::TracingLogLineFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z33enable_formatted_log_line_tracingPFv17KernelStringSliceE5Level13LogLineFormatbbbb", ExactSpelling = true)]
-        public static extern bool enable_formatted_log_line_tracing([NativeTypeName("TracingLogLineFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level, [NativeTypeName("enum LogLineFormat")] LogLineFormat format, bool ansi, bool with_time, bool with_level, bool with_target);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern bool enable_formatted_log_line_tracing([NativeTypeName("ffi::TracingLogLineFn")] IntPtr callback, [NativeTypeName("enum Level")] Level max_level, [NativeTypeName("enum LogLineFormat")] LogLineFormat format, bool ansi, bool with_time, bool with_level, bool with_target);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18free_scan_metadataP18SharedScanMetadata", ExactSpelling = true)]
-        public static extern void free_scan_metadata([NativeTypeName("HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_scan_metadata([NativeTypeName("ffi::HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z35selection_vector_from_scan_metadataP18SharedScanMetadataP18SharedExternEngine", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultKernelBoolSlice")]
-        public static extern ExternResultKernelBoolSlice selection_vector_from_scan_metadata([NativeTypeName("HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine);
+        public static extern ExternResultKernelBoolSlice selection_vector_from_scan_metadata([NativeTypeName("ffi::HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z9free_scanP10SharedScan", ExactSpelling = true)]
-        public static extern void free_scan([NativeTypeName("HandleSharedScan")] SharedScan* scan);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_scan([NativeTypeName("ffi::HandleSharedScan")] SharedScan* scan);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z4scanP14SharedSnapshotP18SharedExternEngineP15EnginePredicate", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedScan")]
-        public static extern ExternResultHandleSharedScan scan([NativeTypeName("HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct EnginePredicate *")] EnginePredicate* predicate);
+        public static extern ExternResultHandleSharedScan scan([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct EnginePredicate *")] EnginePredicate* predicate);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z15scan_table_rootP10SharedScanPFPv17KernelStringSliceE", ExactSpelling = true)]
-        [return: NativeTypeName("NullableCvoid")]
-        public static extern void* scan_table_root([NativeTypeName("HandleSharedScan")] SharedScan* scan, [NativeTypeName("AllocateStringFn")] IntPtr allocate_fn);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::NullableCvoid")]
+        public static extern void* scan_table_root([NativeTypeName("ffi::HandleSharedScan")] SharedScan* scan, [NativeTypeName("ffi::AllocateStringFn")] IntPtr allocate_fn);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19scan_logical_schemaP10SharedScan", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedSchema")]
-        public static extern SharedSchema* scan_logical_schema([NativeTypeName("HandleSharedScan")] SharedScan* scan);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedSchema")]
+        public static extern SharedSchema* scan_logical_schema([NativeTypeName("ffi::HandleSharedScan")] SharedScan* scan);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z20scan_physical_schemaP10SharedScan", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedSchema")]
-        public static extern SharedSchema* scan_physical_schema([NativeTypeName("HandleSharedScan")] SharedScan* scan);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedSchema")]
+        public static extern SharedSchema* scan_physical_schema([NativeTypeName("ffi::HandleSharedScan")] SharedScan* scan);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23scan_metadata_iter_initP18SharedExternEngineP10SharedScan", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedScanMetadataIterator")]
-        public static extern ExternResultHandleSharedScanMetadataIterator scan_metadata_iter_init([NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("HandleSharedScan")] SharedScan* scan);
+        public static extern ExternResultHandleSharedScanMetadataIterator scan_metadata_iter_init([NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("ffi::HandleSharedScan")] SharedScan* scan);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z18scan_metadata_nextP26SharedScanMetadataIteratorPvPFvS1_P18SharedScanMetadataE", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultbool")]
-        public static extern ExternResultbool scan_metadata_next([NativeTypeName("HandleSharedScanMetadataIterator")] SharedScanMetadataIterator* data, [NativeTypeName("NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, HandleSharedScanMetadata)")] IntPtr engine_visitor);
+        public static extern ExternResultbool scan_metadata_next([NativeTypeName("ffi::HandleSharedScanMetadataIterator")] SharedScanMetadataIterator* data, [NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("void (*)(NullableCvoid, HandleSharedScanMetadata)")] IntPtr engine_visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z23free_scan_metadata_iterP26SharedScanMetadataIterator", ExactSpelling = true)]
-        public static extern void free_scan_metadata_iter([NativeTypeName("HandleSharedScanMetadataIterator")] SharedScanMetadataIterator* data);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_scan_metadata_iter([NativeTypeName("ffi::HandleSharedScanMetadataIterator")] SharedScanMetadataIterator* data);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19get_from_string_mapPK10CStringMap17KernelStringSlicePFPvS2_E", ExactSpelling = true)]
-        [return: NativeTypeName("NullableCvoid")]
-        public static extern void* get_from_string_map([NativeTypeName("const struct CStringMap *")] CStringMap* map, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice key, [NativeTypeName("AllocateStringFn")] IntPtr allocate_fn);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::NullableCvoid")]
+        public static extern void* get_from_string_map([NativeTypeName("const struct CStringMap *")] CStringMap* map, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice key, [NativeTypeName("ffi::AllocateStringFn")] IntPtr allocate_fn);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z21get_transform_for_rowmPK11CTransforms", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct OptionHandleSharedExpression")]
         public static extern OptionHandleSharedExpression get_transform_for_row([NativeTypeName("uintptr_t")] UIntPtr row, [NativeTypeName("const struct CTransforms *")] CTransforms* transforms);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z24selection_vector_from_dvPK6DvInfoP18SharedExternEngine17KernelStringSlice", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultKernelBoolSlice")]
-        public static extern ExternResultKernelBoolSlice selection_vector_from_dv([NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice root_url);
+        public static extern ExternResultKernelBoolSlice selection_vector_from_dv([NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice root_url);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19row_indexes_from_dvPK6DvInfoP18SharedExternEngine17KernelStringSlice", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultKernelRowIndexArray")]
-        public static extern ExternResultKernelRowIndexArray row_indexes_from_dv([NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice root_url);
+        public static extern ExternResultKernelRowIndexArray row_indexes_from_dv([NativeTypeName("const struct DvInfo *")] DvInfo* dv_info, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice root_url);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z19visit_scan_metadataP18SharedScanMetadataPvPFvS1_17KernelStringSlicelPK5StatsPK6DvInfoPK10ExpressionPK10CStringMapE", ExactSpelling = true)]
-        public static extern void visit_scan_metadata([NativeTypeName("HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata, [NativeTypeName("NullableCvoid")] void* engine_context, [NativeTypeName("CScanCallback")] IntPtr callback);
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void visit_scan_metadata([NativeTypeName("ffi::HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata, [NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("ffi::CScanCallback")] IntPtr callback);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z12visit_schemaP12SharedSchemaP19EngineSchemaVisitor", ExactSpelling = true)]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
-        public static extern UIntPtr visit_schema([NativeTypeName("HandleSharedSchema")] SharedSchema* schema, [NativeTypeName("struct EngineSchemaVisitor *")] EngineSchemaVisitor* visitor);
+        public static extern UIntPtr visit_schema([NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* schema, [NativeTypeName("struct EngineSchemaVisitor *")] EngineSchemaVisitor* visitor);
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z29get_testing_kernel_expressionv", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedExpression")]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedExpression")]
         public static extern SharedExpression* get_testing_kernel_expression();
 
-        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, EntryPoint = "_Z28get_testing_kernel_predicatev", ExactSpelling = true)]
-        [return: NativeTypeName("HandleSharedPredicate")]
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedPredicate")]
         public static extern SharedPredicate* get_testing_kernel_predicate();
     }
 }

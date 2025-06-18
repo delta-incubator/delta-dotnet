@@ -11,7 +11,7 @@ public class InsertTests
     [InlineData(100)]
     public async Task Memory_Insert_Variable_Record_Count_Test(int length)
     {
-        await BaseInsertTest($"memory://{Guid.NewGuid():N}", length);
+        await BaseInsertTest($"memory:///{Guid.NewGuid():N}", length);
     }
 
     [Theory]
@@ -35,7 +35,7 @@ public class InsertTests
     [Fact]
     public async Task Memory_Insert_Zero_Record_Count_Test()
     {
-        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
         using var table = tableParts.table;
         var version = table.Version();
         await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
@@ -45,7 +45,7 @@ public class InsertTests
     [Fact]
     public async Task Insert_Stream_Test()
     {
-        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
         using var table = tableParts.table;
         var version = table.Version();
         var rb = new[] {
@@ -60,7 +60,7 @@ public class InsertTests
     [Fact]
     public async Task Memory_Insert_Will_Cancel_Test()
     {
-        var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 0);
+        var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
         using var table = tableParts.table;
         var version = table.Version();
         try
@@ -84,7 +84,7 @@ public class InsertTests
                 SaveMode = SaveMode.Append,
                 OverwriteSchema = true,
             };
-            var tableParts = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 1, options);
+            var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 1, options);
             using var table = tableParts.table;
             var version = table.Version();
             await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);

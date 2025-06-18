@@ -11,6 +11,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Visit;
 using DeltaLake.Kernel.Interop;
@@ -30,8 +31,8 @@ namespace DeltaLake.Kernel.State
 
         private unsafe SharedSnapshot* managedPointInTimeSnapshot = null;
         private unsafe SharedScan* managedScan = null;
-        private unsafe SharedGlobalScanState* managedGlobalScanState = null;
         private unsafe SharedSchema* managedSchema = null;
+        private unsafe SharedSchema* physicalSchema = null;
         private unsafe PartitionList* partitionList = null;
         private unsafe ArrowContext* arrowContext = null;
 
@@ -71,17 +72,17 @@ namespace DeltaLake.Kernel.State
         }
 
         /// <inheritdoc/>
-        public unsafe SharedGlobalScanState* GlobalScanState(bool refresh)
-        {
-            if (refresh || managedGlobalScanState == null) this.RefreshGlobalScanState();
-            return managedGlobalScanState;
-        }
-
-        /// <inheritdoc/>
         public unsafe SharedSchema* Schema(bool refresh)
         {
             if (refresh || managedSchema == null) this.RefreshSchema();
             return managedSchema;
+        }
+
+        /// <inheritdoc/>
+        public unsafe SharedSchema* PhysicalSchema(bool refresh)
+        {
+            if (refresh || physicalSchema == null) this.RefreshPhysicalSchema();
+            return physicalSchema;
         }
 
         /// <inheritdoc/>
@@ -118,9 +119,8 @@ namespace DeltaLake.Kernel.State
                 this.DisposePartitionList();
                 this.DisposeSnapshot();
                 this.DisposeSchema();
-                this.DisposeGlobalScanState();
                 this.DisposeScan();
-
+                this.DisposePhysicalSchema();
                 disposed = true;
             }
         }
@@ -198,22 +198,28 @@ namespace DeltaLake.Kernel.State
         {
             unsafe
             {
-                if (this.managedSchema != null)
-                {
-                    Methods.free_global_read_schema(this.managedSchema);
-                    this.managedSchema = null;
-                }
+                DisposeSchema(this.managedSchema);
+                this.managedSchema = null;
             }
         }
 
-        private void DisposeGlobalScanState()
+        private void DisposePhysicalSchema()
         {
             unsafe
             {
-                if (this.managedGlobalScanState != null)
+                DisposeSchema(this.physicalSchema);
+                this.physicalSchema = null;
+            }
+        }
+
+        private unsafe static void DisposeSchema(SharedSchema* schema)
+        {
+            unsafe
+            {
+                if (schema != null)
                 {
-                    Methods.free_global_scan_state(this.managedGlobalScanState);
-                    this.managedGlobalScanState = null;
+                    Methods.free_schema(schema);
+                    schema = null;
                 }
             }
         }
@@ -246,7 +252,7 @@ namespace DeltaLake.Kernel.State
 
             unsafe
             {
-                int partitionColumnCount = (int)Methods.get_partition_column_count(this.GlobalScanState(false));
+                int partitionColumnCount = (int)Methods.get_partition_column_count(this.Snapshot(false));
                 this.partitionList = (PartitionList*)Marshal.AllocHGlobal(sizeof(PartitionList));
 
                 // We set the length to 0 here and use it to track how many
@@ -255,7 +261,7 @@ namespace DeltaLake.Kernel.State
                 this.partitionList->Len = 0;
                 this.partitionList->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
 
-                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.GlobalScanState(false));
+                StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.Snapshot(false));
                 try
                 {
                     for (; ; )
@@ -302,18 +308,18 @@ namespace DeltaLake.Kernel.State
 
             unsafe
             {
-                this.managedSchema = Methods.get_global_read_schema(this.GlobalScanState(false));
+                this.managedSchema = Methods.scan_logical_schema(this.Scan(false));
             }
         }
 
-        private void RefreshGlobalScanState()
+        private void RefreshPhysicalSchema()
         {
 
-            this.DisposeGlobalScanState();
+            this.DisposePhysicalSchema();
 
             unsafe
             {
-                this.managedGlobalScanState = Methods.get_global_scan_state(this.Scan(false));
+                this.physicalSchema = Methods.scan_physical_schema(this.Scan(false));
             }
         }
 
@@ -363,35 +369,40 @@ namespace DeltaLake.Kernel.State
                 SharedSchema* managedSchemaPtr = this.Schema(true);
                 PartitionList* managedPartitionListPtr = this.PartitionList(true);
                 SharedScan* managedScanPtr = this.Scan(true);
-                SharedGlobalScanState* managedGlobalScanStatePtr = this.GlobalScanState(true);
+                SharedSchema* physicalSchema = this.PhysicalSchema(true);
+                // SharedGlobalScanState* managedGlobalScanStatePtr = this.GlobalScanState(true);
 
                 // Memory scoped to this scan
                 //
-                SharedScanDataIterator* kernelOwnedScanDataIteratorPtr = null;
+                SharedScanMetadataIterator* kernelOwnedScanDataIteratorPtr = null;
                 IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+                var tableRootString = MarshalExtensions.PtrToStringUTF8(tableRootPtr);
                 EngineContext scanScopedEngineContext = new()
                 {
-                    GlobalScanState = managedGlobalScanStatePtr,
-                    Schema = managedSchemaPtr,
-                    TableRoot = (char*)tableRootPtr,
+                    LogicalSchema = managedSchemaPtr,
+                    TableRoot = (byte*)tableRootPtr,
                     Engine = this.sharedExternEnginePtr,
                     PartitionList = managedPartitionListPtr,
                     PartitionKeyValueMap = null,
-                    ArrowContext = this.arrowContext
+                    ArrowContext = this.arrowContext,
+                    PhysicalSchema = physicalSchema,
                 };
                 EngineContext* scanScopedEngineContextPtr = &scanScopedEngineContext;
 
                 try
                 {
-                    ExternResultHandleSharedScanDataIterator dataIteratorHandle = Methods.kernel_scan_data_init(this.sharedExternEnginePtr, managedScanPtr);
-                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanDataIterator_Tag.OkHandleSharedScanDataIterator)
+                    ExternResultHandleSharedScanMetadataIterator dataIteratorHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, managedScanPtr);
+                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
                     {
                         throw new InvalidOperationException("Failed to construct kernel scan data iterator.");
                     }
                     kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
                     for (; ; )
                     {
-                        ExternResultbool isScanOk = Methods.kernel_scan_data_next(kernelOwnedScanDataIteratorPtr, scanScopedEngineContextPtr, Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
+                        ExternResultbool isScanOk = Methods.scan_metadata_next(
+                            kernelOwnedScanDataIteratorPtr,
+                            scanScopedEngineContextPtr,
+                            Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
                         if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw new InvalidOperationException("Failed to iterate on table scan data.");
                         else if (!isScanOk.Anonymous.Anonymous1.ok) break;
                         else continue;
@@ -399,7 +410,7 @@ namespace DeltaLake.Kernel.State
                 }
                 finally
                 {
-                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_kernel_scan_data(kernelOwnedScanDataIteratorPtr);
+                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_scan_metadata_iter(kernelOwnedScanDataIteratorPtr);
                     if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
                 }
             }
