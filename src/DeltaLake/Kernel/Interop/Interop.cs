@@ -11,7 +11,7 @@ using System.Runtime.InteropServices;
 namespace DeltaLake.Kernel.Interop
 {
     [NativeTypeName("unsigned int")]
-    internal enum KernelError : uint
+    public enum KernelError : uint
     {
         UnknownError,
         FFIError,

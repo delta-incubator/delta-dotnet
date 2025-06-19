@@ -43,7 +43,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         /// </summary>
         /// <param name="etype">The type of kernel error.</param>
         /// <param name="msg">The error message.</param>
-        /// <returns>An EngineError pointer.</returns>
+        /// <returns>An <see cref="KernelReadError"/> pointer.</returns>
         internal static unsafe EngineError* AllocateError(
             KernelError etype,
             KernelStringSlice msg
@@ -55,9 +55,6 @@ namespace DeltaLake.Kernel.Callbacks.Errors
             };
             var ptr = (KernelReadError*)Marshal.AllocHGlobal(sizeof(KernelReadError));
             *ptr = new KernelReadError(engineError, msg);
-            /*throw new InvalidOperationException(
-                $"Kernel engine error of type {etype} occurred with message: {message}"
-            );*/
             return (EngineError*)ptr;
         }
     }
