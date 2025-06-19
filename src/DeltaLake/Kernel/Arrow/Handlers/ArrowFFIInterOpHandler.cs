@@ -109,7 +109,10 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 ExternResultHandleExclusiveFileReadResultIterator isParquetFileReadOk = Methods.read_parquet_file(context->Engine, &parquetMeta, context->PhysicalSchema);
                 if (isParquetFileReadOk.tag != ExternResultHandleExclusiveFileReadResultIterator_Tag.OkHandleExclusiveFileReadResultIterator)
                 {
-                    throw new InvalidOperationException($"Kernel failed to read parquet file at: {parquetAbsolutePath}");
+                    throw KernelException.FromEngineError(
+                        isParquetFileReadOk.Anonymous.Anonymous2.err,
+                        $"Kernel failed to read parquet file at `{parquetAbsolutePath}`"
+                    );
                 }
 
                 ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1.ok;
@@ -118,8 +121,10 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                     ExternResultbool isArrowResultReadOk = Methods.read_result_next(arrowReadIterator, context, Marshal.GetFunctionPointerForDelegate(VisitCallbacks.IngestArrowData));
                     if (isArrowResultReadOk.tag != ExternResultbool_Tag.Okbool)
                     {
-                        KernelReadError* arrowReadError = (KernelReadError*)isArrowResultReadOk.Anonymous.Anonymous2.err;
-                        throw new InvalidOperationException($"Failed to iterate on reading arrow data from parquet: {arrowReadError->msg}");
+                        throw KernelException.FromEngineError(
+                            isArrowResultReadOk.Anonymous.Anonymous2.err,
+                            "Failed to iterate on reading arrow data from parquet"
+                        );
                     }
                     else if (!isArrowResultReadOk.Anonymous.Anonymous1.ok) break;
                 }

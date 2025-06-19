@@ -7,6 +7,8 @@ exclude-fnptr-codegen
 generate-disable-runtime-marshalling
 --with-access-specifier
 *=internal
+--with-access-specifier
+KernelError=public
 --file
 src/DeltaLake/Kernel/include/delta_kernel_ffi.h
 --namespace

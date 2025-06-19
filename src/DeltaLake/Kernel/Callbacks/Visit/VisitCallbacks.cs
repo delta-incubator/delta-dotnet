@@ -117,15 +117,7 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                         tableRoot);
                     if (selectionVectorRes.tag != ExternResultKernelBoolSlice_Tag.OkKernelBoolSlice)
                     {
-                        var error = (KernelReadError*)selectionVectorRes.Anonymous.Anonymous2.err;
-                        try
-                        {
-                            throw new InvalidOperationException($"Could not get selection vector from kernel `type={error->etype.etype}`: {error->msg}");
-                        }
-                        finally
-                        {
-                            Marshal.FreeHGlobal(new IntPtr(error));
-                        }
+                        throw KernelException.FromEngineError(selectionVectorRes.Anonymous.Anonymous2.err, "Could not get selection vector from kernel");
                     }
 
                     KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
@@ -164,8 +156,9 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     ExternResultArrowFFIData isRawArrowReadOk = Methods.get_raw_arrow_data(engineData, context->Engine);
                     if (isRawArrowReadOk.tag != ExternResultArrowFFIData_Tag.OkArrowFFIData)
                     {
-                        throw new InvalidOperationException("Could not read raw Arrow data with Delta Kernel");
+                        throw KernelException.FromEngineError(isRawArrowReadOk.Anonymous.Anonymous2.err, "Could not read raw Arrow data with Delta Kernel");
                     }
+
                     ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1.ok;
                     new ArrowFFIInterOpHandler().StoreArrowInContext(
                         context->ArrowContext,
