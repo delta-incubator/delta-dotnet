@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 arrow = { version = "55", features = ["ffi"]}
-chrono = "0.4.31"
+chrono = "0.4"
 deltalake = { version = "0.26.2", features = ["azure", "gcs", "s3", "datafusion"] }
 futures = "0.3"
 libc = "0.2"
