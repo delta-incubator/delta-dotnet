@@ -10,25 +10,89 @@
 // -----------------------------------------------------------------------------
 
 using System;
-using DeltaLake.Extensions;
+using System.Runtime.InteropServices;
 using DeltaLake.Kernel.Interop;
 
 namespace DeltaLake.Kernel.Callbacks.Errors
 {
+    internal unsafe delegate void KernelReadErrorHandler(KernelReadError* error);
+    internal unsafe delegate T KernelReadErrorProcessor<T>(KernelReadError* error);
     /// <summary>
     /// Represents an error that occurred during reading operations via the Kernel.
+    /// It's memory layout matches the initial layout of <see cref="EngineError"/>
+    /// so that we can pass it to the kernel as the same type.
     /// </summary>
-    internal struct KernelReadError
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct KernelReadError
     {
-        public EngineError etype;
-        public IntPtr msg;
-
-#pragma warning disable CS8603, IDE0251 // Possible pointer null reference return is possible when we work with Kernel if the Kernel has a bug
-        public string Message
+        public KernelReadError(EngineError engineError, KernelStringSlice kernelStringSlice)
         {
-            get => MarshalExtensions.PtrToStringUTF8(msg);
-            set => msg = MarshalExtensions.StringToCoTaskMemUTF8(value);
+            unsafe
+            {
+                if (kernelStringSlice.len.ToUInt64() == 0UL)
+                {
+                    ptr = null;
+                }
+                else
+                {
+                    ptr = (byte*)Marshal.AllocHGlobal((int)kernelStringSlice.len);
+                    for (nuint i = 0; i < kernelStringSlice.len; i++)
+                    {
+                        *ptr++ = *kernelStringSlice.ptr++;
+                    }
+                }
+
+                len = kernelStringSlice.len;
+            }
+
+            etype = engineError;
         }
-#pragma warning restore CS8603, IDE0251
+
+        public EngineError etype;
+
+        private byte* ptr;
+
+        private readonly nuint len;
+
+        public readonly string Message => GetMessage();
+
+        private readonly string GetMessage()
+        {
+            if (len == 0)
+            {
+                return string.Empty;
+            }
+
+            // NOTE: This could be an issue if the message is greater than 2GB
+            return System.Text.Encoding.UTF8.GetString(ptr, (int)len);
+        }
+
+        public static void HandleEngineError(EngineError* source, KernelReadErrorHandler work)
+        {
+            var error = (KernelReadError*)source;
+            try
+            {
+                work(error);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal((IntPtr)error->ptr);
+                Marshal.FreeHGlobal((IntPtr)error);
+            }
+        }
+
+        public static T ProcessEngineError<T>(EngineError* source, KernelReadErrorProcessor<T> work)
+        {
+            var error = (KernelReadError*)source;
+            try
+            {
+                return work(error);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal((IntPtr)error->ptr);
+                Marshal.FreeHGlobal((IntPtr)error);
+            }
+        }
     }
 }
