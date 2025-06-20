@@ -29,7 +29,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         {
             unsafe
             {
-                if (kernelStringSlice.len == 0)
+                if (kernelStringSlice.len.ToUInt64() == 0UL)
                 {
                     ptr = null;
                 }

@@ -11,7 +11,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using DeltaLake.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Callbacks.Visit;

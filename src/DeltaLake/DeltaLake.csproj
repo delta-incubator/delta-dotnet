@@ -55,7 +55,7 @@
 
     <Target Name="CargoKernelBuildDebug" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(Configuration)' == 'Debug'">
-        <Exec Command="cargo build --no-default-features --features delta_kernel/default-engine-rustls" 
+        <Exec Command="cargo build --no-default-features --features default-engine-rustls" 
         WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
     </Target>
 
@@ -92,7 +92,7 @@
 
     <Target Name="CargoKernelBuildRelease" BeforeTargets="DispatchToInnerBuilds"
         Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
-        <Exec Command="cargo build --release --no-default-features --features delta_kernel/default-engine-rustls"
+        <Exec Command="cargo build --release --no-default-features --features default-engine-rustls"
          WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
     </Target>
 
