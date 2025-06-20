@@ -167,9 +167,7 @@ jobs:
 
       - name: Build alternative target
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
-        run: |
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
-                      --no-default-features --features "default-engine-rustls" --target ${{ matrix.alternative-target }}
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --no-default-features --features "default-engine-rustls" --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
@@ -182,9 +180,7 @@ jobs:
 
       - name: Build Kernel
         if: ${{ !matrix.alternative-target }}
-        run: |
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
-                      --no-default-features --features "default-engine-rustls"
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --no-default-features --features "default-engine-rustls"
 
       - name: Upload kernel library
         if: ${{ !matrix.alternative-target }}
