@@ -76,7 +76,8 @@ jobs:
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
           cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --features "delta_kernel/default-engine-rustls" --target ${{ matrix.alternative-target }}
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
+                      --no-default-features --features "default-engine-rustls" --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
@@ -85,9 +86,10 @@ jobs:
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
           
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
-              cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
-                          --features "delta_kernel/default-engine-rustls" \
-                          --target ${{ matrix.alternative-target }}
+          cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
+                      --no-default-features \
+                      --features "default-engine-rustls" \
+                      --target ${{ matrix.alternative-target }}
 
       - name: Build Bridge
         if: ${{ !matrix.alternative-target }}
@@ -95,7 +97,9 @@ jobs:
       
       - name: Build Kernel
         if: ${{ !matrix.alternative-target }}
-        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --features "delta_kernel/default-engine-rustls"
+        run: |
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
+                      --no-default-features --features "default-engine-rustls"
 
       - name: Upload bridge library
         if: ${{ !matrix.alternative-target }}

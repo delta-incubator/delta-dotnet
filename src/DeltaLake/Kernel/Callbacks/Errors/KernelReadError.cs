@@ -54,18 +54,18 @@ namespace DeltaLake.Kernel.Callbacks.Errors
 
         private readonly nuint len;
 
-        public string Message => GetMessage();
+        public readonly string Message => GetMessage();
 
-        private string GetMessage()
+        private readonly string GetMessage()
         {
             if (len == 0)
             {
                 return string.Empty;
             }
 
+            // NOTE: This could be an issue if the message is greater than 2GB
             return System.Text.Encoding.UTF8.GetString(ptr, (int)len);
         }
-
 
         public static void HandleEngineError(EngineError* source, KernelReadErrorHandler work)
         {

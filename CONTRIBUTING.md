@@ -51,7 +51,7 @@ git -C $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs checkout $DELTA_KERNEL_RS_
 # Build the FFI with cloud storage features
 #
 $FFI_PROJ_PATH = "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs/ffi"
-cargo build --manifest-path $FFI_PROJ_PATH/Cargo.toml --no-default-features --features "delta_kernel/default-engine-rustls"
+cargo build --manifest-path $FFI_PROJ_PATH/Cargo.toml --no-default-features --features "default-engine-rustls"
 
 ```
 
