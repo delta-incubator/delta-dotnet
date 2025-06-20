@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-rust-libraries:
+  build-bridge-library:
     strategy:
       fail-fast: true
       matrix:
@@ -60,7 +60,7 @@ jobs:
         uses: Swatinem/rust-cache@v2.7.3
         with:
           workspaces: src/DeltaLake/Bridge
-          key: ${{ matrix.os }}
+          key: ${{ matrix.os }}-bridge
 
       - name: Add alternative Rust target
         if: ${{ matrix.alternative-target != ''}}
@@ -76,15 +76,104 @@ jobs:
         if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
         run: |
           cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
-          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
-                      --no-default-features --features "default-engine-rustls" --target ${{ matrix.alternative-target }}
 
       - name: Build cross target
         if: ${{ matrix.use-cross }}
         run: |
           CROSS_CONFIG=src/DeltaLake/Bridge/cross/${{ matrix.alternative-target }}/Cross.toml \
           cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
-          
+
+      - name: Build Bridge
+        if: ${{ !matrix.alternative-target }}
+        run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
+      
+      - name: Upload bridge library
+        if: ${{ !matrix.alternative-target }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out-prefix }}-bridge
+          path: src/DeltaLake/Bridge/target/release/${{ matrix.bridge-out-file }}
+      
+      - name: Upload bridge library alternative target
+        if: ${{ matrix.alternative-target != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.out-prefix }}-bridge
+          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.bridge-out-file }}
+          if-no-files-found: "error"
+      
+  build-kernel-library:
+    strategy:
+      fail-fast: true
+      matrix:
+        os: [ubuntu-latest, ubuntu-arm, macos-latest, macos-arm, windows-latest]
+        include:
+          - os: ubuntu-latest
+            bridge-out-file: libdelta_rs_bridge.so
+            kernel-out-file: libdelta_kernel_ffi.so
+            out-prefix: linux-x64
+          - os: ubuntu-arm
+            bridge-out-file: libdelta_rs_bridge.so
+            kernel-out-file: libdelta_kernel_ffi.so
+            out-prefix: linux-arm64
+            runsOn: ubuntu-latest
+            use-cross: true
+            alternative-target: aarch64-unknown-linux-gnu
+          - os: macos-latest
+            bridge-out-file: libdelta_rs_bridge.dylib
+            kernel-out-file: libdelta_kernel_ffi.dylib
+            out-prefix: osx-x64
+            alternative-target: x86_64-apple-darwin
+          - os: macos-arm
+            bridge-out-file: libdelta_rs_bridge.dylib
+            kernel-out-file: libdelta_kernel_ffi.dylib
+            out-prefix: osx-arm64
+            runsOn: macos-latest
+          - os: windows-latest
+            bridge-out-file: delta_rs_bridge.dll
+            kernel-out-file: delta_kernel_ffi.dll
+            out-prefix: win-x64
+    runs-on: ${{ matrix.runsOn || matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        with:
+          submodules: false
+      
+      - name: Checkout specific delta-kernel-rs release
+        shell: bash
+        run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2.7.3
+        with:
+          workspaces: src/DeltaLake/Kernel/delta-kernel-rs
+          key: ${{ matrix.os }}-kernel
+
+      - name: Add alternative Rust target
+        if: ${{ matrix.alternative-target != ''}}
+        run: |
+          rustup target install ${{ matrix.alternative-target }}
+
+      - name: Install cross
+        if: ${{ matrix.use-cross }}
+        run: |
+          cargo install cross
+
+      - name: Build alternative target
+        if: ${{ matrix.alternative-target != '' && !matrix.use-cross }}
+        run: |
+          cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
+                      --no-default-features --features "default-engine-rustls" --target ${{ matrix.alternative-target }}
+
+      - name: Build cross target
+        if: ${{ matrix.use-cross }}
+        run: |
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/cross/${{ matrix.alternative-target }}/Cross.toml \
           cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
                       --no-default-features \
@@ -101,13 +190,6 @@ jobs:
           cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
                       --no-default-features --features "default-engine-rustls"
 
-      - name: Upload bridge library
-        if: ${{ !matrix.alternative-target }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.out-prefix }}-bridge
-          path: src/DeltaLake/Bridge/target/release/${{ matrix.bridge-out-file }}
-      
       - name: Upload kernel library
         if: ${{ !matrix.alternative-target }}
         uses: actions/upload-artifact@v4
@@ -115,14 +197,6 @@ jobs:
           name: ${{ matrix.out-prefix }}-kernel
           path: src/DeltaLake/Kernel/delta-kernel-rs/target/release/${{ matrix.kernel-out-file }}
 
-      - name: Upload bridge library alternative target
-        if: ${{ matrix.alternative-target != '' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.out-prefix }}-bridge
-          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.bridge-out-file }}
-          if-no-files-found: "error"
-      
       - name: Upload kernel library alternative target
         if: ${{ matrix.alternative-target != '' }}
         uses: actions/upload-artifact@v4
@@ -133,7 +207,8 @@ jobs:
 
   build-nuget-package:
     needs:
-      - build-rust-libraries
+      - build-bridge-library
+      - build-kernel-library
     runs-on: windows-latest
     steps:
       - name: Checkout repository
