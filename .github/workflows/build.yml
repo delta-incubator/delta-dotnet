@@ -45,7 +45,9 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src/DeltaLake/Bridge
+          workspaces: |
+            src/DeltaLake/Bridge
+            src/DeltaLake/Kernel/delta-kernel-rs
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
