@@ -180,10 +180,6 @@ jobs:
                       --features "default-engine-rustls" \
                       --target ${{ matrix.alternative-target }}
 
-      - name: Build Bridge
-        if: ${{ !matrix.alternative-target }}
-        run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
-      
       - name: Build Kernel
         if: ${{ !matrix.alternative-target }}
         run: |
