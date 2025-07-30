@@ -49,7 +49,11 @@ namespace DeltaLake.Table
     /// <summary>
     /// Specifies the type of optimization to perform on the Delta table.
     /// </summary>
+#pragma warning disable CA1008
+#pragma warning disable CA1028
     public enum OptimizeType : uint
+#pragma warning restore CA1008
+#pragma warning restore CA1028
     {
         /// <summary>
         /// BinPack optimization: packs small files into larger ones for efficiency.
