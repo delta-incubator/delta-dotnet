@@ -237,6 +237,14 @@ namespace DeltaLake.Interfaces
         Task CheckpointAsync(CancellationToken cancellationToken);
 
         /// <summary>
+        /// Optimize an existing table
+        /// </summary>
+        /// <param name="options">Options for the operation</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/>representing applying the optimize operation.</returns>
+        Task OptimizeAsync(OptimizeOptions options, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Vacuum an existing table
         /// </summary>
         /// <param name="options">Options for the operation</param>

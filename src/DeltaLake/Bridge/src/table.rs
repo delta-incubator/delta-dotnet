@@ -24,6 +24,7 @@ use deltalake::{
     operations::{
         constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
         transaction::CommitProperties, update::UpdateBuilder, vacuum::VacuumBuilder,
+        optimize::OptimizeBuilder,
         write::WriteBuilder,
     },
     protocol::SaveMode,
@@ -232,6 +233,29 @@ pub struct GenericOrError {
 pub struct MetadataOrError {
     metadata: *const TableMetadata,
     error: *const DeltaTableError,
+}
+
+#[repr(C)]
+pub struct OptimizeOptions {
+    has_max_concurrent_tasks: bool,
+    max_concurrent_tasks: u32,
+
+    has_max_spill_size: bool,
+    max_spill_size: u64,
+
+    has_min_commit_interval: bool,
+    min_commit_interval: u64,
+
+    has_preserve_insertion_order: bool,
+    preserve_insertion_order: bool,
+
+    has_target_size: bool,
+    target_size: u64,
+
+    zorder_columns: *const ByteArrayRef,
+    zorder_columns_count: usize,
+
+    optimize_type: u32,
 }
 
 #[repr(C)]
@@ -1308,6 +1332,69 @@ pub extern "C" fn table_checkpoint(
 }
 
 #[no_mangle]
+pub extern "C" fn table_optimize(
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    options: NonNull<OptimizeOptions>,
+    callback: GenericErrorCallback,
+) {
+    let (
+        max_concurrent_tasks,
+        max_spill_size,
+        min_commit_interval,
+        preserve_insertion_order,
+        target_size,
+        zorder_columns,
+        optimize_type,
+    ) = unsafe {
+        let options = options.as_ref();
+        let zorder_columns = std::slice::from_raw_parts(options.zorder_columns, options.zorder_columns_count);
+        (
+            if options.has_max_concurrent_tasks { Some(options.max_concurrent_tasks) } else { None },
+            if options.has_max_spill_size { Some(options.max_spill_size) } else { None },
+            if options.has_min_commit_interval { Some(options.min_commit_interval) } else { None },
+            if options.has_preserve_insertion_order { Some(options.preserve_insertion_order) } else { None },
+            if options.has_target_size { Some(options.target_size) } else { None },
+            zorder_columns
+                .iter()
+                .map(|b| b.to_owned_string())
+                .collect::<Vec<String>>(),
+            options.optimize_type,
+        )
+    };
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        None::<&CancellationToken>,
+        rt,
+        tbl,
+        {
+            match optimize(
+                &mut tbl.table,
+                max_concurrent_tasks,
+                max_spill_size,
+                min_commit_interval,
+                preserve_insertion_order,
+                target_size,
+                zorder_columns,
+                optimize_type,
+            ).await {
+                Ok(num_files_removed) => {
+                    unsafe {
+                        callback(num_files_removed as usize as *const c_void, std::ptr::null());
+                    }
+                }
+                Err(err) => {
+                    let error = DeltaTableError::from_error(rt, err);
+                    unsafe { callback(std::ptr::null_mut(), Box::into_raw(Box::new(error))) }
+                }
+            }
+        },
+        { callback(std::ptr::null(), std::ptr::null()) }
+    );
+}
+
+#[no_mangle]
 pub extern "C" fn table_vacuum(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
@@ -1359,6 +1446,48 @@ pub extern "C" fn table_vacuum(
         },
         { callback(std::ptr::null(), std::ptr::null()) }
     );
+}
+
+async fn optimize(
+    table: &mut deltalake::DeltaTable,
+    max_concurrent_tasks: Option<u32>,
+    max_spill_size: Option<u64>,
+    min_commit_interval: Option<u64>,
+    preserve_insertion_order: Option<bool>,
+    target_size: Option<u64>,
+    zorder_columns : Vec<String>,
+    optimize_type: u32,
+) -> Result<u64, deltalake::DeltaTableError> {
+    if table.state.is_none() {
+        return Err(deltalake::DeltaTableError::NoMetadata);
+    }
+
+    let mut cmd = OptimizeBuilder::new(table.log_store(), table.state.clone().unwrap());
+    if let Some(tasks) = max_concurrent_tasks {
+        cmd = cmd.with_max_concurrent_tasks(tasks as usize);
+    }
+    if let Some(spill) = max_spill_size {
+        cmd = cmd.with_max_spill_size(spill as usize);
+    }
+    if let Some(interval_ticks) = min_commit_interval {
+        cmd = cmd.with_min_commit_interval(std::time::Duration::from_nanos(interval_ticks * 100)); // .NET ticks are 100ns units
+    }
+    if let Some(preserve) = preserve_insertion_order {
+        cmd = cmd.with_preserve_insertion_order(preserve);
+    }
+    if let Some(target) = target_size {
+        cmd = cmd.with_target_size(target as i64);
+    }
+
+    let opt_type = match optimize_type {
+        2 => deltalake::operations::optimize::OptimizeType::ZOrder(zorder_columns),
+        _ => deltalake::operations::optimize::OptimizeType::Compact,
+    };
+    cmd = cmd.with_type(opt_type);
+
+    let (result, metrics) = cmd.await?;
+    table.state = result.state;
+    Ok(metrics.num_files_removed)
 }
 
 async fn vacuum(

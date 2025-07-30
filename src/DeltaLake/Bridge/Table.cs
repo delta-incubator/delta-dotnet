@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Apache.Arrow;
@@ -594,6 +595,61 @@ namespace DeltaLake.Bridge
                         scope.Dictionary(_runtime, options.CustomMetadata),
                         scope.CancellationToken(cancellationToken),
                         scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                _ = Task.Run(() => tsc.TrySetResult(true));
+                            }
+                        }));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
+        internal virtual async Task OptimizeAsync(DeltaLake.Table.OptimizeOptions options, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    var interopOptions = new Interop.OptimizeOptions
+                    {
+                        has_max_concurrent_tasks = BoolAsByte(options.MaxConcurrentTasks.HasValue),
+                        max_concurrent_tasks = options.MaxConcurrentTasks.GetValueOrDefault(),
+
+                        has_max_spill_size = BoolAsByte(options.MaxSpillSize.HasValue),
+                        max_spill_size = options.MaxSpillSize.GetValueOrDefault(),
+
+                        has_min_commit_interval = BoolAsByte(options.MinCommitInterval.HasValue),
+                        min_commit_interval = (ulong)options.MinCommitInterval.GetValueOrDefault().Ticks,
+
+                        has_preserve_insertion_order = BoolAsByte(options.PreserveInsertionOrder.HasValue),
+                        preserve_insertion_order = BoolAsByte(options.PreserveInsertionOrder.GetValueOrDefault()),
+
+                        has_target_size = BoolAsByte(options.TargetSize.HasValue),
+                        target_size = options.TargetSize.GetValueOrDefault(),
+
+                        zorder_columns = scope.ArrayPointer(options.ZOrderColumns?.Select(x => scope.ByteArray(x)).ToArray() ?? System.Array.Empty<Interop.ByteArrayRef>()),
+                        zorder_columns_count = (nuint)(options.ZOrderColumns?.Count ?? 0),
+
+                        optimize_type = (uint)options.OptimizeType,
+                    };
+
+                    Methods.table_optimize(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.Pointer(interopOptions),
+                        scope.FunctionPointer<GenericErrorCallback>((_success, fail) =>
                         {
                             if (cancellationToken.IsCancellationRequested)
                             {

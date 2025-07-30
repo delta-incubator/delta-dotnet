@@ -215,6 +215,43 @@ namespace DeltaLake.Bridge.Interop
         public DeltaTableError* error;
     }
 
+    internal unsafe partial struct OptimizeOptions
+    {
+        [NativeTypeName("bool")]
+        public byte has_max_concurrent_tasks;
+        [NativeTypeName("uint32_t")]
+        public uint max_concurrent_tasks;
+
+        [NativeTypeName("bool")]
+        public byte has_max_spill_size;
+        [NativeTypeName("uint64_t")]
+        public ulong max_spill_size;
+
+        [NativeTypeName("bool")]
+        public byte has_min_commit_interval;
+        [NativeTypeName("uint64_t")]
+        public ulong min_commit_interval;
+
+        [NativeTypeName("bool")]
+        public byte has_preserve_insertion_order;
+        [NativeTypeName("bool")]
+        public byte preserve_insertion_order;
+
+        [NativeTypeName("bool")]
+        public byte has_target_size;
+        [NativeTypeName("uint64_t")]
+        public ulong target_size;
+
+        [NativeTypeName("const struct ByteArrayRef *")]
+        public ByteArrayRef* zorder_columns;
+
+        [NativeTypeName("uintptr_t")]
+        public UIntPtr zorder_columns_count;
+
+        [NativeTypeName("uint32_t")]
+        public uint optimize_type;
+    }
+
     internal unsafe partial struct VacuumOptions
     {
         [NativeTypeName("bool")]
@@ -423,6 +460,9 @@ namespace DeltaLake.Bridge.Interop
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_checkpoint([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void table_optimize([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct OptimizeOptions * _Nonnull")] OptimizeOptions* options, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_vacuum([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct VacuumOptions * _Nonnull")] VacuumOptions* options, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
