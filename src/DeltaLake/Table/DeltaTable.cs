@@ -213,6 +213,12 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
+        public async Task OptimizeAsync(OptimizeOptions options, CancellationToken cancellationToken)
+        {
+            await table.OptimizeAsync(options, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public async Task VacuumAsync(VacuumOptions options, CancellationToken cancellationToken)
         {
             await table.VacuumAsync(options, cancellationToken).ConfigureAwait(false);

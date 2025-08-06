@@ -166,6 +166,22 @@ typedef struct ProtocolResponse {
   const struct DeltaTableError *error;
 } ProtocolResponse;
 
+typedef struct OptimizeOptions {
+  bool has_max_concurrent_tasks;
+  uint32_t max_concurrent_tasks;
+  bool has_max_spill_size;
+  uint64_t max_spill_size;
+  bool has_min_commit_interval;
+  uint64_t min_commit_interval;
+  bool has_preserve_insertion_order;
+  bool preserve_insertion_order;
+  bool has_target_size;
+  uint64_t target_size;
+  const struct ByteArrayRef *zorder_columns;
+  uintptr_t zorder_columns_count;
+  uint32_t optimize_type;
+} OptimizeOptions;
+
 typedef struct VacuumOptions {
   bool dry_run;
   uint64_t retention_hours;
@@ -378,6 +394,11 @@ void table_checkpoint(struct Runtime *_Nonnull runtime,
                       struct RawDeltaTable *_Nonnull table,
                       const struct CancellationToken *cancellation_token,
                       TableEmptyCallback callback);
+
+void table_optimize(struct Runtime *_Nonnull runtime,
+                    struct RawDeltaTable *_Nonnull table,
+                    struct OptimizeOptions *_Nonnull options,
+                    GenericErrorCallback callback);
 
 void table_vacuum(struct Runtime *_Nonnull runtime,
                   struct RawDeltaTable *_Nonnull table,
