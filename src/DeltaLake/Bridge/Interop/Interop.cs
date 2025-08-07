@@ -219,28 +219,33 @@ namespace DeltaLake.Bridge.Interop
     {
         [NativeTypeName("bool")]
         public byte has_max_concurrent_tasks;
+
         [NativeTypeName("uint32_t")]
         public uint max_concurrent_tasks;
 
         [NativeTypeName("bool")]
         public byte has_max_spill_size;
+
         [NativeTypeName("uint64_t")]
-        public ulong max_spill_size;
+        public UIntPtr max_spill_size;
 
         [NativeTypeName("bool")]
         public byte has_min_commit_interval;
+
         [NativeTypeName("uint64_t")]
-        public ulong min_commit_interval;
+        public UIntPtr min_commit_interval;
 
         [NativeTypeName("bool")]
         public byte has_preserve_insertion_order;
+
         [NativeTypeName("bool")]
         public byte preserve_insertion_order;
 
         [NativeTypeName("bool")]
         public byte has_target_size;
+
         [NativeTypeName("uint64_t")]
-        public ulong target_size;
+        public UIntPtr target_size;
 
         [NativeTypeName("const struct ByteArrayRef *")]
         public ByteArrayRef* zorder_columns;

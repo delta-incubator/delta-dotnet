@@ -15,9 +15,6 @@ using System.Threading.Tasks;
 
 namespace DeltaLake.Kernel.Shim.Async
 {
-    /// <summary>
-    /// Uses <see cref="TaskCompletionSource"/> to shim async operations.
-    /// </summary>
     internal static class SyncToAsyncShim
     {
         /// <summary>

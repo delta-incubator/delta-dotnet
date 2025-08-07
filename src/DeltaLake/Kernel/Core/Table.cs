@@ -145,7 +145,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
                 }
-                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
+                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1_1.ok;
 
                 // The joys of unmanaged code, this is all to pass some Key:Value string pairs
                 // to the Kernel's Engine Builder (e.g. Storage Account/S3 Keys etc.).
@@ -181,7 +181,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
-                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
+                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
             }

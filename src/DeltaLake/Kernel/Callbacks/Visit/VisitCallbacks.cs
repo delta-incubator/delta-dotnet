@@ -117,10 +117,10 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                         tableRoot);
                     if (selectionVectorRes.tag != ExternResultKernelBoolSlice_Tag.OkKernelBoolSlice)
                     {
-                        throw KernelException.FromEngineError(selectionVectorRes.Anonymous.Anonymous2.err, "Could not get selection vector from kernel");
+                        throw KernelException.FromEngineError(selectionVectorRes.Anonymous.Anonymous2_1.err, "Could not get selection vector from kernel");
                     }
 
-                    KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
+                    KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1_1.ok;
 
                     context->PartitionKeyValueMap = partitionMap;
                     // TODO: Do something with the transform
@@ -156,10 +156,10 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     ExternResultArrowFFIData isRawArrowReadOk = Methods.get_raw_arrow_data(engineData, context->Engine);
                     if (isRawArrowReadOk.tag != ExternResultArrowFFIData_Tag.OkArrowFFIData)
                     {
-                        throw KernelException.FromEngineError(isRawArrowReadOk.Anonymous.Anonymous2.err, "Could not read raw Arrow data with Delta Kernel");
+                        throw KernelException.FromEngineError(isRawArrowReadOk.Anonymous.Anonymous2_1.err, "Could not read raw Arrow data with Delta Kernel");
                     }
 
-                    ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1.ok;
+                    ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1_1.ok;
                     new ArrowFFIInterOpHandler().StoreArrowInContext(
                         context->ArrowContext,
                         arrowData,

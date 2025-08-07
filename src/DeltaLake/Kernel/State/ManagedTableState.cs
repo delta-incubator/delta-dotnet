@@ -295,10 +295,10 @@ namespace DeltaLake.Kernel.State
                 ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
-                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2.err, "Failed to create table scan from Delta Kernel.");
+                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2_1.err, "Failed to create table scan from Delta Kernel.");
                 }
 
-                this.managedScan = scanRes.Anonymous.Anonymous1.ok;
+                this.managedScan = scanRes.Anonymous.Anonymous1_1.ok;
             }
         }
 
@@ -334,10 +334,10 @@ namespace DeltaLake.Kernel.State
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {
-                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2.err, "Failed to retrieve table snapshot from Delta Kernel.");
+                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2_1.err, "Failed to retrieve table snapshot from Delta Kernel.");
                 }
 
-                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1.ok;
+                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1_1.ok;
             }
         }
 
@@ -395,17 +395,17 @@ namespace DeltaLake.Kernel.State
                     ExternResultHandleSharedScanMetadataIterator dataIteratorHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, managedScanPtr);
                     if (dataIteratorHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
                     {
-                        throw KernelException.FromEngineError(dataIteratorHandle.Anonymous.Anonymous2.err, "Failed to construct kernel scan data iterator.");
+                        throw KernelException.FromEngineError(dataIteratorHandle.Anonymous.Anonymous2_1.err, "Failed to construct kernel scan data iterator.");
                     }
-                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
+                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1_1.ok;
                     for (; ; )
                     {
                         ExternResultbool isScanOk = Methods.scan_metadata_next(
                             kernelOwnedScanDataIteratorPtr,
                             scanScopedEngineContextPtr,
                             Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
-                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw KernelException.FromEngineError(isScanOk.Anonymous.Anonymous2.err, "Failed to iterate on table scan data.");
-                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
+                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw KernelException.FromEngineError(isScanOk.Anonymous.Anonymous2_1.err, "Failed to iterate on table scan data.");
+                        else if (!isScanOk.Anonymous.Anonymous1_1.ok) break;
                         else continue;
                     }
                 }
