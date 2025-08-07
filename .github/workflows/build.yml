@@ -55,7 +55,7 @@ jobs:
       - name: Build
         # We intentionally just build debug mode in this CI. We build before
         # regen to confirm no interop header changes.
-        run: dotnet build -C Release
+        run: dotnet build -c Release
 
       - name: Regen confirm unchanged
         if: ${{ matrix.checkTarget }}
