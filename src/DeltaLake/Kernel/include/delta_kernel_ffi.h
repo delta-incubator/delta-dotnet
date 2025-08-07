@@ -12,23 +12,23 @@ namespace ffi {
 typedef enum KernelError {
   UnknownError,
   FFIError,
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
   ArrowError,
 #endif
   EngineDataTypeError,
   ExtractError,
   GenericError,
   IOErrorError,
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
   ParquetError,
 #endif
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
   ObjectStoreError,
 #endif
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
   ObjectStorePathError,
 #endif
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
   ReqwestError,
 #endif
   FileNotFoundError,
@@ -140,7 +140,7 @@ typedef struct CTransforms CTransforms;
  */
 typedef struct DvInfo DvInfo;
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * A builder that allows setting options on the `Engine` before actually building it
  */
@@ -566,7 +566,7 @@ typedef struct FFI_ArrowSchema {
   void *private_data;
 } FFI_ArrowSchema;
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Struct to allow binding to the arrow [C Data
  * Interface](https://arrow.apache.org/docs/format/CDataInterface.html). This includes the data and
@@ -1560,7 +1560,7 @@ void free_row_indexes(struct KernelRowIndexArray slice);
  */
 void free_engine_data(HandleExclusiveEngineData engine_data);
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Get a "builder" that can be used to construct an engine. The function
  * [`set_builder_option`] can be used to set options on the builder prior to constructing the
@@ -1573,7 +1573,7 @@ struct ExternResultEngineBuilder get_engine_builder(struct KernelStringSlice pat
                                                     AllocateErrorFn allocate_error);
 #endif
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Set an option on the builder
  *
@@ -1586,7 +1586,7 @@ void set_builder_option(struct EngineBuilder *builder,
                         struct KernelStringSlice value);
 #endif
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Consume the builder and return a `default` engine. After calling, the passed pointer is _no
  * longer valid_. Note that this _consumes_ and frees the builder, so there is no need to
@@ -1600,7 +1600,7 @@ void set_builder_option(struct EngineBuilder *builder,
 struct ExternResultHandleSharedExternEngine builder_build(struct EngineBuilder *builder);
 #endif
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * # Safety
  *
@@ -1726,7 +1726,7 @@ uintptr_t engine_data_length(HandleExclusiveEngineData *data);
  */
 void *get_raw_engine_data(HandleExclusiveEngineData data);
 
-#if (defined(DEFINE_DEFAULT_ENGINE) || defined(DEFINE_DEFAULT_ENGINE_RUSTLS))
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Get an [`ArrowFFIData`] to allow binding to the arrow [C Data
  * Interface](https://arrow.apache.org/docs/format/CDataInterface.html). This includes the data and

@@ -55,14 +55,15 @@ jobs:
       - name: Build
         # We intentionally just build debug mode in this CI. We build before
         # regen to confirm no interop header changes.
-        run: dotnet build
+        run: dotnet build -C Release
 
       - name: Regen confirm unchanged
         if: ${{ matrix.checkTarget }}
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
-          dotnet tool install --global --version 16.0.0 ClangSharpPInvokeGenerator
-          # ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
+          dotnet tool install --global --version 20.1.2 ClangSharpPInvokeGenerator
+          ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
+          ClangSharpPInvokeGenerator -D DEFINE_DEFAULT_ENGINE_BASE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code

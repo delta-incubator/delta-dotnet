@@ -203,19 +203,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L282_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L285_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("struct EngineBuilder *")]
                 public EngineBuilder* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -256,19 +256,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L370_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L373_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleSharedExternEngine")]
                 public SharedExternEngine* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -296,19 +296,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L427_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L430_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleSharedSnapshot")]
                 public SharedSnapshot* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -410,19 +410,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L593_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L596_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("struct ArrowFFIData *")]
                 public ArrowFFIData* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -450,18 +450,18 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L614_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L617_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal partial struct _Anonymous1_e__Struct
+            internal partial struct _Anonymous1_1_e__Struct
             {
                 public bool ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -489,19 +489,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L671_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L674_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleExclusiveFileReadResultIterator")]
                 public ExclusiveFileReadResultIterator* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -541,19 +541,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L734_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L737_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleExclusiveEngineData")]
                 public ExclusiveEngineData* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -726,19 +726,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1079_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1082_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal partial struct _Anonymous1_e__Struct
+            internal partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("uintptr_t")]
                 public UIntPtr ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -790,19 +790,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1167_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1170_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal partial struct _Anonymous1_e__Struct
+            internal partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("struct KernelBoolSlice")]
                 public KernelBoolSlice ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -830,19 +830,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1224_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1227_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleSharedScan")]
                 public SharedScan* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -878,19 +878,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1298_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1301_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal unsafe partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("ffi::HandleSharedScanMetadataIterator")]
                 public SharedScanMetadataIterator* ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;
@@ -918,19 +918,19 @@ namespace DeltaLake.Kernel.Interop
         {
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1319_C5")]
-            public _Anonymous1_e__Struct Anonymous1;
+            public _Anonymous1_1_e__Struct Anonymous1_1;
 
             [FieldOffset(0)]
             [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1322_C5")]
-            public _Anonymous2_e__Struct Anonymous2;
+            public _Anonymous2_1_e__Struct Anonymous2_1;
 
-            internal partial struct _Anonymous1_e__Struct
+            internal partial struct _Anonymous1_1_e__Struct
             {
                 [NativeTypeName("struct KernelRowIndexArray")]
                 public KernelRowIndexArray ok;
             }
 
-            internal unsafe partial struct _Anonymous2_e__Struct
+            internal unsafe partial struct _Anonymous2_1_e__Struct
             {
                 [NativeTypeName("struct EngineError *")]
                 public EngineError* err;

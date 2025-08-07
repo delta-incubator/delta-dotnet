@@ -4,6 +4,13 @@
   - [Build C# Interop](#build-c-interop)
 - [Regenerating API docs](#regenerating-api-docs)
 
+### Using the dev container
+The devcontainer comes preloaded with all of the requisite dependencies.
+It includes a `Makefile` to generate bindings.  
+Use `make generate-bindings` to generate everything.
+Use `make generate-bridge-bindings` for the bridge code.
+Use `make generate-kernel-bindings` for the kernel code
+
 ### Rebuilding Rust extension and interop layer
 
 To regen core interop from header, install
@@ -67,11 +74,11 @@ $CSHARP_FRIENDLY_FFI_HEADER = "$GIT_ROOT/src/DeltaLake/Kernel/include/${HEADER_F
 
 Copy-Item -Path $GENERATED_FFI_HEADER -Destination $CSHARP_FRIENDLY_FFI_HEADER -Force
 
-ClangSharpPInvokeGenerator -D DEFINE_DEFAULT_ENGINE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
+ClangSharpPInvokeGenerator -D DEFINE_DEFAULT_ENGINE_BASE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
 Alternatively, if you have an environment that is not particularly cooperative, you can use the included
 docker container and run 
 ```bash
-docker run --mount type=bind,src=.,dst=/app clangsharp -D DEFINE_DEFAULT_ENGINE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
+docker run --mount type=bind,src=.,dst=/app clangsharp -D DEFINE_DEFAULT_ENGINE_RUSTLS=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
 ```
 # Post-processing script to remove Mangled entrpoints - ClangSharpPInvokeGenerator
 # does not seem to have a built-in arg that does this.
