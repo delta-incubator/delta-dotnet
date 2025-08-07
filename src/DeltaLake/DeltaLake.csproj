@@ -19,7 +19,7 @@
     <ItemGroup>
         <PackageReference Include="Microsoft.Data.Analysis" Version="0.21.1" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
-        <PackageReference Include="Apache.Arrow" Version="18.1.0" />
+        <PackageReference Include="Apache.Arrow" Version="21.0.0" />
         <PackageReference Include="System.Text.Json" Version="9.0.0" />
     </ItemGroup>
 
