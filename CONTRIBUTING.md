@@ -4,6 +4,13 @@
   - [Build C# Interop](#build-c-interop)
 - [Regenerating API docs](#regenerating-api-docs)
 
+### Using the dev container
+The devcontainer comes preloaded with all of the requisite dependencies.
+It includes a `Makefile` to generate bindings.  
+Use `make generate-bindings` to generate everything.
+Use `make generate-bridge-bindings` for the bridge code.
+Use `make generate-kernel-bindings` for the kernel code
+
 ### Rebuilding Rust extension and interop layer
 
 To regen core interop from header, install
@@ -51,7 +58,7 @@ git -C $GIT_ROOT\src\DeltaLake\Kernel\delta-kernel-rs checkout $DELTA_KERNEL_RS_
 # Build the FFI with cloud storage features
 #
 $FFI_PROJ_PATH = "$GIT_ROOT/src/DeltaLake/Kernel/delta-kernel-rs/ffi"
-cargo build --manifest-path $FFI_PROJ_PATH/Cargo.toml --features "delta_kernel/cloud"
+cargo build --manifest-path $FFI_PROJ_PATH/Cargo.toml --no-default-features --features "default-engine-rustls"
 
 ```
 
@@ -67,22 +74,12 @@ $CSHARP_FRIENDLY_FFI_HEADER = "$GIT_ROOT/src/DeltaLake/Kernel/include/${HEADER_F
 
 Copy-Item -Path $GENERATED_FFI_HEADER -Destination $CSHARP_FRIENDLY_FFI_HEADER -Force
 
-# Prepare header for ClangSharp conversion.
-#
-# TODO: we should work out a solution with delta-kernel folks for a future release,
-# on a solution for removing the build flags at the C header level, and instead pushing
-# it up to a Rust feature flag.
-#
-Get-ChildItem "$GIT_ROOT/src/DeltaLake/Kernel/include" -Filter delta_kernel_ffi.h -Recurse | ForEach-Object {
-    $content = Get-Content $_.FullName -Raw
-    $updatedContent = $content -replace '(?m)^(#if .+)$', '// $1 // CLangSharp does not support build time feature flags, meaning C# won`t have the class, so we comment them out' `
-                               -replace '(?m)^(#endif)$', '// $1'
-    $updatedContent = $updatedContent.TrimEnd("`r`n")
-    Set-Content -Path $_.FullName -Value $updatedContent
-}
-
-ClangSharpPInvokeGenerator @src/DeltaLake/Kernel/GenerateInterop.rsp
-
+ClangSharpPInvokeGenerator -D DEFINE_DEFAULT_ENGINE_BASE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
+Alternatively, if you have an environment that is not particularly cooperative, you can use the included
+docker container and run 
+```bash
+docker run --mount type=bind,src=.,dst=/app clangsharp -D DEFINE_DEFAULT_ENGINE_RUSTLS=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
+```
 # Post-processing script to remove Mangled entrpoints - ClangSharpPInvokeGenerator
 # does not seem to have a built-in arg that does this.
 #

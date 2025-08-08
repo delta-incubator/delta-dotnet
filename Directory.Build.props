@@ -13,7 +13,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <Version>0.22.4.1</Version>
+    <Version>0.26.2</Version>
     <!--
       .NET does not allow the above version format for AssemblyVersion, and this
       is the version used in gRPC headers. The format is
@@ -28,13 +28,13 @@
       and 0.2.0 then is 0.2.0.5. But if there is no prerelease version, just
       leave revision off.
     -->
-    <AssemblyVersion>0.22.4.1</AssemblyVersion>
+    <AssemblyVersion>0.26.2</AssemblyVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.4.33"
       PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="8.0.0">
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers" Version="9.0.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>

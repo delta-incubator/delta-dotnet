@@ -100,28 +100,33 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             string parquetAbsolutePath = $"{tableRoot}/{MarshalExtensions.PtrToStringUTF8((IntPtr)path.ptr, (int)path.len)}";
 #pragma warning restore CS8600
 
-            (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedSBytePointer();
-            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (sbyte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
+            (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedBytePointer();
+            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (byte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
             FileMeta parquetMeta = new() { path = parquetAbsolutePathSlice };
 
             try
             {
-                ExternResultHandleExclusiveFileReadResultIterator isParquetFileReadOk = Methods.read_parquet_file(context->Engine, &parquetMeta, context->Schema);
+                ExternResultHandleExclusiveFileReadResultIterator isParquetFileReadOk = Methods.read_parquet_file(context->Engine, &parquetMeta, context->PhysicalSchema);
                 if (isParquetFileReadOk.tag != ExternResultHandleExclusiveFileReadResultIterator_Tag.OkHandleExclusiveFileReadResultIterator)
                 {
-                    throw new InvalidOperationException($"Kernel failed to read parquet file at: {parquetAbsolutePath}");
+                    throw KernelException.FromEngineError(
+                        isParquetFileReadOk.Anonymous.Anonymous2_1.err,
+                        $"Kernel failed to read parquet file at `{parquetAbsolutePath}`"
+                    );
                 }
 
-                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1.ok;
+                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1_1.ok;
                 for (; ; )
                 {
                     ExternResultbool isArrowResultReadOk = Methods.read_result_next(arrowReadIterator, context, Marshal.GetFunctionPointerForDelegate(VisitCallbacks.IngestArrowData));
                     if (isArrowResultReadOk.tag != ExternResultbool_Tag.Okbool)
                     {
-                        KernelReadError* arrowReadError = (KernelReadError*)isArrowResultReadOk.Anonymous.Anonymous2.err;
-                        throw new InvalidOperationException($"Failed to iterate on reading arrow data from parquet: {arrowReadError->Message}");
+                        throw KernelException.FromEngineError(
+                            isArrowResultReadOk.Anonymous.Anonymous2_1.err,
+                            "Failed to iterate on reading arrow data from parquet"
+                        );
                     }
-                    else if (!isArrowResultReadOk.Anonymous.Anonymous1.ok) break;
+                    else if (!isArrowResultReadOk.Anonymous.Anonymous1_1.ok) break;
                 }
                 Methods.free_read_result_iter(arrowReadIterator);
             }
@@ -157,12 +162,12 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
                 //
 #pragma warning disable CS1024, CS8629, CS8600 // If Kernel sends us back null pointers, we are in trouble anyway
-                void* colValPtr = Methods.get_from_map(
+                void* colValPtr = Methods.get_from_string_map(
                     partitionKeyValueMap,
                     new KernelStringSlice
                     {
-                        ptr = (sbyte*)partitionCols->Cols[i],
-                        len = (ulong)colName?.Length
+                        ptr = (byte*)partitionCols->Cols[i],
+                        len = colName != null ? new UIntPtr((uint)colName.Length) : UIntPtr.Zero
                     },
                     Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
                 );
@@ -171,7 +176,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
                 if (!string.IsNullOrEmpty(colName) && !string.IsNullOrEmpty(colVal))
                 {
-                    colNames.Add(colName);
+                    colNames.Add(colName!);
                     colValues.Add(colVal!);
                 }
                 else

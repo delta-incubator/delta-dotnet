@@ -55,6 +55,13 @@ jobs:
       - name: Checkout specific delta-kernel-rs release
         shell: bash
         run: chmod -R +x .scripts/*.sh && .scripts/checkout-delta-kernel-rs.sh
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: | 
+            8.0.x
+            9.0.x
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
