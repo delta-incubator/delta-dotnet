@@ -10,7 +10,7 @@
         <PublishRepositoryUrl>true</PublishRepositoryUrl>
         <SymbolPackageFormat>snupkg</SymbolPackageFormat>
         <Nullable>enable</Nullable>
-        <TargetFrameworks>net472;net8.0;</TargetFrameworks>
+        <TargetFrameworks>net472;net8.0;net9.0</TargetFrameworks>
         <VersionSuffix>rc-1</VersionSuffix>
         <PackageTags>deltalake csharp</PackageTags>
         <PackageId>DeltaLake.Net</PackageId>
