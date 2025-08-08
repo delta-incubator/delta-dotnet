@@ -16,9 +16,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
-          - os: windows-latest
-            checkTarget: true
           - os: ubuntu-latest
+            checkTarget: true
             docsTarget: true
             # Code coverage doesn't seem to work when PR's are opened from forked repositories, see discussion:
             #
