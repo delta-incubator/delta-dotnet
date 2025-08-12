@@ -54,9 +54,7 @@ typedef enum KernelError {
   InternalError,
   InvalidExpression,
   InvalidLogPath,
-  InvalidCommitInfo,
   FileAlreadyExists,
-  MissingCommitInfo,
   UnsupportedError,
   ParseIntervalError,
   ChangeDataFeedUnsupported,
@@ -159,6 +157,15 @@ typedef struct ExclusiveEngineData ExclusiveEngineData;
 typedef struct ExclusiveFileReadResultIterator ExclusiveFileReadResultIterator;
 
 /**
+ * A handle representing an exclusive transaction on a Delta table. (Similar to a Box<_>)
+ *
+ * This struct provides a safe wrapper around the underlying `Transaction` type,
+ * ensuring exclusive access to transaction operations. The transaction can be used
+ * to stage changes and commit them atomically to the Delta table.
+ */
+typedef struct ExclusiveTransaction ExclusiveTransaction;
+
+/**
  * A SQL expression.
  *
  * These expressions do not track or validate data types, other than the type
@@ -186,6 +193,10 @@ typedef struct SharedExpressionEvaluator SharedExpressionEvaluator;
 
 typedef struct SharedExternEngine SharedExternEngine;
 
+typedef struct SharedOpaqueExpressionOp SharedOpaqueExpressionOp;
+
+typedef struct SharedOpaquePredicateOp SharedOpaquePredicateOp;
+
 typedef struct SharedPredicate SharedPredicate;
 
 typedef struct SharedScan SharedScan;
@@ -197,6 +208,14 @@ typedef struct SharedScanMetadataIterator SharedScanMetadataIterator;
 typedef struct SharedSchema SharedSchema;
 
 typedef struct SharedSnapshot SharedSnapshot;
+
+/**
+ * A [`WriteContext`] that provides schema and path information needed for writing data.
+ * This is a shared reference that can be cloned and used across multiple consumers.
+ *
+ * The [`WriteContext`] must be freed using [`free_write_context`] when no longer needed.
+ */
+typedef struct SharedWriteContext SharedWriteContext;
 
 typedef struct StringSliceIterator StringSliceIterator;
 
@@ -434,6 +453,11 @@ typedef struct ExternResultHandleSharedSnapshot {
 } ExternResultHandleSharedSnapshot;
 
 /**
+ * Delta table version is 8 byte unsigned int
+ */
+typedef uint64_t Version;
+
+/**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
  * it. It can be passed freely between rust code and external code. The
  *
@@ -512,6 +536,27 @@ typedef NullableCvoid (*AllocateStringFn)(struct KernelStringSlice kernel_str);
  * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
  */
 typedef struct StringSliceIterator *HandleStringSliceIterator;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultNullableCvoid_Tag {
+  OkNullableCvoid,
+  ErrNullableCvoid,
+} ExternResultNullableCvoid_Tag;
+
+typedef struct ExternResultNullableCvoid {
+  ExternResultNullableCvoid_Tag tag;
+  union {
+    struct {
+      NullableCvoid ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultNullableCvoid;
 
 /**
  * ABI-compatible struct for ArrowArray from C Data Interface
@@ -598,6 +643,27 @@ typedef struct ExternResultArrowFFIData {
     };
   };
 } ExternResultArrowFFIData;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleExclusiveEngineData_Tag {
+  OkHandleExclusiveEngineData,
+  ErrHandleExclusiveEngineData,
+} ExternResultHandleExclusiveEngineData_Tag;
+
+typedef struct ExternResultHandleExclusiveEngineData {
+  ExternResultHandleExclusiveEngineData_Tag tag;
+  union {
+    struct {
+      HandleExclusiveEngineData ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleExclusiveEngineData;
 
 /**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
@@ -720,27 +786,6 @@ typedef struct FileMeta {
 typedef struct SharedExpressionEvaluator *HandleSharedExpressionEvaluator;
 
 /**
- * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
- * allocated one at all), and engine is responsible for freeing it.
- */
-typedef enum ExternResultHandleExclusiveEngineData_Tag {
-  OkHandleExclusiveEngineData,
-  ErrHandleExclusiveEngineData,
-} ExternResultHandleExclusiveEngineData_Tag;
-
-typedef struct ExternResultHandleExclusiveEngineData {
-  ExternResultHandleExclusiveEngineData_Tag tag;
-  union {
-    struct {
-      HandleExclusiveEngineData ok;
-    };
-    struct {
-      struct EngineError *err;
-    };
-  };
-} ExternResultHandleExclusiveEngineData;
-
-/**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
  * it. It can be passed freely between rust code and external code. The
  *
@@ -811,6 +856,78 @@ typedef struct SharedExpression *HandleSharedExpression;
  * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
  */
 typedef struct SharedPredicate *HandleSharedPredicate;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedOpaqueExpressionOp *HandleSharedOpaqueExpressionOp;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedOpaquePredicateOp *HandleSharedOpaquePredicateOp;
 
 typedef void (*VisitLiteralFni32)(void *data, uintptr_t sibling_list_id, int32_t value);
 
@@ -1044,6 +1161,27 @@ typedef struct EngineExpressionVisitor {
    * The sub-expressions of the `StructExpression` are in a list identified by `child_list_id`
    */
   void (*visit_struct_expr)(void *data, uintptr_t sibling_list_id, uintptr_t child_list_id);
+  /**
+   * Visits the operator (`op`) and children (`child_list_id`) of an opaque expression belonging
+   * to the list identified by `sibling_list_id`.
+   */
+  void (*visit_opaque_expr)(void *data,
+                            uintptr_t sibling_list_id,
+                            HandleSharedOpaqueExpressionOp op,
+                            uintptr_t child_list_id);
+  /**
+   * Visits the operator (`op`) and children (`child_list_id`) of an opaque predicate belonging
+   * to the list identified by `sibling_list_id`.
+   */
+  void (*visit_opaque_pred)(void *data,
+                            uintptr_t sibling_list_id,
+                            HandleSharedOpaquePredicateOp op,
+                            uintptr_t child_list_id);
+  /**
+   * Visits the name of an `Expression::Unknown` or `Predicate::Unknown` belonging to the
+   * list identified by `sibling_list_id`.
+   */
+  void (*visit_unknown)(void *data, uintptr_t sibling_list_id, struct KernelStringSlice name);
 } EngineExpressionVisitor;
 
 /**
@@ -1531,7 +1669,129 @@ typedef struct EngineSchemaVisitor {
                               struct KernelStringSlice name,
                               bool is_nullable,
                               const struct CStringMap *metadata);
+  /**
+   * Visit a `variant` belonging to the list identified by `sibling_list_id`.
+   */
+  void (*visit_variant)(void *data,
+                        uintptr_t sibling_list_id,
+                        struct KernelStringSlice name,
+                        bool is_nullable,
+                        const struct CStringMap *metadata);
 } EngineSchemaVisitor;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveTransaction *HandleExclusiveTransaction;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleExclusiveTransaction_Tag {
+  OkHandleExclusiveTransaction,
+  ErrHandleExclusiveTransaction,
+} ExternResultHandleExclusiveTransaction_Tag;
+
+typedef struct ExternResultHandleExclusiveTransaction {
+  ExternResultHandleExclusiveTransaction_Tag tag;
+  union {
+    struct {
+      HandleExclusiveTransaction ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleExclusiveTransaction;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultu64_Tag {
+  Oku64,
+  Erru64,
+} ExternResultu64_Tag;
+
+typedef struct ExternResultu64 {
+  ExternResultu64_Tag tag;
+  union {
+    struct {
+      uint64_t ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultu64;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedWriteContext *HandleSharedWriteContext;
 
 #ifdef __cplusplus
 extern "C" {
@@ -1628,6 +1888,17 @@ struct ExternResultHandleSharedSnapshot snapshot(struct KernelStringSlice path,
                                                  HandleSharedExternEngine engine);
 
 /**
+ * Get the snapshot from the specified table at a specific version
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles and path pointer.
+ */
+struct ExternResultHandleSharedSnapshot snapshot_at_version(struct KernelStringSlice path,
+                                                            HandleSharedExternEngine engine,
+                                                            Version version);
+
+/**
  * # Safety
  *
  * Caller is responsible for passing a valid handle.
@@ -1708,6 +1979,18 @@ bool string_slice_next(HandleStringSliceIterator data,
 void free_string_slice_data(HandleStringSliceIterator data);
 
 /**
+ * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific domain in this snapshot
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing in a valid handle
+ */
+struct ExternResultNullableCvoid get_domain_metadata(HandleSharedSnapshot snapshot,
+                                                     struct KernelStringSlice domain,
+                                                     HandleSharedExternEngine engine,
+                                                     AllocateStringFn allocate_fn);
+
+/**
  * Get the number of rows in an engine data
  *
  * # Safety
@@ -1738,6 +2021,24 @@ void *get_raw_engine_data(HandleExclusiveEngineData data);
  */
 struct ExternResultArrowFFIData get_raw_arrow_data(HandleExclusiveEngineData data,
                                                    HandleSharedExternEngine engine);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Creates engine data from Arrow C Data Interface array and schema.
+ *
+ * Converts the provided Arrow C Data Interface array and schema into delta-kernel's internal
+ * engine data format. Note that ownership of the array is transferred to the kernel, whereas the
+ * ownership of the schema stays the engine's.
+ *
+ * # Safety
+ * - `array` must be a valid FFI_ArrowArray
+ * - `schema` must be a valid pointer to a FFI_ArrowSchema
+ * - `engine` must be a valid Handle to a SharedExternEngine
+ */
+struct ExternResultHandleExclusiveEngineData get_engine_data(struct FFI_ArrowArray array,
+                                                             const struct FFI_ArrowSchema *schema,
+                                                             HandleSharedExternEngine engine);
 #endif
 
 /**
@@ -1823,6 +2124,42 @@ void free_kernel_expression(HandleSharedExpression data);
 void free_kernel_predicate(HandleSharedPredicate data);
 
 /**
+ * Free the passed SharedOpaqueExpressionOp
+ *
+ * # Safety
+ * Engine is responsible for passing a valid SharedOpaqueExpressionOp
+ */
+void free_kernel_opaque_expression_op(HandleSharedOpaqueExpressionOp data);
+
+/**
+ * Free the passed SharedOpaquePredicateOp
+ *
+ * # Safety
+ * Engine is responsible for passing a valid SharedOpaquePredicateOp
+ */
+void free_kernel_opaque_predicate_op(HandleSharedOpaquePredicateOp data);
+
+/**
+ * Visits the name of a SharedOpaqueExpressionOp
+ *
+ * # Safety
+ * Engine is responsible for passing a valid SharedOpaqueExpressionOp
+ */
+void visit_kernel_opaque_expression_op_name(HandleSharedOpaqueExpressionOp op,
+                                            void *data,
+                                            void (*visit)(void *data, struct KernelStringSlice name));
+
+/**
+ * Visits the name of a SharedOpaquePredicateOp
+ *
+ * # Safety
+ * Engine is responsible for passing a valid SharedOpaquePredicateOp
+ */
+void visit_kernel_opaque_predicate_op_name(HandleSharedOpaquePredicateOp op,
+                                           void *data,
+                                           void (*visit)(void *data, struct KernelStringSlice name));
+
+/**
  * Visit the expression of the passed [`SharedExpression`] Handle using the provided `visitor`.
  * See the documentation of [`EngineExpressionVisitor`] for a description of how this visitor
  * works.
@@ -1906,6 +2243,12 @@ uintptr_t visit_predicate_ge(struct KernelExpressionVisitorState *state, uintptr
 uintptr_t visit_predicate_eq(struct KernelExpressionVisitorState *state, uintptr_t a, uintptr_t b);
 
 uintptr_t visit_predicate_ne(struct KernelExpressionVisitorState *state, uintptr_t a, uintptr_t b);
+
+uintptr_t visit_predicate_unknown(struct KernelExpressionVisitorState *state,
+                                  struct KernelStringSlice name);
+
+uintptr_t visit_expression_unknown(struct KernelExpressionVisitorState *state,
+                                   struct KernelStringSlice name);
 
 /**
  * # Safety
@@ -2214,6 +2557,86 @@ HandleSharedExpression get_testing_kernel_expression(void);
  * [`crate::expressions::free_kernel_predicate`], or [`crate::handle::Handle::drop_handle`].
  */
 HandleSharedPredicate get_testing_kernel_predicate(void);
+
+/**
+ * Start a transaction on the latest snapshot of the table.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles and path pointer.
+ */
+struct ExternResultHandleExclusiveTransaction transaction(struct KernelStringSlice path,
+                                                          HandleSharedExternEngine engine);
+
+/**
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+void free_transaction(HandleExclusiveTransaction txn);
+
+/**
+ * Attaches commit information to a transaction. The commit info contains metadata about the
+ * transaction that will be written to the log during commit.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle. CONSUMES TRANSACTION and commit info
+ */
+struct ExternResultHandleExclusiveTransaction with_engine_info(HandleExclusiveTransaction txn,
+                                                               struct KernelStringSlice engine_info,
+                                                               HandleSharedExternEngine engine);
+
+/**
+ * Add file metadata to the transaction for files that have been written. The metadata contains
+ * information about files written during the transaction that will be added to the Delta log
+ * during commit.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle. Consumes write_metadata.
+ */
+void add_files(HandleExclusiveTransaction txn, HandleExclusiveEngineData write_metadata);
+
+/**
+ * Attempt to commit a transaction to the table. Returns version number if successful.
+ * Returns error if the commit fails.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle. And MUST NOT USE transaction after this
+ * method is called.
+ */
+struct ExternResultu64 commit(HandleExclusiveTransaction txn, HandleSharedExternEngine engine);
+
+/**
+ * Gets the write context from a transaction. The write context provides schema and path information
+ * needed for writing data.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a [valid][Handle#Validity] transaction handle.
+ */
+HandleSharedWriteContext get_write_context(HandleExclusiveTransaction txn);
+
+void free_write_context(HandleSharedWriteContext write_context);
+
+/**
+ * Get schema from WriteContext handle. The schema must be freed when no longer needed via
+ * [`free_schema`].
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer
+ */
+HandleSharedSchema get_write_schema(HandleSharedWriteContext write_context);
+
+/**
+ * Get write path from WriteContext handle.
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer
+ */
+NullableCvoid get_write_path(HandleSharedWriteContext write_context, AllocateStringFn allocate_fn);
 
 #ifdef __cplusplus
 }  // extern "C"
