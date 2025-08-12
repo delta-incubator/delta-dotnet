@@ -64,13 +64,13 @@ jobs:
         if: ${{ matrix.checkTarget }}
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
+          dotnet tool install --global --version 20.1.2 ClangSharpPInvokeGenerator
           curl -L  https://www.nuget.org/api/v2/package/libclang.runtime.linux-x64/20.1.2 -o /tmp/libclang.zip
           curl -L https://www.nuget.org/api/v2/package/libClangSharp.runtime.linux-x64/20.1.2 -o /tmp/libclangsharp.zip
           unzip -od /tmp/libclang /tmp/libclang.zip
           unzip -od /tmp/libclangsharp /tmp/libclangsharp.zip
           cp /tmp/libclang/runtimes/linux-x64/native/libclang.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
           cp /tmp/libclangsharp/runtimes/linux-x64/native/libClangSharp.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
-          dotnet tool install --global --version 20.1.2 ClangSharpPInvokeGenerator
           ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
           ClangSharpPInvokeGenerator -D DEFINE_DEFAULT_ENGINE_BASE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
           npx doctoc README.md
