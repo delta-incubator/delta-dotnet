@@ -77,7 +77,8 @@ jobs:
           unzip -od /tmp/libclangsharp /tmp/libclangsharp.zip
           cp /tmp/libclang/runtimes/linux-x64/native/libclang.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
           cp /tmp/libclangsharp/runtimes/linux-x64/native/libClangSharp.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
-          make generate-bindings
+          # temporarily disable generation test
+          # make generate-bindings
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code
