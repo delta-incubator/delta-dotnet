@@ -12,7 +12,7 @@ namespace DeltaLake.Tests.Table
         [InlineData(100)]
         public async Task Memory_Insert_Variable_Record_Count_Test(int length)
         {
-            await BaseCheckpointTest($"memory://{Guid.NewGuid():N}", length);
+            await BaseCheckpointTest($"memory:///{Guid.NewGuid():N}", length);
         }
 
         [Theory]

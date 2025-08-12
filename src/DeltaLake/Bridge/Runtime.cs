@@ -79,7 +79,7 @@ namespace DeltaLake.Bridge
                 {
                     var nativeOptions = new Interop.TableOptions()
                     {
-                        version = options.Version.HasValue ? unchecked((long)options.Version.Value) : -1L,
+                        version = new IntPtr(options.Version.HasValue ? unchecked((long)options.Version.Value) : -1L),
                         without_files = (byte)(options.WithoutFiles ? 1 : 0),
                         log_buffer_size = options.LogBufferSize ?? (nuint)0,
                         storage_options = options.StorageOptions != null ? scope.Dictionary(this, options.StorageOptions) : null,

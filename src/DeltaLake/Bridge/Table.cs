@@ -59,7 +59,7 @@ namespace DeltaLake.Bridge
                     Interop.Methods.table_load_version(
                         _runtime.Ptr,
                          _ptr,
-                          unchecked((long)version),
+                          new IntPtr((long)version),
                           scope.CancellationToken(cancellationToken),
                           scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
@@ -94,7 +94,7 @@ namespace DeltaLake.Bridge
                     Interop.Methods.table_load_with_datetime(
                         _runtime.Ptr,
                          _ptr,
-                         timestampMilliseconds,
+                         new IntPtr(timestampMilliseconds),
                           scope.CancellationToken(cancellationToken),
                           scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                     {
@@ -123,7 +123,7 @@ namespace DeltaLake.Bridge
         {
             unsafe
             {
-                return Interop.Methods.table_version(_ptr);
+                return Interop.Methods.table_version(_ptr).ToInt64();
             }
         }
 
@@ -528,7 +528,7 @@ namespace DeltaLake.Bridge
                     Methods.table_update_incremental(
                         _runtime.Ptr,
                         _ptr,
-                        maxVersion ?? -1L,
+                        new IntPtr(maxVersion ?? -1L),
                         scope.CancellationToken(cancellationToken),
                         scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
                         {
@@ -588,7 +588,7 @@ namespace DeltaLake.Bridge
                     Methods.table_restore(
                         _runtime.Ptr,
                         _ptr,
-                        options.Timestamp?.ToUnixTimeMilliseconds() ?? (long?)options.Version ?? 0,
+                        new IntPtr(options.Timestamp?.ToUnixTimeMilliseconds() ?? (long?)options.Version ?? 0),
                         BoolAsByte(options.Timestamp.HasValue),
                         BoolAsByte(options.IgnoreMissingFiles),
                         BoolAsByte(options.ProtocolDowngradeAllowed),
@@ -628,16 +628,16 @@ namespace DeltaLake.Bridge
                         max_concurrent_tasks = options.MaxConcurrentTasks.GetValueOrDefault(),
 
                         has_max_spill_size = BoolAsByte(options.MaxSpillSize.HasValue),
-                        max_spill_size = options.MaxSpillSize.GetValueOrDefault(),
+                        max_spill_size = new UIntPtr(options.MaxSpillSize.GetValueOrDefault()),
 
                         has_min_commit_interval = BoolAsByte(options.MinCommitInterval.HasValue),
-                        min_commit_interval = (ulong)options.MinCommitInterval.GetValueOrDefault().Ticks,
+                        min_commit_interval = new UIntPtr((ulong)options.MinCommitInterval.GetValueOrDefault().Ticks),
 
                         has_preserve_insertion_order = BoolAsByte(options.PreserveInsertionOrder.HasValue),
                         preserve_insertion_order = BoolAsByte(options.PreserveInsertionOrder.GetValueOrDefault()),
 
                         has_target_size = BoolAsByte(options.TargetSize.HasValue),
-                        target_size = options.TargetSize.GetValueOrDefault(),
+                        target_size = new UIntPtr(options.TargetSize.GetValueOrDefault()),
 
                         zorder_columns = scope.ArrayPointer(options.ZOrderColumns?.Select(x => scope.ByteArray(x)).ToArray() ?? System.Array.Empty<Interop.ByteArrayRef>()),
                         zorder_columns_count = (nuint)(options.ZOrderColumns?.Count ?? 0),
@@ -680,7 +680,7 @@ namespace DeltaLake.Bridge
                     var interopOptions = new Interop.VacuumOptions
                     {
                         dry_run = BoolAsByte(options.DryRun),
-                        retention_hours = options.RetentionHours ?? 0,
+                        retention_hours = new UIntPtr(options.RetentionHours ?? 0),
                         enforce_retention_duration = BoolAsByte(options.RetentionHours != null),
                         custom_metadata = options.CustomMetadata != null ? scope.Dictionary(_runtime, options.CustomMetadata!) : null,
                     };

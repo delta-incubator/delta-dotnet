@@ -19,21 +19,21 @@ namespace DeltaLake.Kernel.State
     internal struct EngineContext
     {
         /// <summary>
-        /// The global table scan state represents progress during a table scan
-        /// shared from the Kernel to us.
+        /// The schema represents the read schema of the table shared from the
+        /// Kernel to us.
         /// </summary>
-        internal unsafe SharedGlobalScanState* GlobalScanState;
+        internal unsafe SharedSchema* LogicalSchema;
 
         /// <summary>
         /// The schema represents the read schema of the table shared from the
         /// Kernel to us.
         /// </summary>
-        internal unsafe SharedSchema* Schema;
+        internal unsafe SharedSchema* PhysicalSchema;
 
         /// <summary>
         /// A pointer to the root of the table.
         /// </summary>
-        internal unsafe char* TableRoot;
+        internal unsafe byte* TableRoot;
 
         /// <summary>
         /// The External Engine represents the external engine (us) we share
@@ -58,5 +58,29 @@ namespace DeltaLake.Kernel.State
         /// back to end-users by converting from Arrow to various APIs.
         /// </summary>
         internal unsafe ArrowContext* ArrowContext;
+
+        public unsafe KernelStringSlice KernelTableRoot()
+        {
+            if (TableRoot == null)
+            {
+                return new KernelStringSlice
+                {
+                    ptr = null,
+                    len = System.UIntPtr.Zero,
+                };
+            }
+
+            uint length = 0;
+            while (TableRoot[length] != '\0')
+            {
+                ++length;
+            }
+
+            return new KernelStringSlice
+            {
+                ptr = (byte*)TableRoot,
+                len = new System.UIntPtr(length)
+            };
+        }
     }
 }

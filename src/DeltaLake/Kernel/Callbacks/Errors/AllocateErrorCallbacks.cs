@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System;
+using System.Runtime.InteropServices;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Interop;
 
@@ -35,6 +36,26 @@ namespace DeltaLake.Kernel.Callbacks.Errors
             throw new InvalidOperationException(
                 $"Kernel engine error of type {etype} occurred with message: {message}"
             );
+        }
+
+        /// <summary>
+        /// Warns and throws an allocation error.
+        /// </summary>
+        /// <param name="etype">The type of kernel error.</param>
+        /// <param name="msg">The error message.</param>
+        /// <returns>An <see cref="KernelReadError"/> pointer.</returns>
+        internal static unsafe EngineError* AllocateError(
+            KernelError etype,
+            KernelStringSlice msg
+        )
+        {
+            var engineError = new EngineError
+            {
+                etype = etype,
+            };
+            var ptr = (KernelReadError*)Marshal.AllocHGlobal(sizeof(KernelReadError));
+            *ptr = new KernelReadError(engineError, msg);
+            return (EngineError*)ptr;
         }
     }
 }

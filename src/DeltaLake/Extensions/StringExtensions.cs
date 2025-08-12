@@ -28,12 +28,12 @@ namespace DeltaLake.Extensions
         /// </remarks>
         /// <param name="str">The string to convert.</param>
         /// <returns>A tuple containing the pinned handle and the sbyte pointer.</returns>
-        public static unsafe (GCHandle handle, IntPtr pointer) ToPinnedSBytePointer(this string str)
+        public static unsafe (GCHandle handle, IntPtr pointer) ToPinnedBytePointer(this string str)
         {
             int byteCount = Encoding.UTF8.GetByteCount(str);
-            sbyte[] bytes = new sbyte[byteCount];
+            byte[] bytes = new byte[byteCount];
             fixed (char* strPtr = str)
-            fixed (sbyte* bytesPtr = bytes)
+            fixed (byte* bytesPtr = bytes)
             {
                 _ = Encoding.UTF8.GetBytes(strPtr, str.Length, (byte*)bytesPtr, byteCount);
             }

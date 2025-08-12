@@ -37,7 +37,7 @@ public sealed class OptimizeTests
 
     private async Task BaseOptimizeTest(OptimizeOptions options)
     {
-        var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10_000);
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10_000);
         using var table = data.table;
 
         await table.OptimizeAsync(options, CancellationToken.None);

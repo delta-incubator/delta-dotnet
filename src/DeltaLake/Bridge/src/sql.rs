@@ -101,6 +101,7 @@ impl<'a> DeltaLakeParser<'a> {
                 from: _,
                 selection,
                 returning: _,
+                or: _
             } => Ok((selection, assignments)),
             _ => Err(DeltaTableError::new(
                 runtime,
@@ -274,45 +275,46 @@ pub enum MergeClause {
 pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
     match table {
         TableFactor::Table {
-            name,
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()).or(Some(name.to_string())),
+                        name,
+                        alias,
+                        ..
+            } => alias.map(|a| a.to_string()).or(Some(name.to_string())),
         TableFactor::Derived {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::TableFunction { expr: _, alias } => alias.map(|a| a.to_string()),
         TableFactor::Function {
-            lateral: _,
-            name: _,
-            args: _,
-            alias,
-        } => alias.map(|a| a.to_string()),
+                lateral: _,
+                name: _,
+                args: _,
+                alias,
+            } => alias.map(|a| a.to_string()),
         TableFactor::UNNEST {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::NestedJoin {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::Pivot {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::Unpivot {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::JsonTable {
-            alias,
-            ..
-        } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+            } => alias.map(|a| a.to_string()),
         TableFactor::MatchRecognize { 
-            alias,
-            ..
-         } => alias.map(|a| a.to_string()),
+                alias,
+                ..
+             } => alias.map(|a| a.to_string()),
+        TableFactor::OpenJsonTable { alias, .. } => alias.map(|a| a.to_string()),
     }
 }
 
