@@ -64,7 +64,7 @@ jobs:
         if: ${{ matrix.checkTarget }}
         uses: KyleMayes/install-llvm-action@v2
         with:
-          version: "20.1.8"
+          version: "20.1.2"
 
       - name: Regen confirm unchanged
         if: ${{ matrix.checkTarget }}
