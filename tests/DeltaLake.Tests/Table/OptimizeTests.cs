@@ -31,7 +31,8 @@ public sealed class OptimizeTests
         await BaseOptimizeTest(new OptimizeOptions
         {
             ZOrderColumns = ["test", "second"],
-            OptimizeType = OptimizeType.ZOrder
+            OptimizeType = OptimizeType.ZOrder,
+            MaxConcurrentTasks = 2,
         });
     }
 
@@ -42,10 +43,18 @@ public sealed class OptimizeTests
 
         await table.OptimizeAsync(options, CancellationToken.None);
 
-        var count = 0;
+        long count = 0;
         await foreach (var recordBatch in table.QueryAsync(new("SELECT COUNT(*) FROM deltatable"), CancellationToken.None))
         {
-            count = ((Int32Array)recordBatch.Column(0)).GetValue(0)!.Value;
+            switch (recordBatch.Column(0))
+            {
+                case Int32Array integers:
+                    count = integers.GetValue(0)!.Value;
+                    break;
+                case Int64Array longs:
+                    count = longs.GetValue(0)!.Value;
+                    break;
+            }
         }
 
         Assert.Equal(10_000, count);
