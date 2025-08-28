@@ -1,6 +1,5 @@
 using Apache.Arrow;
 using DeltaLake.Table;
-using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 
 namespace DeltaLake.Tests.Table;
 
