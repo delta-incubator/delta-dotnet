@@ -1,5 +1,6 @@
 using Apache.Arrow;
 using DeltaLake.Table;
+using Microsoft.VisualStudio.TestPlatform.ObjectModel;
 
 namespace DeltaLake.Tests.Table;
 
@@ -22,7 +23,10 @@ public sealed class OptimizeTests
     [Fact]
     public async Task OptimizeTestWithDefaultOptions()
     {
-        await BaseOptimizeTest(new OptimizeOptions());
+        await BaseOptimizeTest(new OptimizeOptions
+        {
+            MaxConcurrentTasks = 2,
+        });
     }
 
     [Fact]
@@ -32,19 +36,21 @@ public sealed class OptimizeTests
         {
             ZOrderColumns = ["test", "second"],
             OptimizeType = OptimizeType.ZOrder,
+            MaxSpillSize = 100_000,
             MaxConcurrentTasks = 2,
         });
     }
 
     private async Task BaseOptimizeTest(OptimizeOptions options)
     {
+        using var source = new CancellationTokenSource(30_000);
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10_000);
         using var table = data.table;
 
-        await table.OptimizeAsync(options, CancellationToken.None);
+        await table.OptimizeAsync(options, source.Token);
 
         long count = 0;
-        await foreach (var recordBatch in table.QueryAsync(new("SELECT COUNT(*) FROM deltatable"), CancellationToken.None))
+        await foreach (var recordBatch in table.QueryAsync(new("SELECT COUNT(*) FROM deltatable"), source.Token))
         {
             switch (recordBatch.Column(0))
             {
