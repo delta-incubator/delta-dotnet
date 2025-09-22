@@ -21,7 +21,7 @@ jobs:
             out-prefix: linux-x64
             # We use cross to build on x64 for compatibility with older glibc
             use-cross: true
-            target: x86_64-unknown-linux-gnu
+            alternative-target: x86_64-unknown-linux-gnu
           - os: ubuntu-arm
             bridge-out-file: libdelta_rs_bridge.so
             kernel-out-file: libdelta_kernel_ffi.so
@@ -84,25 +84,25 @@ jobs:
         if: ${{ matrix.use-cross }}
         run: |
           CROSS_CONFIG=src/DeltaLake/Bridge/Cross.toml \
-          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target || matrix.target }}
+          cross build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release --target ${{ matrix.alternative-target }}
 
       - name: Build Bridge
         if: ${{ !matrix.alternative-target && !matrix.use-cross }}
         run: cargo build --manifest-path src/DeltaLake/Bridge/Cargo.toml --release
       
       - name: Upload bridge library
-        if: ${{ !matrix.alternative-target && !matrix.use-cross }}
+        if: ${{ !matrix.alternative-target }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
           path: src/DeltaLake/Bridge/target/release/${{ matrix.bridge-out-file }}
       
       - name: Upload bridge library alternative target
-        if: ${{ matrix.alternative-target != '' || matrix.use-cross }}
+        if: ${{ matrix.alternative-target != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-bridge
-          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target || matrix.target }}/release/${{ matrix.bridge-out-file }}
+          path: src/DeltaLake/Bridge/target/${{ matrix.alternative-target }}/release/${{ matrix.bridge-out-file }}
           if-no-files-found: "error"
       
   build-kernel-library:
@@ -117,7 +117,7 @@ jobs:
             out-prefix: linux-x64
             # We use cross to build on x64 for compatibility with older glibc
             use-cross: true
-            target: x86_64-unknown-linux-gnu
+            alternative-target: x86_64-unknown-linux-gnu
           - os: ubuntu-arm
             bridge-out-file: libdelta_rs_bridge.so
             kernel-out-file: libdelta_kernel_ffi.so
@@ -182,25 +182,25 @@ jobs:
           cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
                       --no-default-features \
                       --features "default-engine-rustls" \
-                      --target ${{ matrix.alternative-target || matrix.target }}
+                      --target ${{ matrix.alternative-target }}
 
       - name: Build Kernel
         if: ${{ !matrix.alternative-target && !matrix.use-cross }}
         run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --no-default-features --features "default-engine-rustls"
 
       - name: Upload kernel library
-        if: ${{ !matrix.alternative-target && !matrix.use-cross }}
+        if: ${{ !matrix.alternative-target }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
           path: src/DeltaLake/Kernel/delta-kernel-rs/target/release/${{ matrix.kernel-out-file }}
 
       - name: Upload kernel library alternative target
-        if: ${{ matrix.alternative-target != '' || matrix.use-cross }}
+        if: ${{ matrix.alternative-target != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.out-prefix }}-kernel
-          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target || matrix.target }}/release/${{ matrix.kernel-out-file }}
+          path: src/DeltaLake/Kernel/delta-kernel-rs/target/${{ matrix.alternative-target }}/release/${{ matrix.kernel-out-file }}
           if-no-files-found: "error"
 
   build-nuget-package:
