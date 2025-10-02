@@ -47,7 +47,7 @@ public class DeleteTests
         string? predicate,
         int expectedRecords)
     {
-        await BaseDeleteTest($"memory://{Guid.NewGuid():N}", length, predicate, expectedRecords);
+        await BaseDeleteTest($"memory:///{Guid.NewGuid():N}", length, predicate, expectedRecords);
     }
 
     [Theory]
@@ -72,14 +72,14 @@ public class DeleteTests
     public async Task Memory_Invalid_Delete_Predicate_Test()
     {
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
-        await BaseDeleteTest($"memory://{Guid.NewGuid():N}", 10, "invalid_property > 100", 10));
+        await BaseDeleteTest($"memory:///{Guid.NewGuid():N}", 10, "invalid_property > 100", 10));
     }
 
     [Fact]
     public async Task Memory_Delete_Cancellation_Test()
     {
         await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
-        await BaseDeleteTest($"memory://{Guid.NewGuid():N}", 10, default, 10, true));
+        await BaseDeleteTest($"memory:///{Guid.NewGuid():N}", 10, default, 10, true));
     }
 
     private async Task BaseDeleteTest(

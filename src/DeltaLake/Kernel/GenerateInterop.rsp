@@ -5,8 +5,11 @@ exclude-com-proxies
 exclude-default-remappings
 exclude-fnptr-codegen
 generate-disable-runtime-marshalling
+unix-types
 --with-access-specifier
 *=internal
+--with-access-specifier
+KernelError=public
 --file
 src/DeltaLake/Kernel/include/delta_kernel_ffi.h
 --namespace

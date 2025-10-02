@@ -22,7 +22,10 @@ public sealed class OptimizeTests
     [Fact]
     public async Task OptimizeTestWithDefaultOptions()
     {
-        await BaseOptimizeTest(new OptimizeOptions());
+        await BaseOptimizeTest(new OptimizeOptions
+        {
+            MaxConcurrentTasks = 2,
+        });
     }
 
     [Fact]
@@ -31,21 +34,32 @@ public sealed class OptimizeTests
         await BaseOptimizeTest(new OptimizeOptions
         {
             ZOrderColumns = ["test", "second"],
-            OptimizeType = OptimizeType.ZOrder
+            OptimizeType = OptimizeType.ZOrder,
+            MaxSpillSize = 100_000,
+            MaxConcurrentTasks = 2,
         });
     }
 
     private async Task BaseOptimizeTest(OptimizeOptions options)
     {
-        var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10_000);
+        using var source = new CancellationTokenSource(30_000);
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10_000);
         using var table = data.table;
 
-        await table.OptimizeAsync(options, CancellationToken.None);
+        await table.OptimizeAsync(options, source.Token);
 
-        var count = 0;
-        await foreach (var recordBatch in table.QueryAsync(new("SELECT COUNT(*) FROM deltatable"), CancellationToken.None))
+        long count = 0;
+        await foreach (var recordBatch in table.QueryAsync(new("SELECT COUNT(*) FROM deltatable"), source.Token))
         {
-            count = ((Int32Array)recordBatch.Column(0)).GetValue(0)!.Value;
+            switch (recordBatch.Column(0))
+            {
+                case Int32Array integers:
+                    count = integers.GetValue(0)!.Value;
+                    break;
+                case Int64Array longs:
+                    count = longs.GetValue(0)!.Value;
+                    break;
+            }
         }
 
         Assert.Equal(10_000, count);

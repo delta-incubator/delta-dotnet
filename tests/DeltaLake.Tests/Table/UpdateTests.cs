@@ -20,7 +20,7 @@ public class UpdateTests
         string predicate)
     {
         var totalValue = length < 2 ? length - 1 : (length - 2) / 2 * (length + 3) + 1;
-        await BaseUpdateTest($"memory://{Guid.NewGuid():N}", length, predicate, totalValue);
+        await BaseUpdateTest($"memory:///{Guid.NewGuid():N}", length, predicate, totalValue);
     }
 
     [Theory]
@@ -33,7 +33,7 @@ public class UpdateTests
         string predicate)
     {
         var totalValue = length == 1 ? 1 : length / 2 * (length + 1);
-        await BaseUpdateTest($"memory://{Guid.NewGuid():N}", length, predicate, totalValue);
+        await BaseUpdateTest($"memory:///{Guid.NewGuid():N}", length, predicate, totalValue);
     }
 
     [Theory]
@@ -46,20 +46,20 @@ public class UpdateTests
         string predicate)
     {
         var totalValue = length / 2 * (length - 1);
-        await BaseUpdateTest($"memory://{Guid.NewGuid():N}", length, predicate, totalValue);
+        await BaseUpdateTest($"memory:///{Guid.NewGuid():N}", length, predicate, totalValue);
     }
 
     [Fact]
     public async Task Memory_Update_Invalid_Predicate__Test()
     {
         await Assert.ThrowsAsync<DeltaRuntimeException>(() =>
-        BaseUpdateTest($"memory://{Guid.NewGuid():N}", 10, "predicate", 0));
+        BaseUpdateTest($"memory:///{Guid.NewGuid():N}", 10, "predicate", 0));
     }
 
     [Fact]
     public async Task Update_Cancellation_Test()
     {
-        var data = await TableHelpers.SetupTable($"memory://{Guid.NewGuid():N}", 10);
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10);
         using var table = data.table;
         var version = table.Version();
         try

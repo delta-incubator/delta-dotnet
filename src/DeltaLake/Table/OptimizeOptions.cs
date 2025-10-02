@@ -10,6 +10,7 @@ namespace DeltaLake.Table
     {
         /// <summary>
         /// The maximum number of concurrent tasks to use during optimization.
+        /// Defaults to the number of available CPUs
         /// </summary>
         public uint? MaxConcurrentTasks { get; set; }
 

@@ -16,9 +16,8 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         include:
-          - os: windows-latest
-            checkTarget: true
           - os: ubuntu-latest
+            checkTarget: true
             docsTarget: true
             # Code coverage doesn't seem to work when PR's are opened from forked repositories, see discussion:
             #
@@ -45,22 +44,41 @@ jobs:
       - name: Setup Rust cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src/DeltaLake/Bridge
+          workspaces: |
+            src/DeltaLake/Bridge
+            src/DeltaLake/Kernel/delta-kernel-rs
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: | 
+            8.0.x
+            9.0.x
 
       - name: Build
         # We intentionally just build debug mode in this CI. We build before
         # regen to confirm no interop header changes.
-        run: dotnet build
+        run: dotnet build -c Release
+
+      - name: Install LLVM and Clang
+        if: ${{ matrix.checkTarget }}
+        uses: KyleMayes/install-llvm-action@v2
+        with:
+          version: "20.1.2"
 
       - name: Regen confirm unchanged
         if: ${{ matrix.checkTarget }}
         # Needs to be 16.0.0 until https://github.com/dotnet/ClangSharp/pull/506 released
         run: |
-          dotnet tool install --global --version 16.0.0 ClangSharpPInvokeGenerator
-          # ClangSharpPInvokeGenerator @src/DeltaLake/Bridge/GenerateInterop.rsp
+          dotnet tool install --global --version 20.1.2 ClangSharpPInvokeGenerator
+          curl -L  https://www.nuget.org/api/v2/package/libclang.runtime.linux-x64/20.1.2 -o /tmp/libclang.zip
+          curl -L https://www.nuget.org/api/v2/package/libClangSharp.runtime.linux-x64/20.1.2 -o /tmp/libclangsharp.zip
+          unzip -od /tmp/libclang /tmp/libclang.zip
+          unzip -od /tmp/libclangsharp /tmp/libclangsharp.zip
+          cp /tmp/libclang/runtimes/linux-x64/native/libclang.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
+          cp /tmp/libclangsharp/runtimes/linux-x64/native/libClangSharp.so /home/runner/.dotnet/tools/.store/clangsharppinvokegenerator/20.1.2/clangsharppinvokegenerator/20.1.2/tools/net8.0/any/
+          # temporarily disable generation test
+          # make generate-bindings
           npx doctoc README.md
           git config --global core.safecrlf false
           git diff --exit-code
