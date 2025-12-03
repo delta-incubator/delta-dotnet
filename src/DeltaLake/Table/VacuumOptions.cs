@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+
 namespace DeltaLake.Table
 {
     /// <summary>
@@ -20,5 +21,16 @@ namespace DeltaLake.Table
         /// Custom metadata to add to the operations
         /// </summary>
         public Dictionary<string, string>? CustomMetadata { get; init; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// The vacuum mode to use.
+        /// </summary>
+        public VacuumMode VacuumMode { get; init; } = VacuumMode.Lite;
+    }
+
+    public enum VacuumMode
+    {
+        Lite,
+        Full,
     }
 }
