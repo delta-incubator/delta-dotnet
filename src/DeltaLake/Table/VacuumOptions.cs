@@ -28,9 +28,19 @@ namespace DeltaLake.Table
         public VacuumMode VacuumMode { get; init; } = VacuumMode.Lite;
     }
 
+    /// <summary>
+    /// The vacuum mode to use
+    /// </summary>
     public enum VacuumMode
     {
+        /// <summary>
+        /// Run the operation in lite mode (only remove files which are referenced in the `_delta_log` associated with `remove` action)
+        /// </summary>
         Lite,
+
+        /// <summary>
+        /// Run the operation in full mode (remove _all_ data files no longer actively referenced in the `_delta_log` table)
+        /// </summary>
         Full,
     }
 }
