@@ -23,11 +23,11 @@ use deltalake::{
     kernel::{transaction::CommitProperties, StructType},
     operations::{
         constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        update::UpdateBuilder, vacuum::VacuumBuilder,
+        update::UpdateBuilder, vacuum::{VacuumBuilder, VacuumMode},
         optimize::OptimizeBuilder,
         write::WriteBuilder,
     },
-    protocol::SaveMode, VacuumMode,
+    protocol::SaveMode,
     DeltaOps, DeltaTableBuilder,
 };
 use libc::c_void;
