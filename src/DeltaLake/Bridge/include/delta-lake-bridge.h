@@ -186,6 +186,7 @@ typedef struct VacuumOptions {
   bool dry_run;
   uint64_t retention_hours;
   bool enforce_retention_duration;
+  uint32_t vacuum_mode;
   struct Map *custom_metadata;
 } VacuumOptions;
 

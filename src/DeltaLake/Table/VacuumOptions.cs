@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+
 namespace DeltaLake.Table
 {
     /// <summary>
@@ -20,5 +21,26 @@ namespace DeltaLake.Table
         /// Custom metadata to add to the operations
         /// </summary>
         public Dictionary<string, string>? CustomMetadata { get; init; } = new Dictionary<string, string>();
+
+        /// <summary>
+        /// The vacuum mode to use.
+        /// </summary>
+        public VacuumMode VacuumMode { get; init; } = VacuumMode.Lite;
+    }
+
+    /// <summary>
+    /// The vacuum mode to use
+    /// </summary>
+    public enum VacuumMode
+    {
+        /// <summary>
+        /// Run the operation in lite mode (only remove files which are referenced in the `_delta_log` associated with `remove` action)
+        /// </summary>
+        Lite,
+
+        /// <summary>
+        /// Run the operation in full mode (remove _all_ data files no longer actively referenced in the `_delta_log` table)
+        /// </summary>
+        Full,
     }
 }

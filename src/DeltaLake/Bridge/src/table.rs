@@ -23,7 +23,7 @@ use deltalake::{
     kernel::{transaction::CommitProperties, StructType},
     operations::{
         constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        update::UpdateBuilder, vacuum::VacuumBuilder,
+        update::UpdateBuilder, vacuum::{VacuumBuilder, VacuumMode},
         optimize::OptimizeBuilder,
         write::WriteBuilder,
     },
@@ -263,6 +263,7 @@ pub struct VacuumOptions {
     dry_run: bool,
     retention_hours: u64,
     enforce_retention_duration: bool,
+    vacuum_mode: u32,
     custom_metadata: *mut Map,
 }
 
@@ -1401,7 +1402,7 @@ pub extern "C" fn table_vacuum(
     options: NonNull<VacuumOptions>,
     callback: GenericErrorCallback,
 ) {
-    let (dry_run, retention_hours, enforce_retention_duration, custom_metadata) = unsafe {
+    let (dry_run, retention_hours, enforce_retention_duration, vacuum_mode, custom_metadata) = unsafe {
         let options = options.as_ref();
         let retention_hours = if options.retention_hours > 0 {
             Some(options.retention_hours)
@@ -1409,10 +1410,16 @@ pub extern "C" fn table_vacuum(
             None
         };
         let custom_metadata = Map::into_hash_map(options.custom_metadata);
+        let vacuum_mode = match options.vacuum_mode {
+            0 => VacuumMode::Lite,
+            1 => VacuumMode::Full,
+            _ => VacuumMode::Full,
+        };
         (
             options.dry_run,
             retention_hours,
             options.enforce_retention_duration,
+            vacuum_mode,
             custom_metadata,
         )
     };
@@ -1428,6 +1435,7 @@ pub extern "C" fn table_vacuum(
                 dry_run,
                 retention_hours,
                 enforce_retention_duration,
+                vacuum_mode,
                 custom_metadata,
             )
             .await
@@ -1495,6 +1503,7 @@ async fn vacuum(
     dry_run: bool,
     retention_hours: Option<u64>,
     enforce_retention_duration: bool,
+    vacuum_mode: VacuumMode,
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<Vec<String>, deltalake::DeltaTableError> {
     if table.state.is_none() {
@@ -1503,6 +1512,7 @@ async fn vacuum(
 
     let mut cmd = VacuumBuilder::new(table.log_store(), table.state.clone().unwrap())
         .with_enforce_retention_duration(enforce_retention_duration)
+        .with_mode(vacuum_mode)
         .with_dry_run(dry_run);
 
     if let Some(retention_period) = retention_hours {
