@@ -682,6 +682,7 @@ namespace DeltaLake.Bridge
                         dry_run = BoolAsByte(options.DryRun),
                         retention_hours = new UIntPtr(options.RetentionHours ?? 0),
                         enforce_retention_duration = BoolAsByte(options.RetentionHours != null),
+                        vacuum_mode = (uint)options.VacuumMode,
                         custom_metadata = options.CustomMetadata != null ? scope.Dictionary(_runtime, options.CustomMetadata!) : null,
                     };
 

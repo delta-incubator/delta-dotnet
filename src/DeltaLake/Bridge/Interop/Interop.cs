@@ -268,6 +268,9 @@ namespace DeltaLake.Bridge.Interop
         [NativeTypeName("bool")]
         public byte enforce_retention_duration;
 
+        [NativeTypeName("uint32_t")]
+        public uint vacuum_mode;
+
         [NativeTypeName("struct Map *")]
         public Map* custom_metadata;
     }
