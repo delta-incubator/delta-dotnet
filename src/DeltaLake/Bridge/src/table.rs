@@ -21,14 +21,9 @@ use deltalake::{
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
     kernel::{transaction::CommitProperties, StructType},
-    operations::{
-        constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        update::UpdateBuilder, vacuum::{VacuumBuilder, VacuumMode},
-        optimize::OptimizeBuilder,
-        write::WriteBuilder,
-    },
+    operations::vacuum::VacuumMode,
     protocol::SaveMode,
-    DeltaOps, DeltaTableBuilder,
+    DeltaTableBuilder,
 };
 use libc::c_void;
 
