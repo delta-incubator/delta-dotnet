@@ -1525,7 +1525,9 @@ async fn vacuum(
 #[no_mangle]
 pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
     let table = unsafe { table_handle.as_ref() };
-    table.table.version()
+
+    // TODO: Do we want to throw errors here?
+    table.table.version().unwrap_or_default()
 }
 
 #[no_mangle]
