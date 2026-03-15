@@ -1324,8 +1324,7 @@ pub extern "C" fn table_checkpoint(
                     callback(std::ptr::null());
                 },
                 Err(err) => {
-                    let error =
-                        DeltaTableError::new(rt, DeltaTableErrorCode::Protocol, &err.to_string());
+                    let error = DeltaTableError::from_error(rt, err);
                     unsafe { callback(error.into_raw()) }
                 }
             };
