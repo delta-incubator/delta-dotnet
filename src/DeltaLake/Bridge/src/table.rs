@@ -278,8 +278,8 @@ type GenericErrorCallback =
 #[no_mangle]
 pub extern "C" fn table_uri(table: NonNull<RawDeltaTable>) -> *mut ByteArray {
     let table = unsafe { table.as_ref() };
-    let uri = table.table.table_uri();
-    ByteArray::from_utf8(uri).into_raw()
+    let uri = table.table.table_url();
+    ByteArray::from_utf8(uri.to_string()).into_raw()
 }
 
 #[no_mangle]
@@ -407,7 +407,7 @@ pub extern "C" fn table_new(
         }
     };
 
-    let mut builder = match DeltaTableBuilder::from_valid_uri(table_uri) {
+    let mut builder = match DeltaTableBuilder::from_url(table_uri.parse().unwrap()) {
         Ok(builder) => builder,
         Err(err) => unsafe {
             callback(
@@ -1693,7 +1693,7 @@ async fn create_delta_table(
     #[allow(unused)]
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
-    let table = DeltaTableBuilder::from_valid_uri(table_uri)
+    let table = DeltaTableBuilder::from_url(table_uri.parse().unwrap())
         .map_err(|err| DeltaTableError::from_error(runtime, err))?
         .with_storage_options(storage_options.unwrap_or_default())
         .build()
