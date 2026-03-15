@@ -839,10 +839,10 @@ pub extern "C" fn table_protocol_versions(
     mut table: NonNull<RawDeltaTable>,
 ) -> ProtocolResponse {
     run_sync!(runtime, table, rt, tbl, {
-        match tbl.table.protocol() {
+        match tbl.table.snapshot().map(|snapshot| snapshot.protocol()) {
             Ok(protocol) => ProtocolResponse {
-                min_reader_version: protocol.min_reader_version,
-                min_writer_version: protocol.min_writer_version,
+                min_reader_version: protocol.min_reader_version(),
+                min_writer_version: protocol.min_writer_version(),
                 error: std::ptr::null(),
             },
             Err(err) => ProtocolResponse {
