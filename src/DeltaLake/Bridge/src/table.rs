@@ -756,16 +756,6 @@ pub extern "C" fn table_merge(
             rt,
             tbl,
             {
-                let snapshot = match tbl.table.snapshot() {
-                    Ok(snapshot) => snapshot.clone(),
-                    Err(err) => unsafe {
-                        callback(
-                            std::ptr::null(),
-                            DeltaTableError::from_error(rt, err).into_raw(),
-                        );
-                        return;
-                    },
-                };
                 let mut mb = tbl.table.clone().merge(source_df, on.to_string());
                 if let Some(target_alias) = extract_table_factor_alias(table) {
                     mb = mb.with_target_alias(target_alias);
@@ -914,13 +904,6 @@ pub extern "C" fn table_restore(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(DeltaTableError::from_error(rt, err).into_raw());
-                    return;
-                },
-            };
             let mut cmd = tbl.table.clone().restore();
             if version_or_timestamp > 0 {
                 if is_timestamp {
@@ -999,17 +982,6 @@ pub extern "C" fn table_update(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
-
             let mut ub = tbl.table.clone().update();
             if let Some(predicate) = predicate {
                 ub = ub.with_predicate(predicate.to_string());
@@ -1071,16 +1043,6 @@ pub extern "C" fn table_delete(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
             let mut db = tbl.table.clone().delete();
             if let Some(predicate) = predicate {
                 db = db.with_predicate(predicate);
@@ -1256,16 +1218,6 @@ pub extern "C" fn table_insert(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
             let schema_mode = if overwrite_schema {
                 deltalake::operations::write::SchemaMode::Overwrite
             } else {
@@ -1603,7 +1555,7 @@ fn get_table_metadata(table: &mut RawDeltaTable) -> Result<TableMetadata, deltal
         .collect::<Box<_>>();
 
     Ok(TableMetadata {
-        id: CString::new(metadata.id().clone()).unwrap().into_raw(),
+        id: CString::new(metadata.id()).unwrap().into_raw(),
         name: metadata
             .name()
             .clone()
@@ -1683,13 +1635,6 @@ pub extern "C" fn table_add_constraints(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(DeltaTableError::from_error(rt, err).into_raw());
-                    return;
-                },
-            };
             let mut cmd = tbl.table.clone().add_constraint();
 
             for (col_name, expression) in constraints {
