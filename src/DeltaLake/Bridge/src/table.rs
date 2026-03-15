@@ -32,8 +32,14 @@ use crate::{
     runtime::Runtime,
     schema::PartitionFilterList,
     sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
-    ByteArray, ByteArrayRef, CancellationToken, Dictionary, DynamicArray, KeyNullableValuePair,
-    Map,
+    ByteArray,
+    ByteArrayRef,
+    CancellationToken,
+    Dictionary,
+    DynamicArray,
+    KeyNullableValuePair,
+    KeyValuePair,
+    Map
 };
 
 macro_rules! run_sync {
