@@ -345,7 +345,7 @@ impl Iterator for DataFrameStreamIterator {
         let result = futures::executor::block_on(self.stream.next());
         result.map(|result| {
             result.map_err(|err| match err {
-                deltalake::datafusion::error::DataFusionError::ArrowError(arrow, _) => arrow,
+                deltalake::datafusion::error::DataFusionError::ArrowError(arrow, _) => *arrow,
                 _ => ArrowError::ComputeError(err.to_string()),
             })
         })
