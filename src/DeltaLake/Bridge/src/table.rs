@@ -20,6 +20,7 @@ use deltalake::{
         execution::context::{SQLOptions, SessionContext},
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
+    ensure_table_uri,
     kernel::{transaction::CommitProperties, StructType, CommitInfo},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
@@ -409,7 +410,18 @@ pub extern "C" fn table_new(
         }
     };
 
-    let mut builder = match DeltaTableBuilder::from_url(table_uri.parse().unwrap()) {
+    let url = match ensure_table_uri(table_uri) {
+      Ok(url) => url,
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null_mut(),
+                DeltaTableError::from_error(runtime.as_mut(), err).into_raw()
+            );
+            return;
+        }
+    };
+
+    let mut builder = match DeltaTableBuilder::from_url(url) {
         Ok(builder) => builder,
         Err(err) => unsafe {
             callback(
@@ -1683,7 +1695,8 @@ async fn create_delta_table(
     #[allow(unused)]
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
-    let table = DeltaTableBuilder::from_url(table_uri.parse().unwrap())
+    let url = ensure_table_uri(table_uri.as_str()).map_err(|e| DeltaTableError::from_error(runtime, e))?;
+    let table = DeltaTableBuilder::from_url(url)
         .map_err(|err| DeltaTableError::from_error(runtime, err))?
         .with_storage_options(storage_options.unwrap_or_default())
         .build()
