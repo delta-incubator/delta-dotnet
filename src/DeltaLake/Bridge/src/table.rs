@@ -1462,7 +1462,7 @@ async fn optimize(
     optimize_type: u32,
 ) -> Result<u64, deltalake::DeltaTableError> {
     if table.state.is_none() {
-        return Err(deltalake::DeltaTableError::NoMetadata);
+        return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
     let mut cmd = table.optimize();
@@ -1503,7 +1503,7 @@ async fn vacuum(
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<Vec<String>, deltalake::DeltaTableError> {
     if table.state.is_none() {
-        return Err(deltalake::DeltaTableError::NoMetadata);
+        return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
     let mut cmd = table.vacuum()
