@@ -470,38 +470,57 @@ pub extern "C" fn table_file_uris(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
     filters: *mut PartitionFilterList,
-) -> GenericOrError {
-    run_sync!(runtime, table, rt, tbl, {
-        match filters.is_null() {
-            true => match tbl.table.get_file_uris() {
-                Ok(file_uris) => GenericOrError {
-                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                        file_uris.collect(),
-                    ))) as *const c_void,
-                    error: std::ptr::null(),
-                },
-                Err(err) => GenericOrError {
-                    bytes: std::ptr::null(),
-                    error: DeltaTableError::from_error(rt, err).into_raw(),
-                },
-            },
-            false => {
-                let map = unsafe { Box::from_raw(filters) };
-                match tbl.table.get_file_uris_by_partitions(&map.filters) {
-                    Ok(file_uris) => GenericOrError {
-                        bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                            file_uris.into_iter().collect(),
-                        ))) as *const c_void,
-                        error: std::ptr::null(),
+    cancellation_token: Option<&CancellationToken>,
+    callback: GenericErrorCallback,
+) {
+    let filters = unsafe { filters.as_mut() };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            if filters.is_none() {
+                match tbl.table.get_file_uris() {
+                    Ok(file_uris) => unsafe {
+                        callback(
+                            Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                                file_uris.collect(),
+                            ))) as *const c_void,
+                            std::ptr::null(),
+                        )
                     },
-                    Err(err) => GenericOrError {
-                        bytes: std::ptr::null(),
-                        error: DeltaTableError::from_error(rt, err).into_raw(),
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, err).into_raw(),
+                        )
+                    },
+                }
+            } else {
+                let map = unsafe { Box::from_raw(filters.unwrap()) };
+                match tbl.table.get_file_uris_by_partitions(&map.filters).await {
+                    Ok(file_uris) => unsafe {
+                        callback(
+                            Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                                file_uris.into_iter().collect(),
+                            ))) as *const c_void,
+                            std::ptr::null(),
+                        )
+                    },
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, err).into_raw(),
+                        )
                     },
                 }
             }
-        }
-    })
+        },
+        { callback(std::ptr::null_mut(), std::ptr::null()) }
+    )
 }
 
 #[no_mangle]

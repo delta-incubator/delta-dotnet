@@ -414,8 +414,7 @@ namespace DeltaLake.Bridge.Interop
         public static extern void table_new([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct ByteArrayRef * _Nonnull")] ByteArrayRef* table_uri, [NativeTypeName("struct TableOptions * _Nonnull")] TableOptions* table_options, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters);
+        public static extern void table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct GenericOrError")]

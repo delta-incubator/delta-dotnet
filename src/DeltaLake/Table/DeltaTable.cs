@@ -43,7 +43,7 @@ namespace DeltaLake.Table
         public string[] Files() => this.table.Files();
 
         /// <inheritdoc/>
-        public string[] FileUris() => this.table.FileUris();
+        public Task<string[]> FileUrisAsync() => this.table.FileUrisAsync();
 
         /// <inheritdoc/>
         public string Location() => this.table.Uri();

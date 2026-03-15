@@ -7,25 +7,19 @@
 
 typedef enum DeltaTableErrorCode {
   Utf8 = 0,
-  Protocol = 1,
   ObjectStore = 2,
   Parquet = 3,
   Arrow = 4,
   InvalidJsonLog = 5,
   InvalidStatsJson = 6,
-  InvalidInvariantJson = 7,
   InvalidVersion = 8,
-  MissingDataFile = 9,
   InvalidDateTimeString = 10,
   InvalidData = 11,
   NotATable = 12,
-  NoMetadata = 13,
   NoSchema = 14,
-  LoadPartitions = 15,
   SchemaMismatch = 16,
   PartitionError = 17,
   InvalidPartitionFilter = 18,
-  ColumnsNotPartitioned = 19,
   Io = 20,
   Transaction = 21,
   VersionAlreadyExists = 22,
@@ -33,7 +27,6 @@ typedef enum DeltaTableErrorCode {
   MissingFeature = 24,
   InvalidTableLocation = 25,
   SerializeLogJson = 26,
-  SerializeSchemaJson = 27,
   Generic = 28,
   GenericError = 29,
   Kernel = 30,
@@ -151,12 +144,12 @@ typedef struct TableOptions {
   size_t log_buffer_size;
 } TableOptions;
 
+typedef void (*GenericErrorCallback)(const void *success, const struct DeltaTableError *fail);
+
 typedef struct GenericOrError {
   const void *bytes;
   const struct DeltaTableError *error;
 } GenericOrError;
-
-typedef void (*GenericErrorCallback)(const void *success, const struct DeltaTableError *fail);
 
 typedef void (*TableEmptyCallback)(const struct DeltaTableError *fail);
 
@@ -304,9 +297,11 @@ void table_new(struct Runtime *_Nonnull runtime,
                const struct CancellationToken *cancellation_token,
                TableNewCallback callback);
 
-struct GenericOrError table_file_uris(struct Runtime *_Nonnull runtime,
-                                      struct RawDeltaTable *_Nonnull table,
-                                      struct PartitionFilterList *filters);
+void table_file_uris(struct Runtime *_Nonnull runtime,
+                     struct RawDeltaTable *_Nonnull table,
+                     struct PartitionFilterList *filters,
+                     const struct CancellationToken *cancellation_token,
+                     GenericErrorCallback callback);
 
 struct GenericOrError table_files(struct Runtime *_Nonnull runtime,
                                   struct RawDeltaTable *_Nonnull table,
