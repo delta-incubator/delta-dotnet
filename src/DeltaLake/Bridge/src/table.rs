@@ -20,7 +20,7 @@ use deltalake::{
         execution::context::{SQLOptions, SessionContext},
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
-    kernel::{transaction::CommitProperties, StructType},
+    kernel::{transaction::CommitProperties, StructType, CommitInfo},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
     DeltaTableBuilder
@@ -584,7 +584,7 @@ pub extern "C" fn history(
             let limit = if limit > 0 { Some(limit) } else { None };
             match tbl.table.history(limit).await {
                 Ok(history) => {
-                    let json = serde_json::ser::to_vec(&history).unwrap_or(Vec::new());
+                    let json = serde_json::ser::to_vec(&history.collect::<Vec<CommitInfo>>()).unwrap_or(Vec::new());
                     unsafe {
                         callback(
                             ByteArray::from_vec(json).into_raw() as *const c_void,
