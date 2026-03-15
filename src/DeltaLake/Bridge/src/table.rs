@@ -741,8 +741,7 @@ pub extern "C" fn table_merge(
                         return;
                     },
                 };
-                let mut mb =
-                    MergeBuilder::new(tbl.table.log_store(), snapshot, on.to_string(), source_df);
+                let mut mb = tbl.table.clone().merge(source_df, on.to_string());
                 if let Some(target_alias) = extract_table_factor_alias(table) {
                     mb = mb.with_target_alias(target_alias);
                 }
@@ -897,10 +896,7 @@ pub extern "C" fn table_restore(
                     return;
                 },
             };
-            let mut cmd = deltalake::operations::restore::RestoreBuilder::new(
-                tbl.table.log_store(),
-                snapshot,
-            );
+            let mut cmd = tbl.table.clone().restore();
             if version_or_timestamp > 0 {
                 if is_timestamp {
                     let dt = match DateTime::<Utc>::from_timestamp_millis(version_or_timestamp) {
@@ -989,7 +985,7 @@ pub extern "C" fn table_update(
                 },
             };
 
-            let mut ub = UpdateBuilder::new(tbl.table.log_store(), snapshot);
+            let mut ub = tbl.table.clone().update();
             if let Some(predicate) = predicate {
                 ub = ub.with_predicate(predicate.to_string());
             }
@@ -1060,7 +1056,7 @@ pub extern "C" fn table_delete(
                     return;
                 },
             };
-            let mut db = DeleteBuilder::new(tbl.table.log_store(), snapshot);
+            let mut db = tbl.table.clone().delete();
             if let Some(predicate) = predicate {
                 db = db.with_predicate(predicate);
             }
@@ -1239,9 +1235,8 @@ pub extern "C" fn table_insert(
                 deltalake::operations::write::SchemaMode::Merge
             };
 
-            let mut mb = WriteBuilder::new(tbl.table.log_store(), Some(snapshot))
+            let mut mb = tbl.table.clone().write(batches)
                 .with_write_batch_size(max_rows_per_group)
-                .with_input_batches(batches)
                 .with_save_mode(save_mode)
                 .with_schema_mode(schema_mode);
             if let Some(predicate) = predicate {
@@ -1470,12 +1465,13 @@ async fn optimize(
         return Err(deltalake::DeltaTableError::NoMetadata);
     }
 
-    let mut cmd = OptimizeBuilder::new(table.log_store(), table.state.clone().unwrap());
+    let mut cmd = table.optimize();
     if let Some(tasks) = max_concurrent_tasks {
         cmd = cmd.with_max_concurrent_tasks(tasks as usize);
     }
     if let Some(spill) = max_spill_size {
-        cmd = cmd.with_max_spill_size(spill as usize);
+        // TODO: Spill size moved to config of session state. See create_session_state_with_spill_config
+        // cmd = cmd.with_max_spill_size(spill as usize);
     }
     if let Some(interval_ticks) = min_commit_interval {
         cmd = cmd.with_min_commit_interval(std::time::Duration::from_nanos(interval_ticks * 100)); // .NET ticks are 100ns units
@@ -1484,7 +1480,7 @@ async fn optimize(
         cmd = cmd.with_preserve_insertion_order(preserve);
     }
     if let Some(target) = target_size {
-        cmd = cmd.with_target_size(target as i64);
+        cmd = cmd.with_target_size(target.try_into().unwrap());
     }
 
     let opt_type = match optimize_type {
@@ -1510,7 +1506,7 @@ async fn vacuum(
         return Err(deltalake::DeltaTableError::NoMetadata);
     }
 
-    let mut cmd = VacuumBuilder::new(table.log_store(), table.state.clone().unwrap())
+    let mut cmd = table.vacuum()
         .with_enforce_retention_duration(enforce_retention_duration)
         .with_mode(vacuum_mode)
         .with_dry_run(dry_run);
@@ -1645,7 +1641,7 @@ pub extern "C" fn table_add_constraints(
                     return;
                 },
             };
-            let mut cmd = ConstraintBuilder::new(tbl.table.log_store(), snapshot);
+            let mut cmd = tbl.table.clone().add_constraint();
 
             for (col_name, expression) in constraints {
                 cmd = cmd.with_constraint(col_name.clone(), expression.clone());
@@ -1701,8 +1697,7 @@ async fn create_delta_table(
     let delta_schema = StructType::try_from(&schema).map_err(|error| {
         DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &error.to_string())
     })?;
-    let mut builder = DeltaOps(table)
-        .create()
+    let mut builder = table.create()
         .with_columns(delta_schema.fields().cloned())
         .with_save_mode(mode)
         .with_partition_columns(partition_by);
