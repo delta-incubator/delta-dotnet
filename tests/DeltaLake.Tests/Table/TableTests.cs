@@ -35,7 +35,7 @@ public class DeltaTableTests
         Assert.Equal(0UL, version);
         var location = table.Location();
         Assert.Equal(uri, location);
-        var files = table.Files();
+        var files = await table.FilesAsync();
         Assert.Empty(files);
         var fileUris = await table.FileUrisAsync();
         Assert.Empty(fileUris);

@@ -40,7 +40,7 @@ namespace DeltaLake.Table
         #region ITable implementation
 
         /// <inheritdoc/>
-        public string[] Files() => this.table.Files();
+        public Task<string[]> FilesAsync() => this.table.FilesAsync();
 
         /// <inheritdoc/>
         public Task<string[]> FileUrisAsync() => this.table.FileUrisAsync();

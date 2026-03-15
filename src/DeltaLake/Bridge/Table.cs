@@ -168,12 +168,23 @@ namespace DeltaLake.Bridge
             return await tsc.Task.ConfigureAwait(false);
         }
 
-        internal virtual string[] Files()
+        internal virtual async Task<string[]> FilesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
+            var tsc = new TaskCompletionSource<string[]>();
+            using var scope = new Scope();
+
             unsafe
             {
-                return GetStringArray(Interop.Methods.table_files(_runtime.Ptr, _ptr, null));
+                Interop.Methods.table_files(
+                    _runtime.Ptr,
+                    _ptr,
+                    null,
+                    scope.CancellationToken(cancellationToken),
+                    scope.FunctionPointer<Interop.GenericErrorCallback>(
+                        (success, fail) => GetStringArray(success, fail, tsc, cancellationToken)));
             }
+
+            return await tsc.Task.ConfigureAwait(false);
         }
 
         internal virtual ProtocolInfo ProtocolVersions()

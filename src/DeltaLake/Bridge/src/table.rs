@@ -23,7 +23,7 @@ use deltalake::{
     kernel::{transaction::CommitProperties, StructType},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
-    DeltaTableBuilder,
+    DeltaTableBuilder
 };
 use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
 use libc::c_void;
@@ -528,38 +528,42 @@ pub extern "C" fn table_files(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
     filters: *mut PartitionFilterList,
-) -> GenericOrError {
-    run_sync!(runtime, table, rt, tbl, {
-        match filters.is_null() {
-            true => match tbl.table.get_files_iter() {
-                Ok(paths) => GenericOrError {
-                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                        paths.map(|p| p.to_string()).collect(),
-                    ))) as *const c_void,
-                    error: std::ptr::null(),
-                },
-                Err(err) => GenericOrError {
-                    bytes: std::ptr::null(),
-                    error: DeltaTableError::from_error(rt, err).into_raw(),
-                },
-            },
-            false => {
-                let map = unsafe { Box::from_raw(filters) };
-                match tbl.table.get_files_by_partitions(&map.filters) {
-                    Ok(paths) => GenericOrError {
-                        bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+    cancellation_token: Option<&CancellationToken>,
+    callback: GenericErrorCallback,
+) {
+    let filters = unsafe { filters.as_mut() };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let filters = match filters {
+                Some(filters) => unsafe { Box::from_raw(filters) }.filters,
+                None => Vec::new(),
+            };
+
+            match tbl.table.get_files_by_partitions(&filters).await {
+                Ok(paths) => unsafe {
+                    callback(
+                        Box::into_raw(Box::new(DynamicArray::from_vec_string(
                             paths.into_iter().map(|p| p.to_string()).collect(),
                         ))) as *const c_void,
-                        error: std::ptr::null(),
-                    },
-                    Err(err) => GenericOrError {
-                        bytes: std::ptr::null(),
-                        error: DeltaTableError::from_error(rt, err).into_raw(),
-                    },
-                }
+                        std::ptr::null(),
+                    )
+                },
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    )
+                },
             }
-        }
-    })
+        },
+        { callback(std::ptr::null_mut(), std::ptr::null()) }
+    )
 }
 
 #[no_mangle]

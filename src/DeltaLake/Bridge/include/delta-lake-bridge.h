@@ -146,11 +146,6 @@ typedef struct TableOptions {
 
 typedef void (*GenericErrorCallback)(const void *success, const struct DeltaTableError *fail);
 
-typedef struct GenericOrError {
-  const void *bytes;
-  const struct DeltaTableError *error;
-} GenericOrError;
-
 typedef void (*TableEmptyCallback)(const struct DeltaTableError *fail);
 
 typedef struct ProtocolResponse {
@@ -158,6 +153,11 @@ typedef struct ProtocolResponse {
   int32_t min_writer_version;
   const struct DeltaTableError *error;
 } ProtocolResponse;
+
+typedef struct GenericOrError {
+  const void *bytes;
+  const struct DeltaTableError *error;
+} GenericOrError;
 
 typedef struct OptimizeOptions {
   bool has_max_concurrent_tasks;
@@ -303,9 +303,11 @@ void table_file_uris(struct Runtime *_Nonnull runtime,
                      const struct CancellationToken *cancellation_token,
                      GenericErrorCallback callback);
 
-struct GenericOrError table_files(struct Runtime *_Nonnull runtime,
-                                  struct RawDeltaTable *_Nonnull table,
-                                  struct PartitionFilterList *filters);
+void table_files(struct Runtime *_Nonnull runtime,
+                 struct RawDeltaTable *_Nonnull table,
+                 struct PartitionFilterList *filters,
+                 const struct CancellationToken *cancellation_token,
+                 GenericErrorCallback callback);
 
 void history(struct Runtime *_Nonnull runtime,
              struct RawDeltaTable *_Nonnull table,
