@@ -111,8 +111,19 @@ namespace DeltaLake.Bridge.Interop
         public ByteArray* fail;
     }
 
-    internal partial struct RuntimeOptions
+    internal unsafe partial struct RuntimeOptions
     {
+        [NativeTypeName("size_t")]
+        public UIntPtr data_fusion_execution_batch_size;
+
+        [NativeTypeName("size_t")]
+        public UIntPtr data_fusion_runtime_max_spill_size;
+
+        [NativeTypeName("const struct ByteArrayRef *")]
+        public ByteArrayRef* data_fusion_runtime_temp_directory;
+
+        [NativeTypeName("size_t")]
+        public UIntPtr data_fusion_runtime_max_temp_directory_size;
     }
 
     internal unsafe partial struct DynamicArray
