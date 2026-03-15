@@ -1,5 +1,5 @@
 use deltalake::arrow::datatypes::Schema as ArrowSchema;
-
+use deltalake::kernel::engine::arrow_conversion::TryIntoArrow;
 use crate::{error::DeltaTableError, ByteArrayRef};
 
 #[repr(C)]
@@ -70,10 +70,12 @@ pub(crate) fn get_schema(
     runtime: &mut crate::Runtime,
     table: &deltalake::DeltaTable,
 ) -> Result<ArrowSchema, DeltaTableError> {
-    let delta_schema = table
-        .get_schema()
-        .map_err(|e| DeltaTableError::from_error(runtime, e))?;
-    let arrow_schema = ArrowSchema::try_from(delta_schema).map_err(|e| {
+    let delta_schema = table.snapshot()
+        .map_err(|e| DeltaTableError::from_error(runtime, e))?
+        .schema()
+        .as_ref()
+        .try_into_arrow();
+    let arrow_schema = delta_schema.map_err(|e| {
         DeltaTableError::new(
             runtime,
             crate::error::DeltaTableErrorCode::Arrow,
