@@ -25,6 +25,7 @@ use deltalake::{
     protocol::SaveMode,
     DeltaTableBuilder,
 };
+use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
 use libc::c_void;
 
 use crate::{
@@ -1719,7 +1720,7 @@ async fn create_delta_table(
         .with_storage_options(storage_options.unwrap_or_default())
         .build()
         .map_err(|error| DeltaTableError::from_error(runtime, error))?;
-    let delta_schema = StructType::try_from(&schema).map_err(|error| {
+    let delta_schema = StructType::try_from_arrow(&schema).map_err(|error| {
         DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &error.to_string())
     })?;
     let mut builder = table.create()
