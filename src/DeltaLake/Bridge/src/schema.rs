@@ -1,5 +1,6 @@
 use deltalake::arrow::datatypes::Schema as ArrowSchema;
 use deltalake::kernel::engine::arrow_conversion::TryIntoArrow;
+
 use crate::{error::DeltaTableError, ByteArrayRef};
 
 #[repr(C)]
