@@ -1465,7 +1465,7 @@ async fn optimize(
         return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let mut cmd = table.optimize();
+    let mut cmd = table.clone().optimize();
     if let Some(tasks) = max_concurrent_tasks {
         cmd = cmd.with_max_concurrent_tasks(tasks as usize);
     }
@@ -1506,7 +1506,7 @@ async fn vacuum(
         return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let mut cmd = table.vacuum()
+    let mut cmd = table.clone().vacuum()
         .with_enforce_retention_duration(enforce_retention_duration)
         .with_mode(vacuum_mode)
         .with_dry_run(dry_run);
