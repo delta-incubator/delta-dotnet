@@ -1539,53 +1539,10 @@ pub extern "C" fn table_metadata(
     mut table_handle: NonNull<RawDeltaTable>,
 ) -> MetadataOrError {
     run_sync!(runtime, table_handle, rt, table, {
-        match table.table.metadata() {
+        match get_table_metadata(table) {
             Ok(metadata) => {
-                let partition_columns = metadata
-                    .partition_columns
-                    .clone()
-                    .into_iter()
-                    .map(|col| CString::new(col).unwrap().into_raw())
-                    .collect::<Box<_>>();
-                let table_meta = TableMetadata {
-                    id: CString::new(metadata.id.clone()).unwrap().into_raw(),
-                    name: metadata
-                        .name
-                        .clone()
-                        .map(|m| CString::new(m).unwrap().into_raw())
-                        .unwrap_or(std::ptr::null_mut()),
-                    description: metadata
-                        .description
-                        .clone()
-                        .map(|m| CString::new(m).unwrap().into_raw())
-                        .unwrap_or(std::ptr::null_mut()),
-                    format_provider: CString::new(metadata.format.provider.clone())
-                        .unwrap()
-                        .into_raw(),
-                    format_options: Dictionary {
-                        values: KeyNullableValuePair::from_optional_hash_map(
-                            metadata.format.options.clone(),
-                        ),
-                        length: metadata.format.options.len(),
-                        capacity: metadata.format.options.len(),
-                    },
-                    schema_string: CString::new(metadata.schema_string.clone())
-                        .unwrap()
-                        .into_raw(),
-                    partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
-                    partition_columns_count: metadata.partition_columns.len(),
-                    created_time: metadata.created_time.unwrap_or(-1),
-                    configuration: Dictionary {
-                        values: KeyNullableValuePair::from_optional_hash_map(
-                            metadata.configuration.clone(),
-                        ),
-                        length: metadata.configuration.len(),
-                        capacity: metadata.configuration.len(),
-                    },
-                    release: Some(release_metadata),
-                };
                 MetadataOrError {
-                    metadata: Box::into_raw(Box::new(table_meta)),
+                    metadata: Box::into_raw(Box::new(metadata)),
                     error: std::ptr::null(),
                 }
             }
@@ -1594,6 +1551,60 @@ pub extern "C" fn table_metadata(
                 error: DeltaTableError::from_error(rt, err).into_raw(),
             },
         }
+    })
+}
+
+fn get_table_metadata(table: &mut RawDeltaTable) -> Result<TableMetadata, deltalake::DeltaTableError> {
+    let metadata = table.table.snapshot()?.metadata();
+
+    let partition_columns = metadata
+        .partition_columns()
+        .clone()
+        .into_iter()
+        .map(|col| CString::new(col).unwrap().into_raw())
+        .collect::<Box<_>>();
+
+    Ok(TableMetadata {
+        id: CString::new(metadata.id().clone()).unwrap().into_raw(),
+        name: metadata
+            .name()
+            .clone()
+            .map(|m| CString::new(m).unwrap().into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        description: metadata
+            .description()
+            .clone()
+            .map(|m| CString::new(m).unwrap().into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+
+        // As of delta-rs 0.31.1, format is no longer exposed publicly
+        // and is always defined as { format: "parquet", options: HashMap::new() }
+        format_provider: CString::new("parquet")
+            .unwrap()
+            .into_raw(),
+        format_options: Dictionary {
+            values: KeyNullableValuePair::from_optional_hash_map(HashMap::new()),
+            length: 0,
+            capacity: 0,
+        },
+
+        // As of delta-rs 0.31.1, schema_string is no longer exposed publicly,
+        // so we must re-serialise it after delta-rs parses the JSON
+        schema_string: CString::new(serde_json::to_string(&metadata.parse_schema()?)?)
+            .unwrap()
+            .into_raw(),
+
+        partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
+        partition_columns_count: metadata.partition_columns().len(),
+        created_time: metadata.created_time().unwrap_or(-1),
+        configuration: Dictionary {
+            values: KeyValuePair::from_hash_map(
+                metadata.configuration().clone(),
+            ),
+            length: metadata.configuration().len(),
+            capacity: metadata.configuration().len(),
+        },
+        release: Some(release_metadata),
     })
 }
 
