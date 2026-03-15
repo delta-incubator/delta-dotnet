@@ -1096,7 +1096,19 @@ pub extern "C" fn table_query(
         tbl,
         {
             let ctx = SessionContext::new();
-            let arc = Arc::new(tbl.table.clone());
+
+            let table_provider = tbl.table.table_provider().build().await;
+            if let Err(err) = table_provider {
+                unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string()).into_raw(),
+                    )
+                }
+                return;
+            }
+
+            let arc = Arc::new(table_provider.unwrap());
             if let Err(err) = ctx.register_table(table_name, arc) {
                 unsafe {
                     callback(
@@ -1119,7 +1131,7 @@ pub extern "C" fn table_query(
                 .await
             {
                 Ok(data_frame) => {
-                    let schema = Schema::from(data_frame.schema());
+                    let schema = data_frame.schema().as_arrow().clone();
                     let records = match data_frame.collect().await {
                         Ok(records) => records,
                         Err(error) => unsafe {
