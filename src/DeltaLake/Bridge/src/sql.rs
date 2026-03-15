@@ -316,6 +316,8 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
                 ..
              } => alias.map(|a| a.to_string()),
         TableFactor::OpenJsonTable { alias, .. } => alias.map(|a| a.to_string()),
+        TableFactor::XmlTable { alias, .. } => alias.map(|a| a.to_string()),
+        TableFactor::SemanticView { alias, .. } => alias.map(|a| a.to_string()),
     }
 }
 
