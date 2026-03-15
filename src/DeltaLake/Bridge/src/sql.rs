@@ -101,7 +101,8 @@ impl<'a> DeltaLakeParser<'a> {
                 from: _,
                 selection,
                 returning: _,
-                or: _
+                or: _,
+                limit: _,
             } => Ok((selection, assignments)),
             _ => Err(DeltaTableError::new(
                 runtime,
