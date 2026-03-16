@@ -27,6 +27,7 @@ use deltalake::{
     DeltaTableBuilder
 };
 use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
+use deltalake::logstore::LogStore;
 use libc::c_void;
 
 use crate::{
@@ -1101,19 +1102,22 @@ pub extern "C" fn table_query(
         {
             let ctx = SessionContext::new();
 
-            let table_provider = tbl.table.table_provider().build().await;
-            if let Err(err) = table_provider {
-                unsafe {
+            let log_store = tbl.table.log_store();
+            let url = log_store.root_url();
+            ctx.register_object_store(url, log_store.root_object_store(None));
+
+            let table_provider = match tbl.table.table_provider().await {
+                Ok(provider) => provider,
+                Err(err) => unsafe {
                     callback(
                         std::ptr::null(),
                         DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string()).into_raw(),
-                    )
-                }
-                return;
-            }
+                    );
+                    return;
+                },
+            };
 
-            let arc = Arc::new(table_provider.unwrap());
-            if let Err(err) = ctx.register_table(table_name, arc) {
+            if let Err(err) = ctx.register_table(table_name, table_provider) {
                 unsafe {
                     callback(
                         std::ptr::null(),
