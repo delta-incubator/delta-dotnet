@@ -11,7 +11,7 @@ public class DeltaTableTests
     [Fact]
     public async Task Create_InMemory_Test()
     {
-        var uri = $"memory:///{Guid.NewGuid():N}";
+        var uri = $"memory:///{Guid.NewGuid():N}/";
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
@@ -78,7 +78,7 @@ public class DeltaTableTests
     [Fact]
     public async Task Create_InMemory_With_Partitions_Test()
     {
-        var uri = $"memory:///{Guid.NewGuid():N}";
+        var uri = $"memory:///{Guid.NewGuid():N}/";
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
