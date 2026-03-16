@@ -31,7 +31,7 @@ public class MergeTests
         {
             var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column1.SequenceEqual([5, 6, 7, 8, 9, 10, 11, 12, 13, 14]));
-            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column2.SequenceEqual(["hello", "hello", "hello", "hello", "hello", "inserted data", "inserted data", "inserted data", "inserted data", "inserted data"]));
             var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column3.SequenceEqual([99L, 99L, 99L, 99L, 99L, 100L, 100L, 100L, 100L, 100L]));
@@ -62,7 +62,7 @@ public class MergeTests
         {
             var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]));
-            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4", "hello", "hello", "hello", "hello", "hello", "inserted data", "inserted data", "inserted data", "inserted data", "inserted data"]));
             var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L, 99L, 99L, 99L, 99L, 99L, 100L, 100L, 100L, 100L, 100L]));
@@ -82,7 +82,7 @@ public class MergeTests
         {
             var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
-            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4", "hello", "hello", "hello", "hello", "hello"]));
             var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L, 100L, 100L, 100L, 100L, 100L]));
@@ -109,7 +109,7 @@ public class MergeTests
         {
             var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]));
-            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "inserted data", "inserted data", "inserted data", "inserted data", "inserted data"]));
             var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 99L, 99L, 99L, 99L, 99L]));
@@ -131,7 +131,7 @@ public class MergeTests
         {
             var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]));
-            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+            var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4", "hello", "hello", "hello", "hello", "hello"]));
             var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
             Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L, 100L, 100L, 100L, 100L, 100L]));
@@ -208,7 +208,7 @@ public class MergeTests
           {
               var column1 = batches.SelectMany(batch => ((Int32Array)batch.Column(0)).Values.ToArray()).OrderBy(i => i).ToArray();
               Assert.True(column1.SequenceEqual([0, 1, 2, 3, 4]));
-              var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
+              var column2 = batches.SelectMany(batch => ((IReadOnlyList<string>)(StringViewArray)batch.Column(1)).ToArray()).OrderBy(i => i).ToArray();
               Assert.True(column2.SequenceEqual(["0", "1", "2", "3", "4",]));
               var column3 = batches.SelectMany(batch => ((Int64Array)batch.Column(2)).Values.ToArray()).OrderBy(i => i).ToArray();
               Assert.True(column3.SequenceEqual([0L, 1L, 2L, 3L, 4L]));
