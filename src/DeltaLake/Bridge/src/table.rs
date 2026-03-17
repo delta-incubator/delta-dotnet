@@ -24,7 +24,6 @@ use deltalake::{
     kernel::{transaction::CommitProperties, StructType, CommitInfo},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
-    DeltaTable,
     DeltaTableBuilder
 };
 use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
@@ -447,7 +446,7 @@ async fn table_new_impl(
     storage_options: Option<HashMap<String, String>>,
     without_files: bool,
     log_buffer_size: usize,
-) -> Result<DeltaTable, deltalake::DeltaTableError> {
+) -> Result<deltalake::DeltaTable, deltalake::DeltaTableError> {
     let url = ensure_table_uri(table_uri)?;
 
     let mut builder = DeltaTableBuilder::from_url(url)?;
@@ -644,7 +643,7 @@ pub extern "C" fn table_update_incremental(
 }
 
 async fn table_update_incremental_impl(
-    table: &mut DeltaTable,
+    table: &mut deltalake::DeltaTable,
     max_version: Option<i64>,
 ) -> Result<(), deltalake::DeltaTableError> {
     let latest_version = table.get_latest_version().await?;
