@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
-
+use std::num::NonZeroU64;
 use arrow::{
     ffi_stream::FFI_ArrowArrayStream,
     record_batch::{RecordBatch, RecordBatchIterator, RecordBatchReader},
@@ -1490,7 +1490,9 @@ async fn optimize(
         cmd = cmd.with_preserve_insertion_order(preserve);
     }
     if let Some(target) = target_size {
-        cmd = cmd.with_target_size(target.try_into().unwrap());
+        let target = NonZeroU64::try_from(target)
+            .map_err(|_| deltalake::DeltaTableError::Generic(format!("Failed to convert target_size of {} to NonZeroU64", target)))?;
+        cmd = cmd.with_target_size(target);
     }
 
     let opt_type = match optimize_type {
