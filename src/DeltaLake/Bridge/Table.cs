@@ -774,8 +774,8 @@ namespace DeltaLake.Bridge
         private static byte BoolAsByte(bool input) =>
             input switch
             {
-                true => 0,
-                false => 1,
+                true => 1,
+                false => 0,
             };
 
         private unsafe string[] GetStringArray(GenericOrError genericOrError)
