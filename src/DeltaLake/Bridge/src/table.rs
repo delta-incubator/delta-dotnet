@@ -24,6 +24,7 @@ use deltalake::{
     kernel::{transaction::CommitProperties, StructType, CommitInfo},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
+    DeltaTable,
     DeltaTableBuilder
 };
 use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
@@ -411,55 +412,17 @@ pub extern "C" fn table_new(
         }
     };
 
-    let url = match ensure_table_uri(table_uri) {
-      Ok(url) => url,
-        Err(err) => unsafe {
-            callback(
-                std::ptr::null_mut(),
-                DeltaTableError::from_error(runtime.as_mut(), err).into_raw()
-            );
-            return;
-        }
-    };
-
-    let mut builder = match DeltaTableBuilder::from_url(url) {
-        Ok(builder) => builder,
-        Err(err) => unsafe {
-            callback(
-                std::ptr::null_mut(),
-                DeltaTableError::from_error(runtime.as_mut(), err).into_raw(),
-            );
-            return;
-        },
-    };
-
-    if options.version > 0 {
-        builder = builder.with_version(options.version)
-    }
-
-    unsafe {
-        if let Some(storage_options) = Map::into_hash_map(options.storage_options) {
-            builder = builder.with_storage_options(storage_options);
-        }
-    }
-
-    if options.without_files {
-        builder = builder.without_files();
-    }
-
-    if options.log_buffer_size > 0 {
-        builder = builder
-            .with_log_buffer_size(options.log_buffer_size)
-            // unwrap is safe because it only errors when the size is negative
-            .unwrap();
-    }
+    let version = options.version;
+    let storage_options = unsafe { Map::into_hash_map(options.storage_options) };
+    let without_files = options.without_files;
+    let log_buffer_size = options.log_buffer_size;
 
     run_async_with_cancellation!(
         runtime,
         cancellation_token,
         rt,
         {
-            match builder.load().await {
+            match table_new_impl(table_uri, version, storage_options, without_files, log_buffer_size).await {
                 Ok(table) => unsafe {
                     callback(
                         Box::into_raw(Box::new(RawDeltaTable::new(table))),
@@ -476,6 +439,36 @@ pub extern "C" fn table_new(
         },
         { callback(std::ptr::null_mut(), std::ptr::null()) }
     );
+}
+
+async fn table_new_impl(
+    table_uri: &str,
+    version: i64,
+    storage_options: Option<HashMap<String, String>>,
+    without_files: bool,
+    log_buffer_size: usize,
+) -> Result<DeltaTable, deltalake::DeltaTableError> {
+    let url = ensure_table_uri(table_uri)?;
+
+    let mut builder = DeltaTableBuilder::from_url(url)?;
+
+    if version > 0 {
+        builder = builder.with_version(version)
+    }
+
+    if let Some(storage_options) = storage_options {
+        builder = builder.with_storage_options(storage_options);
+    }
+
+    if without_files {
+        builder = builder.without_files();
+    }
+
+    if log_buffer_size > 0 {
+        builder = builder.with_log_buffer_size(log_buffer_size)?;
+    }
+
+    builder.load().await
 }
 
 #[no_mangle]
@@ -637,18 +630,31 @@ pub extern "C" fn table_update_incremental(
         rt,
         tbl,
         {
-            match tbl.table.update_incremental(max_version).await {
+            match table_update_incremental_impl(&mut tbl.table, max_version).await {
                 Ok(_) => unsafe {
                     callback(std::ptr::null());
                 },
                 Err(err) => unsafe {
-                    let error = DeltaTableError::from_error(rt, err);
-                    callback(Box::into_raw(Box::new(error)))
+                    callback(Box::into_raw(Box::new(DeltaTableError::from_error(rt, err))))
                 },
             };
         },
         { callback(std::ptr::null()) }
     );
+}
+
+async fn table_update_incremental_impl(
+    table: &mut DeltaTable,
+    max_version: Option<i64>,
+) -> Result<(), deltalake::DeltaTableError> {
+    let latest_version = table.get_latest_version().await?;
+    let max_version = if let Some(max_version) = max_version {
+        Some(std::cmp::min(max_version, latest_version))
+    } else {
+        None
+    };
+
+    table.update_incremental(max_version).await
 }
 
 #[no_mangle]
