@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Once;
-
+use deltalake::delta_datafusion::{DeltaRuntimeEnvBuilder, DeltaSessionContext};
 use crate::ByteArray;
 use crate::DynamicArray;
 use crate::Map;
@@ -129,6 +129,14 @@ impl Runtime {
             .map(|rt| Runtime { runtime: rt })
     }
 
+    pub(crate) fn create_session_context(max_spill_size: Option<usize>) -> DeltaSessionContext {
+        let runtime_env = DeltaRuntimeEnvBuilder::new()
+            .chain_if_some(max_spill_size, |b, size| b.with_max_spill_size(size))
+            .build();
+
+        DeltaSessionContext::with_runtime_env(runtime_env)
+    }
+
     pub fn borrow_buf(&mut self) -> Vec<u8> {
         // We currently do not use a thread-safe byte pool, but if wanted, it
         // can be added here
@@ -158,3 +166,17 @@ impl Runtime {
         self.runtime.handle().clone()
     }
 }
+
+trait ChainingExtensions {
+    fn chain_if_some<Value>(
+        self,
+        value: Option<Value>,
+        func: impl FnOnce(Self, Value) -> Self) -> Self where Self: Sized {
+        match value {
+            Some(value) => func(self, value),
+            None => self,
+        }
+    }
+}
+
+impl<T> ChainingExtensions for T {}

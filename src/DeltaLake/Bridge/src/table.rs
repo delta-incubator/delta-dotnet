@@ -1474,13 +1474,12 @@ async fn optimize(
         return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let mut cmd = table.clone().optimize();
+    let ctx = Runtime::create_session_context(max_spill_size.map(|size| size as usize));
+
+    let mut cmd = table.clone().optimize()
+        .with_session_state(Arc::new(ctx.state()));
     if let Some(tasks) = max_concurrent_tasks {
         cmd = cmd.with_max_concurrent_tasks(tasks as usize);
-    }
-    if let Some(spill) = max_spill_size {
-        // TODO: Spill size moved to config of session state. See create_session_state_with_spill_config
-        // cmd = cmd.with_max_spill_size(spill as usize);
     }
     if let Some(interval_ticks) = min_commit_interval {
         cmd = cmd.with_min_commit_interval(std::time::Duration::from_nanos(interval_ticks * 100)); // .NET ticks are 100ns units
