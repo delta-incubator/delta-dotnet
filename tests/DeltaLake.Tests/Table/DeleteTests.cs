@@ -2,6 +2,7 @@ using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
+
 public class DeleteTests
 {
     public static IEnumerable<object[]> BaseCases()

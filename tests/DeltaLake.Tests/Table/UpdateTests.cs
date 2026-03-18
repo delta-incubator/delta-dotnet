@@ -3,6 +3,7 @@ using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
+
 public class UpdateTests
 {
     private const string UpdateGreaterThanOne = "UPDATE test SET test = test + CAST(1 AS INT) WHERE test > CAST(1 AS INT)";

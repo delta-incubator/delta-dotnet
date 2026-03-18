@@ -4,6 +4,7 @@ using DeltaLake.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
+
 public class MergeTests
 {
     [Fact]
