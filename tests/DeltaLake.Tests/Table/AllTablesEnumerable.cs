@@ -1,6 +1,7 @@
 using System.Collections;
 
 namespace DeltaLake.Tests.Table;
+
 public partial class LoadTests
 {
     public class AllTablesEnumerable : IEnumerable<object[]>
