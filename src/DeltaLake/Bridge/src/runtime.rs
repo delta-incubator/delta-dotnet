@@ -138,7 +138,7 @@ impl Runtime {
                 runtime: rt,
                 data_fusion_execution_batch_size: none_when_zero(options.data_fusion_execution_batch_size),
                 data_fusion_runtime_max_spill_size: none_when_zero(options.data_fusion_runtime_max_spill_size),
-                data_fusion_runtime_temp_directory: (|| unsafe { options.data_fusion_runtime_temp_directory.as_ref() }?.to_option_string())(),
+                data_fusion_runtime_temp_directory: options.data_fusion_runtime_temp_directory.to_option_string(),
                 data_fusion_runtime_max_temp_directory_size: none_when_zero(options.data_fusion_runtime_max_temp_directory_size).map(|v| v as u64),
             })
     }

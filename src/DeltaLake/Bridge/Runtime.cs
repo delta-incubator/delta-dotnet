@@ -29,16 +29,15 @@ namespace DeltaLake.Bridge
         internal Runtime(DeltaLake.Table.EngineOptions options)
             : base(IntPtr.Zero, true)
         {
+            using var scope = new Scope();
+
             unsafe
             {
-                using var dataFusionRuntimeTempDir = ByteArrayRef.FromUTF8(options.DataFusionRuntimeTempDirectory ?? "");
-                var dataFusionRuntimeTempDirRef = dataFusionRuntimeTempDir.Ref;
-
                 var interopOptions = new RuntimeOptions
                 {
                     data_fusion_execution_batch_size = new UIntPtr(options.DataFusionExecutionBatchSize),
                     data_fusion_runtime_max_spill_size = new UIntPtr(options.DataFusionRuntimeMaxSpillSize),
-                    data_fusion_runtime_temp_directory = options.DataFusionRuntimeTempDirectory == null ? null : &dataFusionRuntimeTempDirRef,
+                    data_fusion_runtime_temp_directory = scope.ByteArray(options.DataFusionRuntimeTempDirectory),
                     data_fusion_runtime_max_temp_directory_size = new UIntPtr(options.DataFusionRuntimeMaxTempDirectorySize)
                 };
 
