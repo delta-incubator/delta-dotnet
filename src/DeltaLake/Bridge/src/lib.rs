@@ -14,6 +14,8 @@ pub mod schema;
 #[macro_use]
 mod sql;
 pub mod table;
+mod runtime_options;
+
 use std::{collections::HashMap, mem::ManuallyDrop};
 
 use runtime::Runtime;
@@ -199,6 +201,10 @@ impl ByteArrayRef {
 
     fn to_option_string(&self) -> Option<String> {
         self.to_option_str().map(str::to_string)
+    }
+
+    fn null() -> Self {
+        ByteArrayRef{ data: std::ptr::null(), size: 0 }
     }
 }
 

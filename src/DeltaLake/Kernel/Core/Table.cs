@@ -229,7 +229,7 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
-        internal override long Version()
+        internal override long? Version()
         {
             if (this.isKernelAllocated && this.isKernelSupported)
             {

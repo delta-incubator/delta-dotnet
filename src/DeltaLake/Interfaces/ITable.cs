@@ -47,10 +47,10 @@ namespace DeltaLake.Interfaces
         string Location();
 
         /// <summary>
-        /// Retrieves the current table version.
+        /// Retrieves the current table version, or null if the table's internal state was not initialised.
         /// </summary>
         /// <returns>The table version.</returns>
-        ulong Version();
+        ulong? Version();
 
         /// <summary>
         /// Returns the table schema as an Arrow schema.

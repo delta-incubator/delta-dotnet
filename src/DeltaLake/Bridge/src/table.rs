@@ -17,7 +17,7 @@ use deltalake::{
     datafusion::{
         dataframe::DataFrame,
         datasource::{MemTable, TableProvider},
-        execution::context::{SQLOptions, SessionContext},
+        execution::context::SQLOptions,
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
     ensure_table_uri,
@@ -774,7 +774,21 @@ pub extern "C" fn table_merge(
             rt,
             tbl,
             {
-                let mut mb = tbl.table.clone().merge(source_df, on.to_string());
+                let ctx = match rt.create_session_context(None) {
+                    Ok(ctx) => ctx,
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                                .into_raw(),
+                        );
+                        return;
+                    }
+                };
+
+                let mut mb = tbl.table.clone()
+                    .merge(source_df, on.to_string())
+                    .with_session_state(Arc::new(ctx.state()));
                 if let Some(target_alias) = extract_table_factor_alias(table) {
                     mb = mb.with_target_alias(target_alias);
                 }
@@ -1105,7 +1119,17 @@ pub extern "C" fn table_query(
         rt,
         tbl,
         {
-            let ctx = SessionContext::new();
+            let ctx = match rt.create_session_context(None) {
+                Ok(ctx) => ctx,
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                            .into_raw(),
+                    );
+                    return;
+                }
+            };
 
             let log_store = tbl.table.log_store();
             let url = log_store.root_url();
@@ -1375,6 +1399,7 @@ pub extern "C" fn table_optimize(
         tbl,
         {
             match optimize(
+                rt,
                 &mut tbl.table,
                 max_concurrent_tasks,
                 max_spill_size,
@@ -1461,20 +1486,21 @@ pub extern "C" fn table_vacuum(
 }
 
 async fn optimize(
+    runtime: &Runtime,
     table: &mut deltalake::DeltaTable,
     max_concurrent_tasks: Option<u32>,
     max_spill_size: Option<u64>,
     min_commit_interval: Option<u64>,
     preserve_insertion_order: Option<bool>,
     target_size: Option<u64>,
-    zorder_columns : Vec<String>,
+    zorder_columns: Vec<String>,
     optimize_type: u32,
 ) -> Result<u64, deltalake::DeltaTableError> {
     if table.state.is_none() {
         return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let ctx = Runtime::create_session_context(max_spill_size.map(|size| size as usize));
+    let ctx = runtime.create_session_context(max_spill_size.map(|size| size as usize))?;
 
     let mut cmd = table.clone().optimize()
         .with_session_state(Arc::new(ctx.state()));
@@ -1541,8 +1567,9 @@ async fn vacuum(
 pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
     let table = unsafe { table_handle.as_ref() };
 
-    // TODO: Do we want to throw errors here?
-    table.table.version().unwrap_or_default()
+    // This mimics original behaviour from delta-rs v0.26.2
+    // https://github.com/delta-io/delta-rs/blob/57c1ae6e99a43e4b906437f6cdbb385538fbedb7/crates/core/src/table/mod.rs#L363
+    table.table.version().unwrap_or(-1)
 }
 
 #[no_mangle]
@@ -1758,7 +1785,11 @@ fn ffi_to_df(
             ));
         }
     };
-    let ctx = SessionContext::new();
+
+    let ctx = runtime
+        .create_session_context(None)
+        .map_err(|err| DeltaTableError::new(runtime, DeltaTableErrorCode::DataFusion, &err.to_string()))?;
+
     ctx.read_table(table_provider).map_err(|error| {
         DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &error.to_string())
     })
