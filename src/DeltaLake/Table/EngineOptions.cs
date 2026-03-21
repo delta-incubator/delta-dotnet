@@ -19,6 +19,27 @@ namespace DeltaLake.Table
         /// <summary>
         /// Default instance of engine options.
         /// </summary>
-        public static EngineOptions Default { get; } = new EngineOptions();
+        public static EngineOptions Default { get; } = new();
+
+        /// <summary>
+        /// If non-zero, sets the batch size of DataFusion to this value.
+        /// </summary>
+        public ulong DataFusionExecutionBatchSize { get; init; }
+
+        /// <summary>
+        /// If non-zero, sets the maximum memory (in bytes) available to DataFusion before disk spilling occurs.
+        /// </summary>
+        public ulong DataFusionRuntimeMaxSpillSize { get; init; }
+
+        /// <summary>
+        /// If defined, sets the temp directory DataFusion will use for disk spilling.
+        /// </summary>
+        public string? DataFusionRuntimeTempDirectory { get; init; }
+
+        /// <summary>
+        /// If non-zero, sets the maximum disk space (in bytes) that the DataFusion temp directory can use.
+        /// </summary>
+        /// <seealso cref="DataFusionRuntimeTempDirectory"/>
+        public ulong DataFusionRuntimeMaxTempDirectorySize { get; init; }
     }
 }
