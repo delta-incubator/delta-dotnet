@@ -1,8 +1,5 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Once};
-use crate::ByteArray;
-use crate::DynamicArray;
-use crate::Map;
 use deltalake::datafusion::execution::runtime_env::RuntimeEnvBuilder;
 use deltalake::datafusion::execution::SessionStateBuilder;
 use deltalake::datafusion::prelude::{SessionConfig, SessionContext};
@@ -11,6 +8,9 @@ use deltalake::datafusion::execution::disk_manager::{DiskManagerBuilder, DiskMan
 use deltalake::datafusion::execution::memory_pool::{FairSpillPool, TrackConsumersPool};
 use deltalake::delta_datafusion::DeltaSessionConfig;
 use deltalake::delta_datafusion::planner::DeltaPlanner;
+use crate::ByteArray;
+use crate::DynamicArray;
+use crate::Map;
 use crate::runtime_options::RuntimeOptions;
 
 pub struct Runtime {
