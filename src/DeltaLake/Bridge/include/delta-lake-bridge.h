@@ -108,7 +108,7 @@ typedef struct RuntimeOrFail {
 typedef struct RuntimeOptions {
   size_t data_fusion_execution_batch_size;
   size_t data_fusion_runtime_max_spill_size;
-  const struct ByteArrayRef *data_fusion_runtime_temp_directory;
+  struct ByteArrayRef data_fusion_runtime_temp_directory;
   size_t data_fusion_runtime_max_temp_directory_size;
 } RuntimeOptions;
 

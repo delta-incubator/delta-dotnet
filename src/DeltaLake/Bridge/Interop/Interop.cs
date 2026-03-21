@@ -119,8 +119,8 @@ namespace DeltaLake.Bridge.Interop
         [NativeTypeName("size_t")]
         public UIntPtr data_fusion_runtime_max_spill_size;
 
-        [NativeTypeName("const struct ByteArrayRef *")]
-        public ByteArrayRef* data_fusion_runtime_temp_directory;
+        [NativeTypeName("struct ByteArrayRef")]
+        public ByteArrayRef data_fusion_runtime_temp_directory;
 
         [NativeTypeName("size_t")]
         public UIntPtr data_fusion_runtime_max_temp_directory_size;

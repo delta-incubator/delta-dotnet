@@ -202,6 +202,10 @@ impl ByteArrayRef {
     fn to_option_string(&self) -> Option<String> {
         self.to_option_str().map(str::to_string)
     }
+
+    fn null() -> Self {
+        ByteArrayRef{ data: std::ptr::null(), size: 0 }
+    }
 }
 
 #[repr(C)]
