@@ -35,7 +35,7 @@ public sealed class OptimizeTests
         {
             ZOrderColumns = ["test", "second"],
             OptimizeType = OptimizeType.ZOrder,
-            MaxSpillSize = 100_000,
+            MaxSpillSize = 50 * 1024 * 1024,
             MaxConcurrentTasks = 2,
         });
     }

@@ -149,20 +149,42 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal virtual string[] FileUris()
+        internal virtual async Task<string[]> FileUrisAsync(System.Threading.CancellationToken cancellationToken = default)
         {
+            var tsc = new TaskCompletionSource<string[]>();
+            using var scope = new Scope();
+
             unsafe
             {
-                return GetStringArray(Interop.Methods.table_file_uris(_runtime.Ptr, _ptr, null));
+                Interop.Methods.table_file_uris(
+                    _runtime.Ptr,
+                    _ptr,
+                    null,
+                    scope.CancellationToken(cancellationToken),
+                    scope.FunctionPointer<Interop.GenericErrorCallback>(
+                        (success, fail) => GetStringArray(success, fail, tsc, cancellationToken)));
             }
+
+            return await tsc.Task.ConfigureAwait(false);
         }
 
-        internal virtual string[] Files()
+        internal virtual async Task<string[]> FilesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
+            var tsc = new TaskCompletionSource<string[]>();
+            using var scope = new Scope();
+
             unsafe
             {
-                return GetStringArray(Interop.Methods.table_files(_runtime.Ptr, _ptr, null));
+                Interop.Methods.table_files(
+                    _runtime.Ptr,
+                    _ptr,
+                    null,
+                    scope.CancellationToken(cancellationToken),
+                    scope.FunctionPointer<Interop.GenericErrorCallback>(
+                        (success, fail) => GetStringArray(success, fail, tsc, cancellationToken)));
             }
+
+            return await tsc.Task.ConfigureAwait(false);
         }
 
         internal virtual ProtocolInfo ProtocolVersions()
@@ -774,25 +796,38 @@ namespace DeltaLake.Bridge
         private static byte BoolAsByte(bool input) =>
             input switch
             {
-                true => 0,
-                false => 1,
+                true => 1,
+                false => 0,
             };
 
-        private unsafe string[] GetStringArray(GenericOrError genericOrError)
+        private unsafe void GetStringArray(
+            void* success,
+            DeltaTableError* fail,
+            TaskCompletionSource<string[]> taskCompletionSource,
+            System.Threading.CancellationToken cancellationToken)
         {
-            if (genericOrError.error != null)
+            if (cancellationToken.IsCancellationRequested)
             {
-                throw DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, genericOrError.error);
+                _ = Task.Run(() => taskCompletionSource.TrySetCanceled(cancellationToken));
+                return;
+            }
+
+            if (fail != null)
+            {
+                _ = Task.Run(() => taskCompletionSource.TrySetException(
+                    DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail)));
+                return;
             }
 
             try
             {
-                if (genericOrError.bytes == null)
+                if (success == null)
                 {
-                    return System.Array.Empty<string>();
+                    _ = Task.Run(() => taskCompletionSource.TrySetResult(System.Array.Empty<string>()));
+                    return;
                 }
 
-                var dynamicArray = (DynamicArray*)genericOrError.bytes;
+                var dynamicArray = (DynamicArray*)success;
                 var uris = new string[(int)dynamicArray->size];
                 for (var i = 0; i < uris.Length; i++)
                 {
@@ -800,11 +835,11 @@ namespace DeltaLake.Bridge
                     uris[i] = ByteArrayRef.StrictUTF8.GetString(instance->data, (int)instance->size);
                 }
 
-                return uris;
+                _ = Task.Run(() => taskCompletionSource.TrySetResult(uris));
             }
             finally
             {
-                Interop.Methods.dynamic_array_free(_runtime.Ptr, (DynamicArray*)genericOrError.bytes);
+                Interop.Methods.dynamic_array_free(_runtime.Ptr, (DynamicArray*)success);
             }
         }
 

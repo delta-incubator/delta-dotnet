@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
     sync::Arc,
 };
-
+use std::num::NonZeroU64;
 use arrow::{
     ffi_stream::FFI_ArrowArrayStream,
     record_batch::{RecordBatch, RecordBatchIterator, RecordBatchReader},
@@ -20,16 +20,14 @@ use deltalake::{
         execution::context::{SQLOptions, SessionContext},
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
-    kernel::{transaction::CommitProperties, StructType},
-    operations::{
-        constraints::ConstraintBuilder, delete::DeleteBuilder, merge::MergeBuilder,
-        update::UpdateBuilder, vacuum::{VacuumBuilder, VacuumMode},
-        optimize::OptimizeBuilder,
-        write::WriteBuilder,
-    },
+    ensure_table_uri,
+    kernel::{transaction::CommitProperties, StructType, CommitInfo},
+    operations::vacuum::VacuumMode,
     protocol::SaveMode,
-    DeltaOps, DeltaTableBuilder,
+    DeltaTableBuilder
 };
+use deltalake::kernel::engine::arrow_conversion::TryFromArrow;
+use deltalake::logstore::LogStore;
 use libc::c_void;
 
 use crate::{
@@ -37,8 +35,14 @@ use crate::{
     runtime::Runtime,
     schema::PartitionFilterList,
     sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
-    ByteArray, ByteArrayRef, CancellationToken, Dictionary, DynamicArray, KeyNullableValuePair,
-    Map,
+    ByteArray,
+    ByteArrayRef,
+    CancellationToken,
+    Dictionary,
+    DynamicArray,
+    KeyNullableValuePair,
+    KeyValuePair,
+    Map
 };
 
 macro_rules! run_sync {
@@ -278,8 +282,8 @@ type GenericErrorCallback =
 #[no_mangle]
 pub extern "C" fn table_uri(table: NonNull<RawDeltaTable>) -> *mut ByteArray {
     let table = unsafe { table.as_ref() };
-    let uri = table.table.table_uri();
-    ByteArray::from_utf8(uri).into_raw()
+    let uri = table.table.table_url();
+    ByteArray::from_utf8(uri.to_string()).into_raw()
 }
 
 #[no_mangle]
@@ -407,44 +411,17 @@ pub extern "C" fn table_new(
         }
     };
 
-    let mut builder = match DeltaTableBuilder::from_valid_uri(table_uri) {
-        Ok(builder) => builder,
-        Err(err) => unsafe {
-            callback(
-                std::ptr::null_mut(),
-                DeltaTableError::from_error(runtime.as_mut(), err).into_raw(),
-            );
-            return;
-        },
-    };
-
-    if options.version > 0 {
-        builder = builder.with_version(options.version)
-    }
-
-    unsafe {
-        if let Some(storage_options) = Map::into_hash_map(options.storage_options) {
-            builder = builder.with_storage_options(storage_options);
-        }
-    }
-
-    if options.without_files {
-        builder = builder.without_files();
-    }
-
-    if options.log_buffer_size > 0 {
-        builder = builder
-            .with_log_buffer_size(options.log_buffer_size)
-            // unwrap is safe because it only errors when the size is negative
-            .unwrap();
-    }
+    let version = options.version;
+    let storage_options = unsafe { Map::into_hash_map(options.storage_options) };
+    let without_files = options.without_files;
+    let log_buffer_size = options.log_buffer_size;
 
     run_async_with_cancellation!(
         runtime,
         cancellation_token,
         rt,
         {
-            match builder.load().await {
+            match table_new_impl(table_uri, version, storage_options, without_files, log_buffer_size).await {
                 Ok(table) => unsafe {
                     callback(
                         Box::into_raw(Box::new(RawDeltaTable::new(table))),
@@ -463,43 +440,92 @@ pub extern "C" fn table_new(
     );
 }
 
+async fn table_new_impl(
+    table_uri: &str,
+    version: i64,
+    storage_options: Option<HashMap<String, String>>,
+    without_files: bool,
+    log_buffer_size: usize,
+) -> Result<deltalake::DeltaTable, deltalake::DeltaTableError> {
+    let url = ensure_table_uri(table_uri)?;
+
+    let mut builder = DeltaTableBuilder::from_url(url)?;
+
+    if version > 0 {
+        builder = builder.with_version(version)
+    }
+
+    if let Some(storage_options) = storage_options {
+        builder = builder.with_storage_options(storage_options);
+    }
+
+    if without_files {
+        builder = builder.without_files();
+    }
+
+    if log_buffer_size > 0 {
+        builder = builder.with_log_buffer_size(log_buffer_size)?;
+    }
+
+    builder.load().await
+}
+
 #[no_mangle]
 pub extern "C" fn table_file_uris(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
     filters: *mut PartitionFilterList,
-) -> GenericOrError {
-    run_sync!(runtime, table, rt, tbl, {
-        match filters.is_null() {
-            true => match tbl.table.get_file_uris() {
-                Ok(file_uris) => GenericOrError {
-                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                        file_uris.collect(),
-                    ))) as *const c_void,
-                    error: std::ptr::null(),
-                },
-                Err(err) => GenericOrError {
-                    bytes: std::ptr::null(),
-                    error: DeltaTableError::from_error(rt, err).into_raw(),
-                },
-            },
-            false => {
-                let map = unsafe { Box::from_raw(filters) };
-                match tbl.table.get_file_uris_by_partitions(&map.filters) {
-                    Ok(file_uris) => GenericOrError {
-                        bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                            file_uris.into_iter().collect(),
-                        ))) as *const c_void,
-                        error: std::ptr::null(),
+    cancellation_token: Option<&CancellationToken>,
+    callback: GenericErrorCallback,
+) {
+    let filters = unsafe { filters.as_mut() };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            if filters.is_none() {
+                match tbl.table.get_file_uris() {
+                    Ok(file_uris) => unsafe {
+                        callback(
+                            Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                                file_uris.collect(),
+                            ))) as *const c_void,
+                            std::ptr::null(),
+                        )
                     },
-                    Err(err) => GenericOrError {
-                        bytes: std::ptr::null(),
-                        error: DeltaTableError::from_error(rt, err).into_raw(),
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, err).into_raw(),
+                        )
+                    },
+                }
+            } else {
+                let map = unsafe { Box::from_raw(filters.unwrap()) };
+                match tbl.table.get_file_uris_by_partitions(&map.filters).await {
+                    Ok(file_uris) => unsafe {
+                        callback(
+                            Box::into_raw(Box::new(DynamicArray::from_vec_string(
+                                file_uris.into_iter().collect(),
+                            ))) as *const c_void,
+                            std::ptr::null(),
+                        )
+                    },
+                    Err(err) => unsafe {
+                        callback(
+                            std::ptr::null(),
+                            DeltaTableError::from_error(rt, err).into_raw(),
+                        )
                     },
                 }
             }
-        }
-    })
+        },
+        { callback(std::ptr::null_mut(), std::ptr::null()) }
+    )
 }
 
 #[no_mangle]
@@ -507,38 +533,42 @@ pub extern "C" fn table_files(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,
     filters: *mut PartitionFilterList,
-) -> GenericOrError {
-    run_sync!(runtime, table, rt, tbl, {
-        match filters.is_null() {
-            true => match tbl.table.get_files_iter() {
-                Ok(paths) => GenericOrError {
-                    bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
-                        paths.map(|p| p.to_string()).collect(),
-                    ))) as *const c_void,
-                    error: std::ptr::null(),
-                },
-                Err(err) => GenericOrError {
-                    bytes: std::ptr::null(),
-                    error: DeltaTableError::from_error(rt, err).into_raw(),
-                },
-            },
-            false => {
-                let map = unsafe { Box::from_raw(filters) };
-                match tbl.table.get_files_by_partitions(&map.filters) {
-                    Ok(paths) => GenericOrError {
-                        bytes: Box::into_raw(Box::new(DynamicArray::from_vec_string(
+    cancellation_token: Option<&CancellationToken>,
+    callback: GenericErrorCallback,
+) {
+    let filters = unsafe { filters.as_mut() };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let filters = match filters {
+                Some(filters) => unsafe { Box::from_raw(filters) }.filters,
+                None => Vec::new(),
+            };
+
+            match tbl.table.get_files_by_partitions(&filters).await {
+                Ok(paths) => unsafe {
+                    callback(
+                        Box::into_raw(Box::new(DynamicArray::from_vec_string(
                             paths.into_iter().map(|p| p.to_string()).collect(),
                         ))) as *const c_void,
-                        error: std::ptr::null(),
-                    },
-                    Err(err) => GenericOrError {
-                        bytes: std::ptr::null(),
-                        error: DeltaTableError::from_error(rt, err).into_raw(),
-                    },
-                }
+                        std::ptr::null(),
+                    )
+                },
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::from_error(rt, err).into_raw(),
+                    )
+                },
             }
-        }
-    })
+        },
+        { callback(std::ptr::null_mut(), std::ptr::null()) }
+    )
 }
 
 #[no_mangle]
@@ -559,7 +589,7 @@ pub extern "C" fn history(
             let limit = if limit > 0 { Some(limit) } else { None };
             match tbl.table.history(limit).await {
                 Ok(history) => {
-                    let json = serde_json::ser::to_vec(&history).unwrap_or(Vec::new());
+                    let json = serde_json::ser::to_vec(&history.collect::<Vec<CommitInfo>>()).unwrap_or(Vec::new());
                     unsafe {
                         callback(
                             ByteArray::from_vec(json).into_raw() as *const c_void,
@@ -599,18 +629,31 @@ pub extern "C" fn table_update_incremental(
         rt,
         tbl,
         {
-            match tbl.table.update_incremental(max_version).await {
+            match table_update_incremental_impl(&mut tbl.table, max_version).await {
                 Ok(_) => unsafe {
                     callback(std::ptr::null());
                 },
                 Err(err) => unsafe {
-                    let error = DeltaTableError::from_error(rt, err);
-                    callback(Box::into_raw(Box::new(error)))
+                    callback(Box::into_raw(Box::new(DeltaTableError::from_error(rt, err))))
                 },
             };
         },
         { callback(std::ptr::null()) }
     );
+}
+
+async fn table_update_incremental_impl(
+    table: &mut deltalake::DeltaTable,
+    max_version: Option<i64>,
+) -> Result<(), deltalake::DeltaTableError> {
+    let latest_version = table.get_latest_version().await?;
+    let max_version = if let Some(max_version) = max_version {
+        Some(std::cmp::min(max_version, latest_version))
+    } else {
+        None
+    };
+
+    table.update_incremental(max_version).await
 }
 
 #[no_mangle]
@@ -731,18 +774,7 @@ pub extern "C" fn table_merge(
             rt,
             tbl,
             {
-                let snapshot = match tbl.table.snapshot() {
-                    Ok(snapshot) => snapshot.clone(),
-                    Err(err) => unsafe {
-                        callback(
-                            std::ptr::null(),
-                            DeltaTableError::from_error(rt, err).into_raw(),
-                        );
-                        return;
-                    },
-                };
-                let mut mb =
-                    MergeBuilder::new(tbl.table.log_store(), snapshot, on.to_string(), source_df);
+                let mut mb = tbl.table.clone().merge(source_df, on.to_string());
                 if let Some(target_alias) = extract_table_factor_alias(table) {
                     mb = mb.with_target_alias(target_alias);
                 }
@@ -845,10 +877,10 @@ pub extern "C" fn table_protocol_versions(
     mut table: NonNull<RawDeltaTable>,
 ) -> ProtocolResponse {
     run_sync!(runtime, table, rt, tbl, {
-        match tbl.table.protocol() {
+        match tbl.table.snapshot().map(|snapshot| snapshot.protocol()) {
             Ok(protocol) => ProtocolResponse {
-                min_reader_version: protocol.min_reader_version,
-                min_writer_version: protocol.min_writer_version,
+                min_reader_version: protocol.min_reader_version(),
+                min_writer_version: protocol.min_writer_version(),
                 error: std::ptr::null(),
             },
             Err(err) => ProtocolResponse {
@@ -890,17 +922,7 @@ pub extern "C" fn table_restore(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(DeltaTableError::from_error(rt, err).into_raw());
-                    return;
-                },
-            };
-            let mut cmd = deltalake::operations::restore::RestoreBuilder::new(
-                tbl.table.log_store(),
-                snapshot,
-            );
+            let mut cmd = tbl.table.clone().restore();
             if version_or_timestamp > 0 {
                 if is_timestamp {
                     let dt = match DateTime::<Utc>::from_timestamp_millis(version_or_timestamp) {
@@ -978,18 +1000,7 @@ pub extern "C" fn table_update(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
-
-            let mut ub = UpdateBuilder::new(tbl.table.log_store(), snapshot);
+            let mut ub = tbl.table.clone().update();
             if let Some(predicate) = predicate {
                 ub = ub.with_predicate(predicate.to_string());
             }
@@ -1050,17 +1061,7 @@ pub extern "C" fn table_delete(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
-            let mut db = DeleteBuilder::new(tbl.table.log_store(), snapshot);
+            let mut db = tbl.table.clone().delete();
             if let Some(predicate) = predicate {
                 db = db.with_predicate(predicate);
             }
@@ -1105,8 +1106,23 @@ pub extern "C" fn table_query(
         tbl,
         {
             let ctx = SessionContext::new();
-            let arc = Arc::new(tbl.table.clone());
-            if let Err(err) = ctx.register_table(table_name, arc) {
+
+            let log_store = tbl.table.log_store();
+            let url = log_store.root_url();
+            ctx.register_object_store(url, log_store.root_object_store(None));
+
+            let table_provider = match tbl.table.table_provider().await {
+                Ok(provider) => provider,
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string()).into_raw(),
+                    );
+                    return;
+                },
+            };
+
+            if let Err(err) = ctx.register_table(table_name, table_provider) {
                 unsafe {
                     callback(
                         std::ptr::null(),
@@ -1128,7 +1144,7 @@ pub extern "C" fn table_query(
                 .await
             {
                 Ok(data_frame) => {
-                    let schema = Schema::from(data_frame.schema());
+                    let schema = data_frame.schema().as_arrow().clone();
                     let records = match data_frame.collect().await {
                         Ok(records) => records,
                         Err(error) => unsafe {
@@ -1223,25 +1239,14 @@ pub extern "C" fn table_insert(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, err).into_raw(),
-                    );
-                    return;
-                },
-            };
             let schema_mode = if overwrite_schema {
                 deltalake::operations::write::SchemaMode::Overwrite
             } else {
                 deltalake::operations::write::SchemaMode::Merge
             };
 
-            let mut mb = WriteBuilder::new(tbl.table.log_store(), Some(snapshot))
+            let mut mb = tbl.table.clone().write(batches)
                 .with_write_batch_size(max_rows_per_group)
-                .with_input_batches(batches)
                 .with_save_mode(save_mode)
                 .with_schema_mode(schema_mode);
             if let Some(predicate) = predicate {
@@ -1322,8 +1327,7 @@ pub extern "C" fn table_checkpoint(
                     callback(std::ptr::null());
                 },
                 Err(err) => {
-                    let error =
-                        DeltaTableError::new(rt, DeltaTableErrorCode::Protocol, &err.to_string());
+                    let error = DeltaTableError::from_error(rt, err);
                     unsafe { callback(error.into_raw()) }
                 }
             };
@@ -1467,15 +1471,15 @@ async fn optimize(
     optimize_type: u32,
 ) -> Result<u64, deltalake::DeltaTableError> {
     if table.state.is_none() {
-        return Err(deltalake::DeltaTableError::NoMetadata);
+        return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let mut cmd = OptimizeBuilder::new(table.log_store(), table.state.clone().unwrap());
+    let ctx = Runtime::create_session_context(max_spill_size.map(|size| size as usize));
+
+    let mut cmd = table.clone().optimize()
+        .with_session_state(Arc::new(ctx.state()));
     if let Some(tasks) = max_concurrent_tasks {
         cmd = cmd.with_max_concurrent_tasks(tasks as usize);
-    }
-    if let Some(spill) = max_spill_size {
-        cmd = cmd.with_max_spill_size(spill as usize);
     }
     if let Some(interval_ticks) = min_commit_interval {
         cmd = cmd.with_min_commit_interval(std::time::Duration::from_nanos(interval_ticks * 100)); // .NET ticks are 100ns units
@@ -1484,7 +1488,9 @@ async fn optimize(
         cmd = cmd.with_preserve_insertion_order(preserve);
     }
     if let Some(target) = target_size {
-        cmd = cmd.with_target_size(target as i64);
+        let target = NonZeroU64::try_from(target)
+            .map_err(|_| deltalake::DeltaTableError::Generic(format!("Failed to convert target_size of {} to NonZeroU64", target)))?;
+        cmd = cmd.with_target_size(target);
     }
 
     let opt_type = match optimize_type {
@@ -1507,10 +1513,10 @@ async fn vacuum(
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<Vec<String>, deltalake::DeltaTableError> {
     if table.state.is_none() {
-        return Err(deltalake::DeltaTableError::NoMetadata);
+        return Err(deltalake::DeltaTableError::NotInitialized);
     }
 
-    let mut cmd = VacuumBuilder::new(table.log_store(), table.state.clone().unwrap())
+    let mut cmd = table.clone().vacuum()
         .with_enforce_retention_duration(enforce_retention_duration)
         .with_mode(vacuum_mode)
         .with_dry_run(dry_run);
@@ -1534,7 +1540,9 @@ async fn vacuum(
 #[no_mangle]
 pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
     let table = unsafe { table_handle.as_ref() };
-    table.table.version()
+
+    // TODO: Do we want to throw errors here?
+    table.table.version().unwrap_or_default()
 }
 
 #[no_mangle]
@@ -1543,53 +1551,10 @@ pub extern "C" fn table_metadata(
     mut table_handle: NonNull<RawDeltaTable>,
 ) -> MetadataOrError {
     run_sync!(runtime, table_handle, rt, table, {
-        match table.table.metadata() {
+        match get_table_metadata(table) {
             Ok(metadata) => {
-                let partition_columns = metadata
-                    .partition_columns
-                    .clone()
-                    .into_iter()
-                    .map(|col| CString::new(col).unwrap().into_raw())
-                    .collect::<Box<_>>();
-                let table_meta = TableMetadata {
-                    id: CString::new(metadata.id.clone()).unwrap().into_raw(),
-                    name: metadata
-                        .name
-                        .clone()
-                        .map(|m| CString::new(m).unwrap().into_raw())
-                        .unwrap_or(std::ptr::null_mut()),
-                    description: metadata
-                        .description
-                        .clone()
-                        .map(|m| CString::new(m).unwrap().into_raw())
-                        .unwrap_or(std::ptr::null_mut()),
-                    format_provider: CString::new(metadata.format.provider.clone())
-                        .unwrap()
-                        .into_raw(),
-                    format_options: Dictionary {
-                        values: KeyNullableValuePair::from_optional_hash_map(
-                            metadata.format.options.clone(),
-                        ),
-                        length: metadata.format.options.len(),
-                        capacity: metadata.format.options.len(),
-                    },
-                    schema_string: CString::new(metadata.schema_string.clone())
-                        .unwrap()
-                        .into_raw(),
-                    partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
-                    partition_columns_count: metadata.partition_columns.len(),
-                    created_time: metadata.created_time.unwrap_or(-1),
-                    configuration: Dictionary {
-                        values: KeyNullableValuePair::from_optional_hash_map(
-                            metadata.configuration.clone(),
-                        ),
-                        length: metadata.configuration.len(),
-                        capacity: metadata.configuration.len(),
-                    },
-                    release: Some(release_metadata),
-                };
                 MetadataOrError {
-                    metadata: Box::into_raw(Box::new(table_meta)),
+                    metadata: Box::into_raw(Box::new(metadata)),
                     error: std::ptr::null(),
                 }
             }
@@ -1598,6 +1563,60 @@ pub extern "C" fn table_metadata(
                 error: DeltaTableError::from_error(rt, err).into_raw(),
             },
         }
+    })
+}
+
+fn get_table_metadata(table: &mut RawDeltaTable) -> Result<TableMetadata, deltalake::DeltaTableError> {
+    let metadata = table.table.snapshot()?.metadata();
+
+    let partition_columns = metadata
+        .partition_columns()
+        .clone()
+        .into_iter()
+        .map(|col| CString::new(col).unwrap().into_raw())
+        .collect::<Box<_>>();
+
+    Ok(TableMetadata {
+        id: CString::new(metadata.id()).unwrap().into_raw(),
+        name: metadata
+            .name()
+            .clone()
+            .map(|m| CString::new(m).unwrap().into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+        description: metadata
+            .description()
+            .clone()
+            .map(|m| CString::new(m).unwrap().into_raw())
+            .unwrap_or(std::ptr::null_mut()),
+
+        // As of delta-rs 0.31.1, format is no longer exposed publicly
+        // and is always defined as { format: "parquet", options: HashMap::new() }
+        format_provider: CString::new("parquet")
+            .unwrap()
+            .into_raw(),
+        format_options: Dictionary {
+            values: KeyNullableValuePair::from_optional_hash_map(HashMap::new()),
+            length: 0,
+            capacity: 0,
+        },
+
+        // As of delta-rs 0.31.1, schema_string is no longer exposed publicly,
+        // so we must re-serialise it after delta-rs parses the JSON
+        schema_string: CString::new(serde_json::to_string(&metadata.parse_schema()?)?)
+            .unwrap()
+            .into_raw(),
+
+        partition_columns: std::mem::ManuallyDrop::new(partition_columns).as_mut_ptr(),
+        partition_columns_count: metadata.partition_columns().len(),
+        created_time: metadata.created_time().unwrap_or(-1),
+        configuration: Dictionary {
+            values: KeyValuePair::from_hash_map(
+                metadata.configuration().clone(),
+            ),
+            length: metadata.configuration().len(),
+            capacity: metadata.configuration().len(),
+        },
+        release: Some(release_metadata),
     })
 }
 
@@ -1638,14 +1657,7 @@ pub extern "C" fn table_add_constraints(
         rt,
         tbl,
         {
-            let snapshot = match tbl.table.snapshot() {
-                Ok(snapshot) => snapshot.clone(),
-                Err(err) => unsafe {
-                    callback(DeltaTableError::from_error(rt, err).into_raw());
-                    return;
-                },
-            };
-            let mut cmd = ConstraintBuilder::new(tbl.table.log_store(), snapshot);
+            let mut cmd = tbl.table.clone().add_constraint();
 
             for (col_name, expression) in constraints {
                 cmd = cmd.with_constraint(col_name.clone(), expression.clone());
@@ -1693,16 +1705,16 @@ async fn create_delta_table(
     #[allow(unused)]
     custom_metadata: Option<HashMap<String, String>>,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
-    let table = DeltaTableBuilder::from_valid_uri(table_uri)
+    let url = ensure_table_uri(table_uri.as_str()).map_err(|e| DeltaTableError::from_error(runtime, e))?;
+    let table = DeltaTableBuilder::from_url(url)
         .map_err(|err| DeltaTableError::from_error(runtime, err))?
         .with_storage_options(storage_options.unwrap_or_default())
         .build()
         .map_err(|error| DeltaTableError::from_error(runtime, error))?;
-    let delta_schema = StructType::try_from(&schema).map_err(|error| {
+    let delta_schema = StructType::try_from_arrow(&schema).map_err(|error| {
         DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &error.to_string())
     })?;
-    let mut builder = DeltaOps(table)
-        .create()
+    let mut builder = table.create()
         .with_columns(delta_schema.fields().cloned())
         .with_save_mode(mode)
         .with_partition_columns(partition_by);

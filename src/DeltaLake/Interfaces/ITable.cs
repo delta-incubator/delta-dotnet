@@ -32,13 +32,13 @@ namespace DeltaLake.Interfaces
         /// Retrieves the current table files.
         /// </summary>
         /// <returns>The list of physical files representing the table.</returns>
-        string[] Files();
+        Task<string[]> FilesAsync();
 
         /// <summary>
         /// Retrieves the current table file URIs/paths.
         /// </summary>
         /// <returns>The list of physical file URIs/paths representing the table.</returns>
-        string[] FileUris();
+        Task<string[]> FileUrisAsync();
 
         /// <summary>
         /// Retrieves the current table location.

@@ -101,7 +101,8 @@ impl<'a> DeltaLakeParser<'a> {
                 from: _,
                 selection,
                 returning: _,
-                or: _
+                or: _,
+                limit: _,
             } => Ok((selection, assignments)),
             _ => Err(DeltaTableError::new(
                 runtime,
@@ -315,6 +316,8 @@ pub fn extract_table_factor_alias(table: TableFactor) -> Option<String> {
                 ..
              } => alias.map(|a| a.to_string()),
         TableFactor::OpenJsonTable { alias, .. } => alias.map(|a| a.to_string()),
+        TableFactor::XmlTable { alias, .. } => alias.map(|a| a.to_string()),
+        TableFactor::SemanticView { alias, .. } => alias.map(|a| a.to_string()),
     }
 }
 
@@ -342,7 +345,7 @@ impl Iterator for DataFrameStreamIterator {
         let result = futures::executor::block_on(self.stream.next());
         result.map(|result| {
             result.map_err(|err| match err {
-                deltalake::datafusion::error::DataFusionError::ArrowError(arrow, _) => arrow,
+                deltalake::datafusion::error::DataFusionError::ArrowError(arrow, _) => *arrow,
                 _ => ArrowError::ComputeError(err.to_string()),
             })
         })

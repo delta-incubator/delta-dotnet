@@ -3,6 +3,7 @@ using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
+
 public partial class LoadTests
 {
     public static TableIdentifier[] AllTables = TableHelpers.Tables.Keys.ToArray();

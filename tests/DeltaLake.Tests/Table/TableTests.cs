@@ -11,7 +11,7 @@ public class DeltaTableTests
     [Fact]
     public async Task Create_InMemory_Test()
     {
-        var uri = $"memory:///{Guid.NewGuid():N}";
+        var uri = $"memory:///{Guid.NewGuid():N}/";
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>
@@ -35,9 +35,9 @@ public class DeltaTableTests
         Assert.Equal(0UL, version);
         var location = table.Location();
         Assert.Equal(uri, location);
-        var files = table.Files();
+        var files = await table.FilesAsync();
         Assert.Empty(files);
-        var fileUris = table.FileUris();
+        var fileUris = await table.FileUrisAsync();
         Assert.Empty(fileUris);
         var returnedSchema = table.Schema();
         Assert.NotNull(returnedSchema);
@@ -78,7 +78,7 @@ public class DeltaTableTests
     [Fact]
     public async Task Create_InMemory_With_Partitions_Test()
     {
-        var uri = $"memory:///{Guid.NewGuid():N}";
+        var uri = $"memory:///{Guid.NewGuid():N}/";
         using IEngine engine = new DeltaEngine(EngineOptions.Default);
         var builder = new Apache.Arrow.Schema.Builder();
         builder.Field(fb =>

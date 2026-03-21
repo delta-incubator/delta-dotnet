@@ -7,25 +7,19 @@ namespace DeltaLake.Bridge.Interop
     internal enum DeltaTableErrorCode : uint
     {
         Utf8 = 0,
-        Protocol = 1,
         ObjectStore = 2,
         Parquet = 3,
         Arrow = 4,
         InvalidJsonLog = 5,
         InvalidStatsJson = 6,
-        InvalidInvariantJson = 7,
         InvalidVersion = 8,
-        MissingDataFile = 9,
         InvalidDateTimeString = 10,
         InvalidData = 11,
         NotATable = 12,
-        NoMetadata = 13,
         NoSchema = 14,
-        LoadPartitions = 15,
         SchemaMismatch = 16,
         PartitionError = 17,
         InvalidPartitionFilter = 18,
-        ColumnsNotPartitioned = 19,
         Io = 20,
         Transaction = 21,
         VersionAlreadyExists = 22,
@@ -33,7 +27,6 @@ namespace DeltaLake.Bridge.Interop
         MissingFeature = 24,
         InvalidTableLocation = 25,
         SerializeLogJson = 26,
-        SerializeSchemaJson = 27,
         Generic = 28,
         GenericError = 29,
         Kernel = 30,
@@ -421,12 +414,10 @@ namespace DeltaLake.Bridge.Interop
         public static extern void table_new([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct ByteArrayRef * _Nonnull")] ByteArrayRef* table_uri, [NativeTypeName("struct TableOptions * _Nonnull")] TableOptions* table_options, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters);
+        public static extern void table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct GenericOrError")]
-        public static extern GenericOrError table_files([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters);
+        public static extern void table_files([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void history([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("uintptr_t")] UIntPtr limit, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
