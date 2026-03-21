@@ -119,11 +119,12 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal virtual long Version()
+        internal virtual long? Version()
         {
             unsafe
             {
-                return Interop.Methods.table_version(_ptr).ToInt64();
+                var version = Interop.Methods.table_version(_ptr).ToInt64();
+                return version < 0 ? null : version;
             }
         }
 
