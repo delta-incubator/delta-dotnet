@@ -1567,8 +1567,9 @@ async fn vacuum(
 pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
     let table = unsafe { table_handle.as_ref() };
 
-    // TODO: Do we want to throw errors here?
-    table.table.version().unwrap_or_default()
+    // This mimics original behaviour from delta-rs v0.26.2
+    // https://github.com/delta-io/delta-rs/blob/57c1ae6e99a43e4b906437f6cdbb385538fbedb7/crates/core/src/table/mod.rs#L363
+    table.table.version().unwrap_or(-1)
 }
 
 #[no_mangle]

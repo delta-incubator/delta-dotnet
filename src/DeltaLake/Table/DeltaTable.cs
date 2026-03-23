@@ -49,7 +49,7 @@ namespace DeltaLake.Table
         public string Location() => this.table.Uri();
 
         /// <inheritdoc/>
-        public ulong Version() => (ulong)this.table.Version();
+        public ulong? Version() => (ulong?)this.table.Version();
 
         /// <inheritdoc/>
         public Schema Schema() => this.table.Schema();
