@@ -7,6 +7,11 @@ edition = "2021"
 name = "delta_rs_bridge"
 crate-type = ["cdylib", "rlib"]
 
+[profile.release]
+strip = true
+lto = true
+codegen-units = 1
+
 [dependencies]
 arrow = { version = "57.3.0", features = ["ffi"]}
 chrono = "0.4"
