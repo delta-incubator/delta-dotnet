@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Apache.Arrow.C;
+using DeltaLake.Bridge.Interop;
 using DeltaLake.Errors;
 
 namespace DeltaLake.Bridge
@@ -28,9 +29,19 @@ namespace DeltaLake.Bridge
         internal Runtime(DeltaLake.Table.EngineOptions options)
             : base(IntPtr.Zero, true)
         {
+            using var scope = new Scope();
+
             unsafe
             {
-                var res = Interop.Methods.runtime_new(null);
+                var interopOptions = new RuntimeOptions
+                {
+                    data_fusion_execution_batch_size = new UIntPtr(options.DataFusionExecutionBatchSize),
+                    data_fusion_runtime_max_spill_size = new UIntPtr(options.DataFusionRuntimeMaxSpillSize),
+                    data_fusion_runtime_temp_directory = scope.ByteArray(options.DataFusionRuntimeTempDirectory),
+                    data_fusion_runtime_max_temp_directory_size = new UIntPtr(options.DataFusionRuntimeMaxTempDirectorySize)
+                };
+
+                var res = Interop.Methods.runtime_new(&interopOptions);
                 // If it failed, copy byte array, free runtime and byte array. Otherwise just
                 // return runtime.
                 if (res.fail != null)
