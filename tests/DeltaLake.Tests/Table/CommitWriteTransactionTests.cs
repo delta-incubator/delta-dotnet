@@ -29,7 +29,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.Equal(initialVersion + 1, (ulong)newVersion);
@@ -66,7 +65,6 @@ public class CommitWriteTransactionTests
 
                 var newVersion = await table.CommitWriteTransactionAsync(
                     actions,
-                    new CommitOptions(),
                     CancellationToken.None);
 
                 Assert.Equal(baseVersion + i, newVersion);
@@ -92,7 +90,6 @@ public class CommitWriteTransactionTests
             await Assert.ThrowsAsync<DeltaConfigurationException>(
                 () => table.CommitWriteTransactionAsync(
                     new List<AddAction>(),
-                    new CommitOptions(),
                     CancellationToken.None));
         }
         finally
@@ -113,7 +110,6 @@ public class CommitWriteTransactionTests
             await Assert.ThrowsAsync<DeltaConfigurationException>(
                 () => table.CommitWriteTransactionAsync(
                     null!,
-                    new CommitOptions(),
                     CancellationToken.None));
         }
         finally
@@ -145,7 +141,6 @@ public class CommitWriteTransactionTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
                 () => table.CommitWriteTransactionAsync(
                     actions,
-                    new CommitOptions(),
                     new CancellationToken(true)));
 
             Assert.Equal(version, table.Version());
@@ -178,7 +173,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -216,7 +210,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -252,7 +245,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -286,7 +278,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.Equal(baseVersion + 1, newVersion);
@@ -319,7 +310,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -362,7 +352,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -399,7 +388,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);
@@ -431,7 +419,6 @@ public class CommitWriteTransactionTests
 
             var newVersion = await table.CommitWriteTransactionAsync(
                 actions,
-                new CommitOptions(),
                 CancellationToken.None);
 
             Assert.True(newVersion > 0);

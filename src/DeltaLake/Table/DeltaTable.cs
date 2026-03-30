@@ -227,7 +227,6 @@ namespace DeltaLake.Table
         /// <inheritdoc/>
         public async Task<long> CommitWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
-            CommitOptions options,
             CancellationToken cancellationToken)
         {
             if (actions == null || actions.Count == 0)
