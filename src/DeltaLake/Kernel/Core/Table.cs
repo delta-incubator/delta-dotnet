@@ -23,6 +23,7 @@ using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.Shim.Async;
 using DeltaLake.Kernel.State;
+using DeltaLake.Kernel.Transaction;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
 using DeltaRustBridge = DeltaLake.Bridge;
@@ -84,6 +85,7 @@ namespace DeltaLake.Kernel.Core
         private readonly GCHandle[] storageOptionsKeyHandles;
         private readonly GCHandle[] storageOptionsValueHandles;
         private readonly GCHandle? allocatorHandle;
+        private readonly unsafe Apache.Arrow.C.CArrowSchema* addFilesNativeSchema;
         /// <summary>
         /// Pointers **KERNEL** manages related to this <see cref="Table"/> class.
         /// </summary>
@@ -185,6 +187,11 @@ namespace DeltaLake.Kernel.Core
                 this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
+
+                // Pre-export the static add-files Arrow schema for reuse across commits.
+                this.addFilesNativeSchema = Apache.Arrow.C.CArrowSchema.Create();
+                Apache.Arrow.C.CArrowSchemaExporter.ExportSchema(
+                    AddActionRecordBatchBuilder.AddFilesSchema, this.addFilesNativeSchema);
             }
         }
 
@@ -309,124 +316,35 @@ namespace DeltaLake.Kernel.Core
 
         /// <summary>
         /// Commits add-file actions to the Delta log without writing data files.
-        /// This is a synchronous method — all FFI calls are blocking.
         /// Returns the new table version after commit.
         /// </summary>
         /// <param name="actions">File metadata for pre-written Parquet files.</param>
-        /// <param name="options">Commit configuration options.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The committed table version number.</returns>
-        internal unsafe ulong CommitAddActions(
+        internal async Task<ulong> CommitAddActionsAsync(
             IReadOnlyList<AddAction> actions,
-            CommitOptions options)
+            ICancellationToken cancellationToken)
         {
             this.ThrowIfKernelNotSupported();
 
-            ExternResultHandleExclusiveTransaction txnResult =
-                Methods.transaction(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
+            using Apache.Arrow.RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
 
-            if (txnResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
-            {
-                throw KernelException.FromEngineError(
-                    txnResult.Anonymous.Anonymous2_1.err,
-                    "Failed to create transaction");
-            }
-
-            ExclusiveTransaction* txnPtr = txnResult.Anonymous.Anonymous1_1.ok;
-            bool committed = false;
-
-            try
-            {
-                if (options.EngineInfo != null)
-                {
-                    (GCHandle engineInfoHandle, IntPtr engineInfoPtr) =
-                        options.EngineInfo.ToPinnedBytePointer();
-                    try
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
                     {
-                        var engineInfoSlice = new KernelStringSlice
+                        unsafe
                         {
-                            ptr = (byte*)engineInfoPtr,
-                            len = (nuint)options.EngineInfo.Length,
-                        };
-
-                        ExternResultHandleExclusiveTransaction infoResult =
-                            Methods.with_engine_info(txnPtr, engineInfoSlice, this.kernelOwnedSharedExternEnginePtr);
-
-                        if (infoResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
-                        {
-                            txnPtr = null;
-                            throw KernelException.FromEngineError(
-                                infoResult.Anonymous.Anonymous2_1.err,
-                                "Failed to set engine info on transaction");
+                            return TransactionCommitter.Commit(
+                                this.tableLocationSlice,
+                                this.kernelOwnedSharedExternEnginePtr,
+                                addFilesBatch,
+                                this.addFilesNativeSchema);
                         }
-
-                        txnPtr = infoResult.Anonymous.Anonymous1_1.ok;
-                    }
-                    finally
-                    {
-                        engineInfoHandle.Free();
-                    }
-                }
-
-                using Apache.Arrow.RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
-
-                var nativeArray = Apache.Arrow.C.CArrowArray.Create();
-                var nativeSchema = Apache.Arrow.C.CArrowSchema.Create();
-
-                try
-                {
-                    Apache.Arrow.C.CArrowArrayExporter.ExportRecordBatch(addFilesBatch, nativeArray);
-                    Apache.Arrow.C.CArrowSchemaExporter.ExportSchema(addFilesBatch.Schema, nativeSchema);
-
-                    FFI_ArrowArray ffiArray = *(FFI_ArrowArray*)nativeArray;
-                    FFI_ArrowSchema* ffiSchemaPtr = (FFI_ArrowSchema*)nativeSchema;
-
-                    ExternResultHandleExclusiveEngineData dataResult =
-                        Methods.get_engine_data(ffiArray, ffiSchemaPtr, this.kernelOwnedSharedExternEnginePtr);
-
-                    if (dataResult.tag != ExternResultHandleExclusiveEngineData_Tag.OkHandleExclusiveEngineData)
-                    {
-                        throw KernelException.FromEngineError(
-                            dataResult.Anonymous.Anonymous2_1.err,
-                            "Failed to create engine data from add-files RecordBatch");
-                    }
-
-                    ExclusiveEngineData* engineDataPtr = dataResult.Anonymous.Anonymous1_1.ok;
-
-                    Methods.add_files(txnPtr, engineDataPtr);
-                }
-                finally
-                {
-                    Apache.Arrow.C.CArrowSchema.Free(nativeSchema);
-                    // Array: get_engine_data copies FFI_ArrowArray by value and the kernel
-                    // takes ownership of the underlying buffers. The original CArrowArray*
-                    // still has its release callback set. CArrowArray.Free() would call it
-                    // and double-free. We cast to FFI_ArrowArray* to null the release
-                    // callback (which is accessible on the internal struct), then free
-                    // the allocation.
-                    ((FFI_ArrowArray*)nativeArray)->release = default;
-                    Marshal.FreeHGlobal((IntPtr)nativeArray);
-                }
-
-                ExternResultu64 commitResult =
-                    Methods.commit(txnPtr, this.kernelOwnedSharedExternEnginePtr);
-                committed = true;
-
-                if (commitResult.tag != ExternResultu64_Tag.Oku64)
-                {
-                    throw KernelException.FromEngineError(
-                        commitResult.Anonymous.Anonymous2_1.err,
-                        "Failed to commit transaction");
-                }
-
-                return (ulong)commitResult.Anonymous.Anonymous1_1.ok;
-            }
-            finally
-            {
-                if (!committed && txnPtr != null)
-                {
-                    Methods.free_transaction(txnPtr);
-                }
-            }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
         }
 
         #endregion Delta Kernel table operations
@@ -440,6 +358,7 @@ namespace DeltaLake.Kernel.Core
                 this.state.Dispose();
                 this.allocatorHandle?.Free();
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
+                if (this.addFilesNativeSchema != null) Apache.Arrow.C.CArrowSchema.Free(this.addFilesNativeSchema);
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
                 foreach (GCHandle handle in this.storageOptionsValueHandles) if (handle.IsAllocated) handle.Free();
                 Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsKeyPtrs);

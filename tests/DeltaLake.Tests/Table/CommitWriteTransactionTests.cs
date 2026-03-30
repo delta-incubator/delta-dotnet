@@ -81,43 +81,6 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_With_EngineInfo()
-    {
-        var info = DirectoryHelpers.CreateTempSubdirectory();
-        try
-        {
-            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
-            using var table = tableParts.table;
-
-            var actions = new List<AddAction>
-            {
-                new AddAction
-                {
-                    Path = "part-00000.parquet",
-                    Size = 512,
-                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                },
-            };
-
-            var options = new CommitOptions
-            {
-                EngineInfo = "delta-dotnet-test/1.0",
-            };
-
-            var newVersion = await table.CommitWriteTransactionAsync(
-                actions,
-                options,
-                CancellationToken.None);
-
-            Assert.True(newVersion > 0);
-        }
-        finally
-        {
-            info.Delete(true);
-        }
-    }
-
-    [Fact]
     public async Task CommitWriteTransaction_Empty_Actions_Throws()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();

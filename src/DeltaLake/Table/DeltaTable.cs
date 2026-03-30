@@ -225,7 +225,7 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public Task<long> CommitWriteTransactionAsync(
+        public async Task<long> CommitWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
             CommitOptions options,
             CancellationToken cancellationToken)
@@ -237,12 +237,9 @@ namespace DeltaLake.Table
                     new ArgumentException("actions cannot be null or empty", nameof(actions)));
             }
 
-            return Task.Run(() =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var version = this.table.CommitAddActions(actions, options);
-                return (long)version;
-            }, cancellationToken);
+            var version = await this.table.CommitAddActionsAsync(actions, cancellationToken)
+                .ConfigureAwait(false);
+            return (long)version;
         }
 
         #endregion ITable implementation

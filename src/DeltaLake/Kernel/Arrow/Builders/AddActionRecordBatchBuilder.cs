@@ -28,7 +28,7 @@ namespace DeltaLake.Kernel.Arrow.Builders
             new Field("key", StringType.Default, nullable: false),
             new Field("value", StringType.Default, nullable: true));
 
-        private static readonly Schema AddFilesSchema = new Schema.Builder()
+        internal static readonly Schema AddFilesSchema = new Schema.Builder()
             .Field(new Field("path", StringType.Default, nullable: false))
             .Field(new Field("partitionValues", PartitionMapType, nullable: false))
             .Field(new Field("size", Int64Type.Default, nullable: false))
