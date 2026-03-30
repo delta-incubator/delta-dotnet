@@ -36,6 +36,26 @@ public class AddActionRecordBatchBuilderTests
     }
 
     [Fact]
+    public void Build_NullPartitions_Returns_Valid_Batch()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "data/part-00000.parquet",
+                Size = 512,
+                ModificationTime = 1711929600000,
+                PartitionValues = null,
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(1, batch.Length);
+        Assert.IsType<MapArray>(batch.Column("partitionValues"));
+    }
+
+    [Fact]
     public void Build_EmptyPartitions_Returns_Valid_Batch()
     {
         var actions = new List<AddAction>
@@ -45,6 +65,7 @@ public class AddActionRecordBatchBuilderTests
                 Path = "data/part-00000.parquet",
                 Size = 512,
                 ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>(),
             },
         };
 
@@ -71,5 +92,179 @@ public class AddActionRecordBatchBuilderTests
         var batch = AddActionRecordBatchBuilder.Build(actions);
 
         Assert.Equal(10, batch.Length);
+    }
+
+    [Fact]
+    public void Build_MultiplePartitionColumns_Returns_Valid_Batch()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "year=2024/month=03/day=15/part-00000.parquet",
+                Size = 4096,
+                ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>
+                {
+                    ["year"] = "2024",
+                    ["month"] = "03",
+                    ["day"] = "15",
+                },
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(1, batch.Length);
+        var mapArray = Assert.IsType<MapArray>(batch.Column("partitionValues"));
+        Assert.Equal(1, mapArray.Length);
+    }
+
+    [Fact]
+    public void Build_NullPartitionValue_Returns_Valid_Batch()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "region=__HIVE_DEFAULT_PARTITION__/part-00000.parquet",
+                Size = 2048,
+                ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>
+                {
+                    ["region"] = null,
+                },
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(1, batch.Length);
+    }
+
+    [Fact]
+    public void Build_MixedPartitionAndNoPartition_Returns_Valid_Batch()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "year=2024/part-00000.parquet",
+                Size = 1024,
+                ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>
+                {
+                    ["year"] = "2024",
+                },
+            },
+            new AddAction
+            {
+                Path = "part-00001.parquet",
+                Size = 2048,
+                ModificationTime = 1711929600000,
+                PartitionValues = null,
+            },
+            new AddAction
+            {
+                Path = "year=2025/part-00002.parquet",
+                Size = 3072,
+                ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>
+                {
+                    ["year"] = "2025",
+                },
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(3, batch.Length);
+    }
+
+    [Fact]
+    public void Build_DataChange_False_Sets_Correctly()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "compacted.parquet",
+                Size = 8192,
+                ModificationTime = 1711929600000,
+                DataChange = false,
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+        var dataChangeColumn = (BooleanArray)batch.Column("dataChange");
+
+        Assert.False(dataChangeColumn.GetValue(0));
+    }
+
+    [Fact]
+    public void Build_DataChange_Default_Is_True()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "data.parquet",
+                Size = 1024,
+                ModificationTime = 1711929600000,
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+        var dataChangeColumn = (BooleanArray)batch.Column("dataChange");
+
+        Assert.True(dataChangeColumn.GetValue(0));
+    }
+
+    [Fact]
+    public void Build_Verifies_Column_Values()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "test-file.parquet",
+                Size = 42,
+                ModificationTime = 1711929600000,
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        var pathColumn = (StringArray)batch.Column("path");
+        var sizeColumn = (Int64Array)batch.Column("size");
+        var modTimeColumn = (Int64Array)batch.Column("modificationTime");
+
+        Assert.Equal("test-file.parquet", pathColumn.GetString(0));
+        Assert.Equal(42L, sizeColumn.GetValue(0));
+        Assert.Equal(1711929600000L, modTimeColumn.GetValue(0));
+    }
+
+    [Fact]
+    public void Build_SpecialCharacters_In_PartitionValues()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "part-00000.parquet",
+                Size = 1024,
+                ModificationTime = 1711929600000,
+                PartitionValues = new Dictionary<string, string?>
+                {
+                    ["country"] = "United States",
+                    ["city"] = "São Paulo",
+                    ["tag"] = "hello=world",
+                },
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(1, batch.Length);
     }
 }
