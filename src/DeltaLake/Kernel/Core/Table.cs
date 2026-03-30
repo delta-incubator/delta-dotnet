@@ -14,12 +14,10 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Apache.Arrow;
-using Apache.Arrow.C;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
-using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Arrow.Builders;
+using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
@@ -369,15 +367,15 @@ namespace DeltaLake.Kernel.Core
                     }
                 }
 
-                using RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
+                using Apache.Arrow.RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
 
-                var nativeArray = CArrowArray.Create();
-                var nativeSchema = CArrowSchema.Create();
+                var nativeArray = Apache.Arrow.C.CArrowArray.Create();
+                var nativeSchema = Apache.Arrow.C.CArrowSchema.Create();
 
                 try
                 {
-                    CArrowArrayExporter.ExportRecordBatch(addFilesBatch, nativeArray);
-                    CArrowSchemaExporter.ExportSchema(addFilesBatch.Schema, nativeSchema);
+                    Apache.Arrow.C.CArrowArrayExporter.ExportRecordBatch(addFilesBatch, nativeArray);
+                    Apache.Arrow.C.CArrowSchemaExporter.ExportSchema(addFilesBatch.Schema, nativeSchema);
 
                     FFI_ArrowArray ffiArray = *(FFI_ArrowArray*)nativeArray;
                     FFI_ArrowSchema* ffiSchemaPtr = (FFI_ArrowSchema*)nativeSchema;
@@ -398,7 +396,7 @@ namespace DeltaLake.Kernel.Core
                 }
                 finally
                 {
-                    CArrowSchema.Free(nativeSchema);
+                    Apache.Arrow.C.CArrowSchema.Free(nativeSchema);
                     // Array: get_engine_data copies FFI_ArrowArray by value and the kernel
                     // takes ownership of the underlying buffers. The original CArrowArray*
                     // still has its release callback set. CArrowArray.Free() would call it
