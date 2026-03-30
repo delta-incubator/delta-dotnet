@@ -48,8 +48,8 @@ namespace DeltaLake.Kernel.Arrow.Builders
 
             var pathBuilder = new StringArray.Builder();
             var mapBuilder = new MapArray.Builder(PartitionMapType);
-            var keyBuilder = mapBuilder.KeyBuilder as StringArray.Builder;
-            var valueBuilder = mapBuilder.ValueBuilder as StringArray.Builder;
+            var keyBuilder = (StringArray.Builder)mapBuilder.KeyBuilder;
+            var valueBuilder = (StringArray.Builder)mapBuilder.ValueBuilder;
             var sizeBuilder = new Int64Array.Builder();
             var modTimeBuilder = new Int64Array.Builder();
             var dataChangeBuilder = new BooleanArray.Builder();
@@ -62,16 +62,19 @@ namespace DeltaLake.Kernel.Arrow.Builders
                 dataChangeBuilder.Append(action.DataChange);
 
                 mapBuilder.Append();
-                foreach (KeyValuePair<string, string?> kvp in action.PartitionValues)
+                if (action.PartitionValues != null)
                 {
-                    keyBuilder!.Append(kvp.Key);
-                    if (kvp.Value != null)
+                    foreach (KeyValuePair<string, string?> kvp in action.PartitionValues)
                     {
-                        valueBuilder!.Append(kvp.Value);
-                    }
-                    else
-                    {
-                        valueBuilder!.AppendNull();
+                        keyBuilder.Append(kvp.Key);
+                        if (kvp.Value != null)
+                        {
+                            valueBuilder.Append(kvp.Value);
+                        }
+                        else
+                        {
+                            valueBuilder.AppendNull();
+                        }
                     }
                 }
             }

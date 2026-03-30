@@ -8,9 +8,6 @@ namespace DeltaLake.Table
     /// </summary>
     public record AddAction
     {
-        private static readonly IReadOnlyDictionary<string, string?> EmptyPartitionValues
-            = new Dictionary<string, string?>();
-
         /// <summary>
         /// Relative path to the data file from the table root.
         /// Example: "year=2024/month=01/part-00000-abc123.snappy.parquet"
@@ -25,10 +22,9 @@ namespace DeltaLake.Table
         /// <summary>
         /// Partition column values. Keys are partition column names,
         /// values are the partition values (null for null partitions).
-        /// Empty dictionary for non-partitioned tables.
+        /// Null or empty for non-partitioned tables.
         /// </summary>
-        public IReadOnlyDictionary<string, string?> PartitionValues { get; init; }
-            = EmptyPartitionValues;
+        public IReadOnlyDictionary<string, string?>? PartitionValues { get; init; }
 
         /// <summary>
         /// Modification time of the file in milliseconds since Unix epoch.
