@@ -224,6 +224,27 @@ namespace DeltaLake.Table
             await table.VacuumAsync(options, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <inheritdoc/>
+        public Task<long> CommitWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CommitOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (actions == null || actions.Count == 0)
+            {
+                throw new DeltaConfigurationException(
+                    "At least one action is required",
+                    new ArgumentException("actions cannot be null or empty", nameof(actions)));
+            }
+
+            return Task.Run(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var version = this.table.CommitAddActions(actions, options);
+                return (long)version;
+            }, cancellationToken);
+        }
+
         #endregion ITable implementation
 
         #region IDisposable implementation

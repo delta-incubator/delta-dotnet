@@ -14,9 +14,12 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using Apache.Arrow;
+using Apache.Arrow.C;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Arrow.Extensions;
+using DeltaLake.Kernel.Builders;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
@@ -304,6 +307,128 @@ namespace DeltaLake.Kernel.Core
                 }
             }
             return metadata;
+        }
+
+        /// <summary>
+        /// Commits add-file actions to the Delta log without writing data files.
+        /// This is a synchronous method — all FFI calls are blocking.
+        /// Returns the new table version after commit.
+        /// </summary>
+        /// <param name="actions">File metadata for pre-written Parquet files.</param>
+        /// <param name="options">Commit configuration options.</param>
+        /// <returns>The committed table version number.</returns>
+        internal unsafe ulong CommitAddActions(
+            IReadOnlyList<AddAction> actions,
+            CommitOptions options)
+        {
+            this.ThrowIfKernelNotSupported();
+
+            ExternResultHandleExclusiveTransaction txnResult =
+                Methods.transaction(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
+
+            if (txnResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
+            {
+                throw KernelException.FromEngineError(
+                    txnResult.Anonymous.Anonymous2_1.err,
+                    "Failed to create transaction");
+            }
+
+            ExclusiveTransaction* txnPtr = txnResult.Anonymous.Anonymous1_1.ok;
+            bool committed = false;
+
+            try
+            {
+                if (options.EngineInfo != null)
+                {
+                    (GCHandle engineInfoHandle, IntPtr engineInfoPtr) =
+                        options.EngineInfo.ToPinnedBytePointer();
+                    try
+                    {
+                        var engineInfoSlice = new KernelStringSlice
+                        {
+                            ptr = (byte*)engineInfoPtr,
+                            len = (nuint)options.EngineInfo.Length,
+                        };
+
+                        ExternResultHandleExclusiveTransaction infoResult =
+                            Methods.with_engine_info(txnPtr, engineInfoSlice, this.kernelOwnedSharedExternEnginePtr);
+
+                        if (infoResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
+                        {
+                            txnPtr = null;
+                            throw KernelException.FromEngineError(
+                                infoResult.Anonymous.Anonymous2_1.err,
+                                "Failed to set engine info on transaction");
+                        }
+
+                        txnPtr = infoResult.Anonymous.Anonymous1_1.ok;
+                    }
+                    finally
+                    {
+                        engineInfoHandle.Free();
+                    }
+                }
+
+                using RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
+
+                var nativeArray = CArrowArray.Create();
+                var nativeSchema = CArrowSchema.Create();
+
+                try
+                {
+                    CArrowArrayExporter.ExportRecordBatch(addFilesBatch, nativeArray);
+                    CArrowSchemaExporter.ExportSchema(addFilesBatch.Schema, nativeSchema);
+
+                    FFI_ArrowArray ffiArray = *(FFI_ArrowArray*)nativeArray;
+                    FFI_ArrowSchema* ffiSchemaPtr = (FFI_ArrowSchema*)nativeSchema;
+
+                    ExternResultHandleExclusiveEngineData dataResult =
+                        Methods.get_engine_data(ffiArray, ffiSchemaPtr, this.kernelOwnedSharedExternEnginePtr);
+
+                    if (dataResult.tag != ExternResultHandleExclusiveEngineData_Tag.OkHandleExclusiveEngineData)
+                    {
+                        throw KernelException.FromEngineError(
+                            dataResult.Anonymous.Anonymous2_1.err,
+                            "Failed to create engine data from add-files RecordBatch");
+                    }
+
+                    ExclusiveEngineData* engineDataPtr = dataResult.Anonymous.Anonymous1_1.ok;
+
+                    Methods.add_files(txnPtr, engineDataPtr);
+                }
+                finally
+                {
+                    CArrowSchema.Free(nativeSchema);
+                    // Array: get_engine_data copies FFI_ArrowArray by value and the kernel
+                    // takes ownership of the underlying buffers. The original CArrowArray*
+                    // still has its release callback set. CArrowArray.Free() would call it
+                    // and double-free. We cast to FFI_ArrowArray* to null the release
+                    // callback (which is accessible on the internal struct), then free
+                    // the allocation.
+                    ((FFI_ArrowArray*)nativeArray)->release = default;
+                    Marshal.FreeHGlobal((IntPtr)nativeArray);
+                }
+
+                ExternResultu64 commitResult =
+                    Methods.commit(txnPtr, this.kernelOwnedSharedExternEnginePtr);
+                committed = true;
+
+                if (commitResult.tag != ExternResultu64_Tag.Oku64)
+                {
+                    throw KernelException.FromEngineError(
+                        commitResult.Anonymous.Anonymous2_1.err,
+                        "Failed to commit transaction");
+                }
+
+                return (ulong)commitResult.Anonymous.Anonymous1_1.ok;
+            }
+            finally
+            {
+                if (!committed && txnPtr != null)
+                {
+                    Methods.free_transaction(txnPtr);
+                }
+            }
         }
 
         #endregion Delta Kernel table operations
