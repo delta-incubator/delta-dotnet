@@ -1,6 +1,6 @@
 using Apache.Arrow;
 using Apache.Arrow.Types;
-using DeltaLake.Kernel.Builders;
+using DeltaLake.Kernel.Arrow.Builders;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;

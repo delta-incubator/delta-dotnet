@@ -15,7 +15,7 @@ using Apache.Arrow;
 using Apache.Arrow.Types;
 using DeltaLake.Table;
 
-namespace DeltaLake.Kernel.Builders
+namespace DeltaLake.Kernel.Arrow.Builders
 {
     /// <summary>
     /// Builds an Arrow RecordBatch conforming to the delta-kernel add-files schema.

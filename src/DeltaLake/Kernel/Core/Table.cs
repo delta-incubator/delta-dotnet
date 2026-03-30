@@ -19,7 +19,7 @@ using Apache.Arrow.C;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Arrow.Extensions;
-using DeltaLake.Kernel.Builders;
+using DeltaLake.Kernel.Arrow.Builders;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
