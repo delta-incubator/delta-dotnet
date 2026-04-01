@@ -589,7 +589,7 @@ public class CreateWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Duplicate_AppId_Version_Should_Fail_Or_Succeed()
+    public async Task CreateWriteTransaction_Duplicate_AppId_Version_Should_Fail_Or_Succeed()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -615,7 +615,7 @@ public class CreateWriteTransactionTests
                 },
             };
 
-            var version1 = await table.CommitWriteTransactionAsync(
+            var version1 = await table.CreateWriteTransactionAsync(
                 actions1,
                 options,
                 CancellationToken.None);
@@ -638,12 +638,121 @@ public class CreateWriteTransactionTests
             // The kernel commits it successfully — the latest txn version for
             // a given appId simply overwrites the previous one during action
             // reconciliation. No error is thrown.
-            var version2 = await table.CommitWriteTransactionAsync(
+            var version2 = await table.CreateWriteTransactionAsync(
                 actions2,
                 options,
                 CancellationToken.None);
 
             Assert.Equal(version1 + 1, version2);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task GetTransactionVersion_Returns_Version_After_Commit()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var actions = new List<AddAction>
+            {
+                new AddAction
+                {
+                    Path = "part-00000.parquet",
+                    Size = 1024,
+                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DataChange = true,
+                },
+            };
+
+            var options = new CommitOptions
+            {
+                AppId = "version-query-app",
+                TransactionVersion = 42,
+            };
+
+            await table.CreateWriteTransactionAsync(
+                actions,
+                options,
+                CancellationToken.None);
+
+            var txnVersion = await table.GetTransactionVersionAsync(
+                "version-query-app",
+                CancellationToken.None);
+
+            Assert.Equal(42, txnVersion);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task GetTransactionVersion_Returns_Null_For_Unknown_AppId()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var txnVersion = await table.GetTransactionVersionAsync(
+                "nonexistent-app",
+                CancellationToken.None);
+
+            Assert.Null(txnVersion);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task GetTransactionVersion_Returns_Latest_After_Multiple_Commits()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            for (int i = 1; i <= 3; i++)
+            {
+                var actions = new List<AddAction>
+                {
+                    new AddAction
+                    {
+                        Path = $"part-{i:D5}.parquet",
+                        Size = 1024 * i,
+                        ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    },
+                };
+
+                var options = new CommitOptions
+                {
+                    AppId = "multi-version-app",
+                    TransactionVersion = i * 100,
+                };
+
+                await table.CreateWriteTransactionAsync(
+                    actions,
+                    options,
+                    CancellationToken.None);
+            }
+
+            var txnVersion = await table.GetTransactionVersionAsync(
+                "multi-version-app",
+                CancellationToken.None);
+
+            Assert.Equal(300, txnVersion);
         }
         finally
         {

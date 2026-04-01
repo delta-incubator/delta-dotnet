@@ -13,6 +13,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
@@ -346,6 +347,62 @@ namespace DeltaLake.Kernel.Core
                                 this.addFilesNativeSchema,
                                 appId,
                                 txnVersion);
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retrieves the current transaction version for a given application ID.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// </summary>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        internal async Task<long?> GetTransactionVersionAsync(
+            string appId,
+            ICancellationToken cancellationToken)
+        {
+            this.ThrowIfKernelNotSupported();
+
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
+                            byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
+                            fixed (byte* appIdPtr = appIdBytes)
+                            {
+                                var appIdSlice = new KernelStringSlice
+                                {
+                                    ptr = appIdPtr,
+                                    len = (nuint)appIdBytes.Length,
+                                };
+
+                                SharedSnapshot* snapshotPtr = this.state.Snapshot(true);
+
+                                ExternResultOptionalValuei64 result =
+                                    Methods.get_app_id_version(
+                                        snapshotPtr, appIdSlice, this.kernelOwnedSharedExternEnginePtr);
+
+                                if (result.tag != ExternResultOptionalValuei64_Tag.OkOptionalValuei64)
+                                {
+                                    throw KernelException.FromEngineError(
+                                        result.Anonymous.Anonymous2_1.err,
+                                        "Failed to get transaction version");
+                                }
+
+                                OptionalValuei64 optVal = result.Anonymous.Anonymous1_1.ok;
+                                if (optVal.tag == OptionalValuei64_Tag.Somei64)
+                                {
+                                    return (long?)optVal.some;
+                                }
+
+                                return (long?)null;
+                            }
                         }
                     },
                     cancellationToken

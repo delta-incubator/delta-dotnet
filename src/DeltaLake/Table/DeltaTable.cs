@@ -263,6 +263,15 @@ namespace DeltaLake.Table
             return (long)version;
         }
 
+        /// <inheritdoc/>
+        public async Task<long?> GetTransactionVersionAsync(
+            string appId,
+            CancellationToken cancellationToken)
+        {
+            return await this.table.GetTransactionVersionAsync(appId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         #endregion ITable implementation
 
         #region IDisposable implementation

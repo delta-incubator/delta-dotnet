@@ -285,6 +285,16 @@ namespace DeltaLake.Interfaces
             CommitOptions options,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Retrieves the current transaction version for a given application ID.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// Used for idempotent write pre-checks.
+        /// </summary>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        Task<long?> GetTransactionVersionAsync(string appId, CancellationToken cancellationToken);
+
         #endregion Transaction Log Operations
     }
 }

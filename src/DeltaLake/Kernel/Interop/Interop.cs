@@ -1415,6 +1415,56 @@ namespace DeltaLake.Kernel.Interop
         }
     }
 
+    [NativeTypeName("unsigned int")]
+    internal enum OptionalValuei64_Tag : uint
+    {
+        Somei64,
+        Nonei64,
+    }
+
+    internal partial struct OptionalValuei64
+    {
+        public OptionalValuei64_Tag tag;
+
+        [NativeTypeName("int64_t")]
+        public long some;
+    }
+
+    [NativeTypeName("unsigned int")]
+    internal enum ExternResultOptionalValuei64_Tag : uint
+    {
+        OkOptionalValuei64,
+        ErrOptionalValuei64,
+    }
+
+    internal unsafe partial struct ExternResultOptionalValuei64
+    {
+        public ExternResultOptionalValuei64_Tag tag;
+
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            public _Anonymous1_1_e__Struct Anonymous1_1;
+
+            [FieldOffset(0)]
+            public _Anonymous2_1_e__Struct Anonymous2_1;
+
+            internal partial struct _Anonymous1_1_e__Struct
+            {
+                public OptionalValuei64 ok;
+            }
+
+            internal unsafe partial struct _Anonymous2_1_e__Struct
+            {
+                [NativeTypeName("struct EngineError *")]
+                public EngineError* err;
+            }
+        }
+    }
+
     internal static unsafe partial class Methods
     {
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
