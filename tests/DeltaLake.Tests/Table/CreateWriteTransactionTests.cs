@@ -587,4 +587,67 @@ public class CreateWriteTransactionTests
             info.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task CommitWriteTransaction_Duplicate_AppId_Version_Should_Fail_Or_Succeed()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var options = new CommitOptions
+            {
+                AppId = "duplicate-test-app",
+                TransactionVersion = 100,
+            };
+
+            // First commit with appId/version should succeed
+            var actions1 = new List<AddAction>
+            {
+                new AddAction
+                {
+                    Path = "part-00000.parquet",
+                    Size = 1024,
+                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DataChange = true,
+                },
+            };
+
+            var version1 = await table.CommitWriteTransactionAsync(
+                actions1,
+                options,
+                CancellationToken.None);
+
+            Assert.True(version1 > 0);
+
+            // Second commit with the SAME appId and version
+            var actions2 = new List<AddAction>
+            {
+                new AddAction
+                {
+                    Path = "part-00001.parquet",
+                    Size = 2048,
+                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DataChange = true,
+                },
+            };
+
+            // The Delta Protocol does NOT prevent duplicate appId/version commits.
+            // The kernel commits it successfully — the latest txn version for
+            // a given appId simply overwrites the previous one during action
+            // reconciliation. No error is thrown.
+            var version2 = await table.CommitWriteTransactionAsync(
+                actions2,
+                options,
+                CancellationToken.None);
+
+            Assert.Equal(version1 + 1, version2);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
 }
