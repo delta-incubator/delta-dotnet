@@ -271,6 +271,20 @@ namespace DeltaLake.Interfaces
             IReadOnlyList<AddAction> actions,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Commits add-file actions to the Delta log without writing data files,
+        /// with options for transaction identifiers (idempotent writes).
+        /// Returns the new table version after commit.
+        /// </summary>
+        /// <param name="actions">File metadata for pre-written Parquet files to register.</param>
+        /// <param name="options">Options including optional transaction identifiers.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task{T}"/> representing the committed table version.</returns>
+        Task<long> CreateWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CommitOptions options,
+            CancellationToken cancellationToken);
+
         #endregion Transaction Log Operations
     }
 }

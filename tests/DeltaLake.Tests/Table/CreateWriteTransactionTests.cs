@@ -428,4 +428,163 @@ public class CreateWriteTransactionTests
             info.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task CreateWriteTransaction_With_TransactionId_Succeeds()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var actions = new List<AddAction>
+            {
+                new AddAction
+                {
+                    Path = "part-00000.parquet",
+                    Size = 1024,
+                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DataChange = true,
+                },
+            };
+
+            var options = new CommitOptions
+            {
+                AppId = "test-app-id-12345",
+                TransactionVersion = 42,
+            };
+
+            var newVersion = await table.CreateWriteTransactionAsync(
+                actions,
+                options,
+                CancellationToken.None);
+
+            Assert.True(newVersion > 0);
+
+            // Verify the txn action is in the Delta log
+            var logDir = Path.Combine(info.FullName, "_delta_log");
+            var logFile = Path.Combine(logDir, $"{newVersion:D20}.json");
+            var logContent = await File.ReadAllTextAsync(logFile);
+
+            Assert.Contains("\"txn\"", logContent);
+            Assert.Contains("test-app-id-12345", logContent);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CreateWriteTransaction_With_Options_No_TransactionId_Succeeds()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var actions = new List<AddAction>
+            {
+                new AddAction
+                {
+                    Path = "part-00000.parquet",
+                    Size = 1024,
+                    ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    DataChange = true,
+                },
+            };
+
+            var options = new CommitOptions();
+
+            var newVersion = await table.CreateWriteTransactionAsync(
+                actions,
+                options,
+                CancellationToken.None);
+
+            Assert.True(newVersion > 0);
+
+            // Verify no txn action in the log
+            var logDir = Path.Combine(info.FullName, "_delta_log");
+            var logFile = Path.Combine(logDir, $"{newVersion:D20}.json");
+            var logContent = await File.ReadAllTextAsync(logFile);
+
+            Assert.DoesNotContain("\"txn\"", logContent);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CreateWriteTransaction_With_Options_Empty_Actions_Throws()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var options = new CommitOptions
+            {
+                AppId = "test-app",
+                TransactionVersion = 1,
+            };
+
+            await Assert.ThrowsAsync<DeltaConfigurationException>(
+                () => table.CreateWriteTransactionAsync(
+                    new List<AddAction>(),
+                    options,
+                    CancellationToken.None));
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CreateWriteTransaction_Multiple_Commits_With_TransactionId_Increment()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var table = tableParts.table;
+
+            var baseVersion = (long)table.Version()!;
+
+            for (int i = 1; i <= 3; i++)
+            {
+                var actions = new List<AddAction>
+                {
+                    new AddAction
+                    {
+                        Path = $"part-{i:D5}.parquet",
+                        Size = 1024 * i,
+                        ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    },
+                };
+
+                var options = new CommitOptions
+                {
+                    AppId = "streaming-app",
+                    TransactionVersion = i,
+                };
+
+                var newVersion = await table.CreateWriteTransactionAsync(
+                    actions,
+                    options,
+                    CancellationToken.None);
+
+                Assert.Equal(baseVersion + i, newVersion);
+            }
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
 }

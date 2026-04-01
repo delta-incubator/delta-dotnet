@@ -236,7 +236,29 @@ namespace DeltaLake.Table
                     new ArgumentException("actions cannot be null or empty", nameof(actions)));
             }
 
-            var version = await this.table.CommitAddActionsAsync(actions, cancellationToken)
+            var version = await this.table.CommitAddActionsAsync(actions, null, null, cancellationToken)
+                .ConfigureAwait(false);
+            return (long)version;
+        }
+
+        /// <inheritdoc/>
+        public async Task<long> CreateWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CommitOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (actions == null || actions.Count == 0)
+            {
+                throw new DeltaConfigurationException(
+                    "At least one action is required",
+                    new ArgumentException("actions cannot be null or empty", nameof(actions)));
+            }
+
+            var version = await this.table.CommitAddActionsAsync(
+                actions,
+                options?.AppId,
+                options?.TransactionVersion,
+                cancellationToken)
                 .ConfigureAwait(false);
             return (long)version;
         }

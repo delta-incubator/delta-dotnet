@@ -12,6 +12,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using Apache.Arrow;
 using Apache.Arrow.C;
 using DeltaLake.Kernel.Callbacks.Errors;
@@ -36,12 +37,16 @@ namespace DeltaLake.Kernel.Transaction
         /// <param name="enginePtr">The shared extern engine pointer.</param>
         /// <param name="addFilesBatch">The RecordBatch containing add-file metadata.</param>
         /// <param name="addFilesSchema">Pre-exported CArrowSchema pointer (reused across commits).</param>
+        /// <param name="appId">Optional application identifier for idempotent writes (Delta Protocol txn action).</param>
+        /// <param name="txnVersion">Optional application-specific version for idempotent writes (Delta Protocol txn action).</param>
         /// <returns>The committed table version number.</returns>
         internal static unsafe ulong Commit(
             KernelStringSlice tableLocationSlice,
             SharedExternEngine* enginePtr,
             RecordBatch addFilesBatch,
-            CArrowSchema* addFilesSchema)
+            CArrowSchema* addFilesSchema,
+            string? appId = null,
+            long? txnVersion = null)
         {
             ExternResultHandleExclusiveTransaction txnResult =
                 Methods.transaction(tableLocationSlice, enginePtr);
@@ -59,6 +64,31 @@ namespace DeltaLake.Kernel.Transaction
             try
             {
                 Methods.set_data_change(txnPtr, true);
+
+                if (appId != null && txnVersion.HasValue)
+                {
+                    byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
+                    fixed (byte* appIdPtr = appIdBytes)
+                    {
+                        var appIdSlice = new KernelStringSlice
+                        {
+                            ptr = appIdPtr,
+                            len = (nuint)appIdBytes.Length,
+                        };
+
+                        ExternResultHandleExclusiveTransaction txnIdResult =
+                            Methods.with_transaction_id(txnPtr, appIdSlice, txnVersion.Value, enginePtr);
+
+                        if (txnIdResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
+                        {
+                            throw KernelException.FromEngineError(
+                                txnIdResult.Anonymous.Anonymous2_1.err,
+                                "Failed to set transaction identifier");
+                        }
+
+                        txnPtr = txnIdResult.Anonymous.Anonymous1_1.ok;
+                    }
+                }
 
                 var errorAllocatorHandle = GCHandle.Alloc(
                     (AllocateErrorFn)AllocateErrorCallbacks.AllocateError);
