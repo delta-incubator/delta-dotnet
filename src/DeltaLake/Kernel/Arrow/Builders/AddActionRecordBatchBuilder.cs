@@ -10,6 +10,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
+using System;
 using System.Collections.Generic;
 using Apache.Arrow;
 using Apache.Arrow.Types;
@@ -54,8 +55,18 @@ namespace DeltaLake.Kernel.Arrow.Builders
             var modTimeBuilder = new Int64Array.Builder();
             var dataChangeBuilder = new BooleanArray.Builder();
 
+            // Delta protocol defines path as a URI per RFC 2396 (§6.1: case-sensitive comparison).
+            var seenPaths = new HashSet<string>(numRows, StringComparer.Ordinal);
+
             foreach (var action in actions)
             {
+                if (!seenPaths.Add(action.Path))
+                {
+                    throw new ArgumentException(
+                        $"Duplicate file path detected: '{action.Path}'",
+                        nameof(actions));
+                }
+
                 pathBuilder.Append(action.Path);
                 sizeBuilder.Append(action.Size);
                 modTimeBuilder.Append(action.ModificationTime);

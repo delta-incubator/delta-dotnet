@@ -267,4 +267,55 @@ public class AddActionRecordBatchBuilderTests
 
         Assert.Equal(1, batch.Length);
     }
+
+    [Fact]
+    public void Build_DuplicatePaths_Throws_ArgumentException()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "part-00000.parquet",
+                Size = 1024,
+                ModificationTime = 1711929600000,
+            },
+            new AddAction
+            {
+                Path = "part-00000.parquet",
+                Size = 2048,
+                ModificationTime = 1711929600001,
+            },
+        };
+
+        var ex = Assert.Throws<ArgumentException>(() => AddActionRecordBatchBuilder.Build(actions));
+
+        Assert.Contains("part-00000.parquet", ex.Message);
+    }
+
+    [Fact]
+    public void Build_CaseSensitivePaths_Treats_As_Distinct()
+    {
+        // Delta protocol (Add File): "The path is a URI as specified by RFC 2396".
+        // RFC 2396 §6.1 defines URI comparison as case-sensitive (octet-by-octet).
+        // Action Reconciliation uses path as a primary key with no normalization.
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "Part-00000.parquet",
+                Size = 1024,
+                ModificationTime = 1711929600000,
+            },
+            new AddAction
+            {
+                Path = "part-00000.parquet",
+                Size = 2048,
+                ModificationTime = 1711929600001,
+            },
+        };
+
+        var batch = AddActionRecordBatchBuilder.Build(actions);
+
+        Assert.Equal(2, batch.Length);
+    }
 }
