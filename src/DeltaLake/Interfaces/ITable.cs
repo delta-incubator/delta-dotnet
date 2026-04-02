@@ -253,5 +253,24 @@ namespace DeltaLake.Interfaces
         Task VacuumAsync(VacuumOptions options, CancellationToken cancellationToken);
 
         #endregion Maintenance Operations
+
+        #region Transaction Operations
+
+        /// <summary>
+        /// Commits add-file actions to the Delta log without writing data files.
+        /// Returns the new table version after commit.
+        /// </summary>
+        /// <remarks>
+        /// This method is typically used when Parquet files have been written externally
+        /// and need to be registered in the Delta log without rewriting the data files.
+        /// </remarks>
+        /// <param name="actions">File metadata for pre-written Parquet files to register.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task{T}"/> representing the committed table version.</returns>
+        Task<long> CommitWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CancellationToken cancellationToken);
+
+        #endregion Transaction Operations
     }
 }
