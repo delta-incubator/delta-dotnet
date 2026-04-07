@@ -3,10 +3,10 @@ using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table;
 
-public class CommitWriteTransactionTests
+public class CreateWriteTransactionTests
 {
     [Fact]
-    public async Task CommitWriteTransaction_Append_Creates_Delta_Log_Entry()
+    public async Task CreateWriteTransaction_Append_Creates_Delta_Log_Entry()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -27,7 +27,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -41,7 +41,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Multiple_Commits_Increment_Version()
+    public async Task CreateWriteTransaction_Multiple_Commits_Increment_Version()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -63,7 +63,7 @@ public class CommitWriteTransactionTests
                     },
                 };
 
-                var newVersion = await table.CommitWriteTransactionAsync(
+                var newVersion = await table.CreateWriteTransactionAsync(
                     actions,
                     CancellationToken.None);
 
@@ -79,7 +79,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Empty_Actions_Throws()
+    public async Task CreateWriteTransaction_Empty_Actions_Throws()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -88,7 +88,7 @@ public class CommitWriteTransactionTests
             using var table = tableParts.table;
 
             await Assert.ThrowsAsync<DeltaConfigurationException>(
-                () => table.CommitWriteTransactionAsync(
+                () => table.CreateWriteTransactionAsync(
                     new List<AddAction>(),
                     CancellationToken.None));
         }
@@ -99,7 +99,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Null_Actions_Throws()
+    public async Task CreateWriteTransaction_Null_Actions_Throws()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -108,7 +108,7 @@ public class CommitWriteTransactionTests
             using var table = tableParts.table;
 
             await Assert.ThrowsAsync<DeltaConfigurationException>(
-                () => table.CommitWriteTransactionAsync(
+                () => table.CreateWriteTransactionAsync(
                     null!,
                     CancellationToken.None));
         }
@@ -119,7 +119,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Will_Cancel()
+    public async Task CreateWriteTransaction_Will_Cancel()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -139,7 +139,7 @@ public class CommitWriteTransactionTests
             };
 
             await Assert.ThrowsAnyAsync<OperationCanceledException>(
-                () => table.CommitWriteTransactionAsync(
+                () => table.CreateWriteTransactionAsync(
                     actions,
                     new CancellationToken(true)));
 
@@ -152,7 +152,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Null_PartitionValues()
+    public async Task CreateWriteTransaction_Null_PartitionValues()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -171,7 +171,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -184,7 +184,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_With_Multiple_Partition_Columns()
+    public async Task CreateWriteTransaction_With_Multiple_Partition_Columns()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -208,7 +208,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -221,7 +221,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_With_Null_Partition_Value()
+    public async Task CreateWriteTransaction_With_Null_Partition_Value()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -243,7 +243,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -256,7 +256,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Multiple_Files_Single_Commit()
+    public async Task CreateWriteTransaction_Multiple_Files_Single_Commit()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -276,7 +276,7 @@ public class CommitWriteTransactionTests
                 });
             }
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -289,7 +289,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_DataChange_False()
+    public async Task CreateWriteTransaction_DataChange_False()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -308,7 +308,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -321,7 +321,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Mixed_Partition_And_NonPartition_Files()
+    public async Task CreateWriteTransaction_Mixed_Partition_And_NonPartition_Files()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -350,7 +350,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -363,7 +363,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Special_Characters_In_Path()
+    public async Task CreateWriteTransaction_Special_Characters_In_Path()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -386,7 +386,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 
@@ -399,7 +399,7 @@ public class CommitWriteTransactionTests
     }
 
     [Fact]
-    public async Task CommitWriteTransaction_Zero_Size_File()
+    public async Task CreateWriteTransaction_Zero_Size_File()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -417,7 +417,7 @@ public class CommitWriteTransactionTests
                 },
             };
 
-            var newVersion = await table.CommitWriteTransactionAsync(
+            var newVersion = await table.CreateWriteTransactionAsync(
                 actions,
                 CancellationToken.None);
 

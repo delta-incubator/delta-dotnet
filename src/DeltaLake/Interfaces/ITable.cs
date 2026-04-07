@@ -254,7 +254,7 @@ namespace DeltaLake.Interfaces
 
         #endregion Maintenance Operations
 
-        #region Transaction Operations
+        #region Transaction Log Operations
 
         /// <summary>
         /// Commits add-file actions to the Delta log without writing data files.
@@ -267,10 +267,10 @@ namespace DeltaLake.Interfaces
         /// <param name="actions">File metadata for pre-written Parquet files to register.</param>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
         /// <returns>A <see cref="Task{T}"/> representing the committed table version.</returns>
-        Task<long> CommitWriteTransactionAsync(
+        Task<long> CreateWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
             CancellationToken cancellationToken);
 
-        #endregion Transaction Operations
+        #endregion Transaction Log Operations
     }
 }
