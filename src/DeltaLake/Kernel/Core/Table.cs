@@ -16,12 +16,14 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
+using DeltaLake.Kernel.Arrow.Builders;
 using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.Shim.Async;
 using DeltaLake.Kernel.State;
+using DeltaLake.Kernel.Transaction;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
 using DeltaRustBridge = DeltaLake.Bridge;
@@ -83,6 +85,7 @@ namespace DeltaLake.Kernel.Core
         private readonly GCHandle[] storageOptionsKeyHandles;
         private readonly GCHandle[] storageOptionsValueHandles;
         private readonly GCHandle? allocatorHandle;
+        private readonly unsafe Apache.Arrow.C.CArrowSchema* addFilesNativeSchema;
         /// <summary>
         /// Pointers **KERNEL** manages related to this <see cref="Table"/> class.
         /// </summary>
@@ -184,6 +187,11 @@ namespace DeltaLake.Kernel.Core
                 this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
+
+                // Pre-export the static add-files Arrow schema for reuse across commits.
+                this.addFilesNativeSchema = Apache.Arrow.C.CArrowSchema.Create();
+                Apache.Arrow.C.CArrowSchemaExporter.ExportSchema(
+                    AddActionRecordBatchBuilder.AddFilesSchema, this.addFilesNativeSchema);
             }
         }
 
@@ -306,6 +314,39 @@ namespace DeltaLake.Kernel.Core
             return metadata;
         }
 
+        /// <summary>
+        /// Commits add-file actions to the Delta log without writing data files.
+        /// Returns the new table version after commit.
+        /// </summary>
+        /// <param name="actions">File metadata for pre-written Parquet files.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The committed table version number.</returns>
+        internal async Task<ulong> CommitAddActionsAsync(
+            IReadOnlyList<AddAction> actions,
+            ICancellationToken cancellationToken)
+        {
+            this.ThrowIfKernelNotSupported();
+
+            using Apache.Arrow.RecordBatch addFilesBatch = AddActionRecordBatchBuilder.Build(actions);
+
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
+                            return TransactionCommitter.Commit(
+                                this.tableLocationSlice,
+                                this.kernelOwnedSharedExternEnginePtr,
+                                addFilesBatch,
+                                this.addFilesNativeSchema);
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+
         #endregion Delta Kernel table operations
 
         #region SafeHandle implementation
@@ -317,6 +358,7 @@ namespace DeltaLake.Kernel.Core
                 this.state.Dispose();
                 this.allocatorHandle?.Free();
                 if (this.tableLocationHandle.IsAllocated) this.tableLocationHandle.Free();
+                if (this.addFilesNativeSchema != null) Apache.Arrow.C.CArrowSchema.Free(this.addFilesNativeSchema);
                 foreach (GCHandle handle in this.storageOptionsKeyHandles) if (handle.IsAllocated) handle.Free();
                 foreach (GCHandle handle in this.storageOptionsValueHandles) if (handle.IsAllocated) handle.Free();
                 Marshal.FreeHGlobal((IntPtr)this.gcPinnedStorageOptionsKeyPtrs);
