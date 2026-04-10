@@ -10,59 +10,59 @@ namespace ffi {
 #endif  // __cplusplus
 
 typedef enum KernelError {
-  UnknownError,
-  FFIError,
+  UnknownError = 0,
+  FFIError = 1,
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
-  ArrowError,
+  ArrowError = 2,
 #endif
-  EngineDataTypeError,
-  ExtractError,
-  GenericError,
-  IOErrorError,
+  EngineDataTypeError = 3,
+  ExtractError = 4,
+  GenericError = 5,
+  IOErrorError = 6,
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
-  ParquetError,
-#endif
-#if defined(DEFINE_DEFAULT_ENGINE_BASE)
-  ObjectStoreError,
+  ParquetError = 7,
 #endif
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
-  ObjectStorePathError,
+  ObjectStoreError = 8,
 #endif
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
-  ReqwestError,
+  ObjectStorePathError = 9,
 #endif
-  FileNotFoundError,
-  MissingColumnError,
-  UnexpectedColumnTypeError,
-  MissingDataError,
-  MissingVersionError,
-  DeletionVectorError,
-  InvalidUrlError,
-  MalformedJsonError,
-  MissingMetadataError,
-  MissingProtocolError,
-  InvalidProtocolError,
-  MissingMetadataAndProtocolError,
-  ParseError,
-  JoinFailureError,
-  Utf8Error,
-  ParseIntError,
-  InvalidColumnMappingModeError,
-  InvalidTableLocationError,
-  InvalidDecimalError,
-  InvalidStructDataError,
-  InternalError,
-  InvalidExpression,
-  InvalidLogPath,
-  FileAlreadyExists,
-  UnsupportedError,
-  ParseIntervalError,
-  ChangeDataFeedUnsupported,
-  ChangeDataFeedIncompatibleSchema,
-  InvalidCheckpoint,
-  LiteralExpressionTransformError,
-  CheckpointWriteError,
-  SchemaError,
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+  ReqwestError = 10,
+#endif
+  FileNotFoundError = 11,
+  MissingColumnError = 12,
+  UnexpectedColumnTypeError = 13,
+  MissingDataError = 14,
+  MissingVersionError = 15,
+  DeletionVectorError = 16,
+  InvalidUrlError = 17,
+  MalformedJsonError = 18,
+  MissingMetadataError = 19,
+  MissingProtocolError = 20,
+  InvalidProtocolError = 21,
+  MissingMetadataAndProtocolError = 22,
+  ParseError = 23,
+  JoinFailureError = 24,
+  Utf8Error = 25,
+  ParseIntError = 26,
+  InvalidColumnMappingModeError = 27,
+  InvalidTableLocationError = 28,
+  InvalidDecimalError = 29,
+  InvalidStructDataError = 30,
+  InternalError = 31,
+  InvalidExpression = 32,
+  InvalidLogPath = 33,
+  FileAlreadyExists = 34,
+  UnsupportedError = 35,
+  ParseIntervalError = 36,
+  ChangeDataFeedUnsupported = 37,
+  ChangeDataFeedIncompatibleSchema = 38,
+  InvalidCheckpoint = 39,
+  LiteralExpressionTransformError = 40,
+  CheckpointWriteError = 41,
+  SchemaError = 42,
 } KernelError;
 
 /**
@@ -124,7 +124,7 @@ typedef struct CStringMap CStringMap;
  * Transformation expressions that need to be applied to each row `i` in ScanMetadata. You can use
  * [`get_transform_for_row`] to get the transform for a particular row. If that returns an
  * associated expression, it _must_ be applied to the data read from the file specified by the
- * row. The resultant schema for this expression is guaranteed to be `Scan.schema()`. If
+ * row. The resultant schema for this expression is guaranteed to be [`scan_logical_schema()`]. If
  * `get_transform_for_row` returns `NULL` no expression need be applied and the data read from disk
  * is already in the correct logical state.
  *
@@ -156,6 +156,10 @@ typedef struct ExclusiveEngineData ExclusiveEngineData;
 
 typedef struct ExclusiveFileReadResultIterator ExclusiveFileReadResultIterator;
 
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+typedef struct ExclusiveTableChanges ExclusiveTableChanges;
+#endif
+
 /**
  * A handle representing an exclusive transaction on a Delta table. (Similar to a Box<_>)
  *
@@ -175,8 +179,6 @@ typedef struct ExclusiveTransaction ExclusiveTransaction;
 typedef struct Expression Expression;
 
 typedef struct KernelExpressionVisitorState KernelExpressionVisitorState;
-
-typedef struct OptionHandleSharedExpression OptionHandleSharedExpression;
 
 /**
  * A SQL predicate.
@@ -205,9 +207,17 @@ typedef struct SharedScanMetadata SharedScanMetadata;
 
 typedef struct SharedScanMetadataIterator SharedScanMetadataIterator;
 
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+typedef struct SharedScanTableChangesIterator SharedScanTableChangesIterator;
+#endif
+
 typedef struct SharedSchema SharedSchema;
 
 typedef struct SharedSnapshot SharedSnapshot;
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+typedef struct SharedTableChangesScan SharedTableChangesScan;
+#endif
 
 /**
  * A [`WriteContext`] that provides schema and path information needed for writing data.
@@ -786,6 +796,215 @@ typedef struct FileMeta {
 typedef struct SharedExpressionEvaluator *HandleSharedExpressionEvaluator;
 
 /**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedExpressionEvaluator_Tag {
+  OkHandleSharedExpressionEvaluator,
+  ErrHandleSharedExpressionEvaluator,
+} ExternResultHandleSharedExpressionEvaluator_Tag;
+
+typedef struct ExternResultHandleSharedExpressionEvaluator {
+  ExternResultHandleSharedExpressionEvaluator_Tag tag;
+  union {
+    struct {
+      HandleSharedExpressionEvaluator ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedExpressionEvaluator;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveTableChanges *HandleExclusiveTableChanges;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleExclusiveTableChanges_Tag {
+  OkHandleExclusiveTableChanges,
+  ErrHandleExclusiveTableChanges,
+} ExternResultHandleExclusiveTableChanges_Tag;
+
+typedef struct ExternResultHandleExclusiveTableChanges {
+  ExternResultHandleExclusiveTableChanges_Tag tag;
+  union {
+    struct {
+      HandleExclusiveTableChanges ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleExclusiveTableChanges;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedTableChangesScan *HandleSharedTableChangesScan;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedTableChangesScan_Tag {
+  OkHandleSharedTableChangesScan,
+  ErrHandleSharedTableChangesScan,
+} ExternResultHandleSharedTableChangesScan_Tag;
+
+typedef struct ExternResultHandleSharedTableChangesScan {
+  ExternResultHandleSharedTableChangesScan_Tag tag;
+  union {
+    struct {
+      HandleSharedTableChangesScan ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedTableChangesScan;
+
+/**
+ * A predicate that can be used to skip data when scanning.
+ *
+ * When invoking [`scan`], The engine provides a pointer to the (engine's native) predicate, along
+ * with a visitor function that can be invoked to recursively visit the predicate. This engine
+ * state must be valid until the call to [`scan`] returns. Inside that method, the kernel allocates
+ * visitor state, which becomes the second argument to the predicate visitor invocation along with
+ * the engine-provided predicate pointer. The visitor state is valid for the lifetime of the
+ * predicate visitor invocation. Thanks to this double indirection, engine and kernel each retain
+ * ownership of their respective objects, with no need to coordinate memory lifetimes with the
+ * other.
+ */
+typedef struct EnginePredicate {
+  void *predicate;
+  uintptr_t (*visitor)(void *predicate, struct KernelExpressionVisitorState *state);
+} EnginePredicate;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedScanTableChangesIterator *HandleSharedScanTableChangesIterator;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedScanTableChangesIterator_Tag {
+  OkHandleSharedScanTableChangesIterator,
+  ErrHandleSharedScanTableChangesIterator,
+} ExternResultHandleSharedScanTableChangesIterator_Tag;
+
+typedef struct ExternResultHandleSharedScanTableChangesIterator {
+  ExternResultHandleSharedScanTableChangesIterator_Tag tag;
+  union {
+    struct {
+      HandleSharedScanTableChangesIterator ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedScanTableChangesIterator;
+
+/**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
  * it. It can be passed freely between rust code and external code. The
  *
@@ -953,6 +1172,8 @@ typedef void (*VisitUnaryFn)(void *data, uintptr_t sibling_list_id, uintptr_t ch
 
 typedef void (*VisitBinaryFn)(void *data, uintptr_t sibling_list_id, uintptr_t child_list_id);
 
+typedef void (*VisitVariadicFn)(void *data, uintptr_t sibling_list_id, uintptr_t child_list_id);
+
 /**
  * The [`EngineExpressionVisitor`] defines a visitor system to allow engines to build their own
  * representation of a kernel expression or predicate.
@@ -1108,6 +1329,11 @@ typedef struct EngineExpressionVisitor {
    */
   VisitUnaryFn visit_is_null;
   /**
+   * Visits the `ToJson` unary operator belonging to the list identified by `sibling_list_id`.
+   * The sub-expression will be in a _one_ item list identified by `child_list_id`
+   */
+  VisitUnaryFn visit_to_json;
+  /**
    * Visits the `LessThan` binary operator belonging to the list identified by `sibling_list_id`.
    * The operands will be in a _two_ item list identified by `child_list_id`
    */
@@ -1153,14 +1379,62 @@ typedef struct EngineExpressionVisitor {
    */
   VisitBinaryFn visit_divide;
   /**
+   * Visits the `Coalesce` variadic operator belonging to the list identified by `sibling_list_id`.
+   * The operands will be in a list identified by `child_list_id`
+   */
+  VisitVariadicFn visit_coalesce;
+  /**
    * Visits the `column` belonging to the list identified by `sibling_list_id`.
    */
   void (*visit_column)(void *data, uintptr_t sibling_list_id, struct KernelStringSlice name);
   /**
-   * Visits a `StructExpression` belonging to the list identified by `sibling_list_id`.
-   * The sub-expressions of the `StructExpression` are in a list identified by `child_list_id`
+   * Visits a `Struct` expression belonging to the list identified by `sibling_list_id`.
+   * The sub-expressions (fields) of the struct are in a list identified by `child_list_id`
    */
   void (*visit_struct_expr)(void *data, uintptr_t sibling_list_id, uintptr_t child_list_id);
+  /**
+   * Visits a `Transform` expression belonging to the list identified by `sibling_list_id`. The
+   * `input_path_list_id` is a single-item list containing transform's input path as a column
+   * reference (0 = no path). The `field_transform_list_id` identifies the list of field
+   * transforms to apply (0 = identity transform). See also [`Self::visit_field_transform`].
+   */
+  void (*visit_transform_expr)(void *data,
+                               uintptr_t sibling_list_id,
+                               uintptr_t input_path_list_id,
+                               uintptr_t field_transform_list_id);
+  /**
+   * Visits one field transform of a `Transform` expression that owns the list identified by
+   * `sibling_list_id`. Each field transform has a different insertion point (no duplicates).
+   *
+   * A field transform is modeled as the triple `(field_name, expr_list, is_replace)`, as
+   * described by the truth table below. The `expr_list_id` identifies the list of expressions
+   * the field transform should emit. The field name (if present) always references a field of
+   * the input struct. Both the field name and the expression list are optional:
+   *
+   * |field_name? |expr_list? |is_replace? |meaning|
+   * |-|-|-|-|
+   * | NO  | NO  | *   | NO-OP (prepend an empty list of expressions to the output)
+   * | NO  | YES | *   | Prepend a list of expressions to the output
+   * | YES | NO  | NO  | NO-OP (insert an empty list of expressions after the named input field)
+   * | YES | NO  | YES | Drop the named input field
+   * | YES | YES | NO  | Insert a list of expressions after the named input field
+   * | YES | YES | YES | Replace the named input field with a list of expressions
+   *
+   * NOTE: Treating list id 0 as an empty list yields a simplified truth table:
+   *
+   * |field_name? |is_replace? |meaning|
+   * |-|-|-|
+   * | NO  | *   | Prepend a (possibly empty) list of expressions to the output
+   * | YES | NO  | Insert a (possibly empty)  list of expressions after the named input field
+   * | YES | YES | Replace the named input field with a (possibly empty) list of expressions
+   *
+   * NOTE: The expressions of each field transform must be emitted in order at the insertion point.
+   */
+  void (*visit_field_transform)(void *data,
+                                uintptr_t sibling_list_id,
+                                const struct KernelStringSlice *field_name,
+                                uintptr_t expr_list_id,
+                                bool is_replace);
   /**
    * Visits the operator (`op`) and children (`child_list_id`) of an opaque expression belonging
    * to the list identified by `sibling_list_id`.
@@ -1369,23 +1643,6 @@ typedef struct ExternResultHandleSharedScan {
 } ExternResultHandleSharedScan;
 
 /**
- * A predicate that can be used to skip data when scanning.
- *
- * When invoking [`scan`], The engine provides a pointer to the (engine's native) predicate, along
- * with a visitor function that can be invoked to recursively visit the predicate. This engine
- * state must be valid until the call to [`scan`] returns. Inside that method, the kernel allocates
- * visitor state, which becomes the second argument to the predicate visitor invocation along with
- * the engine-provided predicate pointer. The visitor state is valid for the lifetime of the
- * predicate visitor invocation. Thanks to this double indirection, engine and kernel each retain
- * ownership of their respective objects, with no need to coordinate memory lifetimes with the
- * other.
- */
-typedef struct EnginePredicate {
-  void *predicate;
-  uintptr_t (*visitor)(void *predicate, struct KernelExpressionVisitorState *state);
-} EnginePredicate;
-
-/**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
  * it. It can be passed freely between rust code and external code. The
  *
@@ -1443,6 +1700,23 @@ typedef struct ExternResultHandleSharedScanMetadataIterator {
 } ExternResultHandleSharedScanMetadataIterator;
 
 /**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueHandleSharedExpression_Tag {
+  SomeHandleSharedExpression,
+  NoneHandleSharedExpression,
+} OptionalValueHandleSharedExpression_Tag;
+
+typedef struct OptionalValueHandleSharedExpression {
+  OptionalValueHandleSharedExpression_Tag tag;
+  union {
+    struct {
+      HandleSharedExpression some;
+    };
+  };
+} OptionalValueHandleSharedExpression;
+
+/**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
  * allocated one at all), and engine is responsible for freeing it.
  */
@@ -1477,13 +1751,28 @@ typedef struct Stats {
 } Stats;
 
 /**
+ * Contains information that can be used to get a selection vector. If `has_vector` is false, that
+ * indicates there is no selection vector to consider. It is always possible to get a vector out of
+ * a `DvInfo`, but if `has_vector` is false it will just be an empty vector (indicating all
+ * selected). Without this there's no way for a connector using ffi to know if a &DvInfo actually
+ * has a vector in it. We have has_vector() on the rust side, but this isn't exposed via ffi. So
+ * this just wraps the &DvInfo in another struct which includes a boolean that says if there is a
+ * dv to consider or not.  This allows engines to ignore dv info if there isn't any without needing
+ * to make another ffi call at all.
+ */
+typedef struct CDvInfo {
+  const struct DvInfo *info;
+  bool has_vector;
+} CDvInfo;
+
+/**
  * This callback will be invoked for each valid file that needs to be read for a scan.
  *
  * The arguments to the callback are:
  * * `context`: a `void*` context this can be anything that engine needs to pass through to each call
  * * `path`: a `KernelStringSlice` which is the path to the file
  * * `size`: an `i64` which is the size of the file
- * * `dv_info`: a [`DvInfo`] struct, which allows getting the selection vector for this file
+ * * `dv_info`: a [`CDvInfo`] struct, which allows getting the selection vector for this file
  * * `transform`: An optional expression that, if not `NULL`, _must_ be applied to physical data to
  *   convert it to the correct logical format. If this is `NULL`, no transform is needed.
  * * `partition_values`: [DEPRECATED] a `HashMap<String, String>` which are partition values
@@ -1492,7 +1781,7 @@ typedef void (*CScanCallback)(NullableCvoid engine_context,
                               struct KernelStringSlice path,
                               int64_t size,
                               const struct Stats *stats,
-                              const struct DvInfo *dv_info,
+                              const struct CDvInfo *dv_info,
                               const struct Expression *transform,
                               const struct CStringMap *partition_map);
 
@@ -1756,6 +2045,44 @@ typedef struct ExternResultu64 {
     };
   };
 } ExternResultu64;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValuei64_Tag {
+  Somei64,
+  Nonei64,
+} OptionalValuei64_Tag;
+
+typedef struct OptionalValuei64 {
+  OptionalValuei64_Tag tag;
+  union {
+    struct {
+      int64_t some;
+    };
+  };
+} OptionalValuei64;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultOptionalValuei64_Tag {
+  OkOptionalValuei64,
+  ErrOptionalValuei64,
+} ExternResultOptionalValuei64_Tag;
+
+typedef struct ExternResultOptionalValuei64 {
+  ExternResultOptionalValuei64_Tag tag;
+  union {
+    struct {
+      struct OptionalValuei64 ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultOptionalValuei64;
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -2038,7 +2365,7 @@ struct ExternResultArrowFFIData get_raw_arrow_data(HandleExclusiveEngineData dat
  */
 struct ExternResultHandleExclusiveEngineData get_engine_data(struct FFI_ArrowArray array,
                                                              const struct FFI_ArrowSchema *schema,
-                                                             HandleSharedExternEngine engine);
+                                                             AllocateErrorFn allocate_error);
 #endif
 
 /**
@@ -2084,10 +2411,10 @@ struct ExternResultHandleExclusiveFileReadResultIterator read_parquet_file(Handl
  * # Safety
  * Caller is responsible for calling with a valid `Engine`, `Expression`, and `SharedSchema`s
  */
-HandleSharedExpressionEvaluator new_expression_evaluator(HandleSharedExternEngine engine,
-                                                         HandleSharedSchema input_schema,
-                                                         const struct Expression *expression,
-                                                         HandleSharedSchema output_type);
+struct ExternResultHandleSharedExpressionEvaluator new_expression_evaluator(HandleSharedExternEngine engine,
+                                                                            HandleSharedSchema input_schema,
+                                                                            const struct Expression *expression,
+                                                                            HandleSharedSchema output_type);
 
 /**
  * Free an expression evaluator
@@ -2106,6 +2433,194 @@ void free_expression_evaluator(HandleSharedExpressionEvaluator evaluator);
 struct ExternResultHandleExclusiveEngineData evaluate_expression(HandleSharedExternEngine engine,
                                                                  HandleExclusiveEngineData *batch,
                                                                  HandleSharedExpressionEvaluator evaluator);
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the table changes from the specified table at a specific version
+ *
+ * - `table_root`: url pointing at the table root (where `_delta_log` folder is located)
+ * - `engine`: Implementation of `Engine` apis.
+ * - `start_version`: The start version of the change data feed
+ *   End version will be the newest table version.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles and path pointer.
+ */
+struct ExternResultHandleExclusiveTableChanges table_changes_from_version(struct KernelStringSlice path,
+                                                                          HandleSharedExternEngine engine,
+                                                                          Version start_version);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the table changes from the specified table between two versions
+ *
+ * - `table_root`: url pointing at the table root (where `_delta_log` folder is located)
+ * - `engine`: Implementation of `Engine` apis.
+ * - `start_version`: The start version of the change data feed
+ * - `end_version`: The end version (inclusive) of the change data feed.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles and path pointer.
+ */
+struct ExternResultHandleExclusiveTableChanges table_changes_between_versions(struct KernelStringSlice path,
+                                                                              HandleSharedExternEngine engine,
+                                                                              Version start_version,
+                                                                              Version end_version);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Drops table changes.
+ *
+ * # Safety
+ * Caller is responsible for passing a valid table changes handle.
+ */
+void free_table_changes(HandleExclusiveTableChanges table_changes);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get schema from the specified TableChanges.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid table changes handle.
+ */
+HandleSharedSchema table_changes_schema(HandleExclusiveTableChanges table_changes);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get table root from the specified TableChanges.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid table changes handle.
+ */
+NullableCvoid table_changes_table_root(HandleExclusiveTableChanges table_changes,
+                                       AllocateStringFn allocate_fn);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get start version from the specified TableChanges.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid table changes handle.
+ */
+uint64_t table_changes_start_version(HandleExclusiveTableChanges table_changes);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get end version from the specified TableChanges.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid table changes handle.
+ */
+uint64_t table_changes_end_version(HandleExclusiveTableChanges table_changes);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get a [`TableChangesScan`] over the table specified by the passed table changes.
+ * It is the responsibility of the _engine_ to free this scan when complete by calling [`free_table_changes_scan`].
+ * Consumes TableChanges.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid table changes pointer, and engine pointer
+ */
+struct ExternResultHandleSharedTableChangesScan table_changes_scan(HandleExclusiveTableChanges table_changes,
+                                                                   HandleSharedExternEngine engine,
+                                                                   struct EnginePredicate *predicate);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Drops a table changes scan.
+ *
+ * # Safety
+ * Caller is responsible for passing a valid scan handle.
+ */
+void free_table_changes_scan(HandleSharedTableChangesScan table_changes_scan);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the table root of a table changes scan.
+ *
+ * # Safety
+ * Engine is responsible for providing a valid scan pointer and allocate_fn (for allocating the
+ * string)
+ */
+NullableCvoid table_changes_scan_table_root(HandleSharedTableChangesScan table_changes_scan,
+                                            AllocateStringFn allocate_fn);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the logical schema of the specified table changes scan.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid snapshot handle.
+ */
+HandleSharedSchema table_changes_scan_logical_schema(HandleSharedTableChangesScan table_changes_scan);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the physical schema of the specified table changes scan.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid snapshot handle.
+ */
+HandleSharedSchema table_changes_scan_physical_schema(HandleSharedTableChangesScan table_changes_scan);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get an iterator over the data needed to perform a table changes scan. This will return a
+ * [`ScanTableChangesIterator`] which can be passed to [`scan_table_changes_next`] to get the
+ * actual data in the iterator.
+ *
+ * # Safety
+ *
+ * Engine is responsible for passing a valid [`SharedExternEngine`] and [`SharedTableChangesScan`]
+ */
+struct ExternResultHandleSharedScanTableChangesIterator table_changes_scan_execute(HandleSharedTableChangesScan table_changes_scan,
+                                                                                   HandleSharedExternEngine engine);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * # Safety
+ *
+ * Drops table changes iterator.
+ * Caller is responsible for (at most once) passing a valid pointer returned by a call to
+ * [`table_changes_scan_execute`].
+ */
+void free_scan_table_changes_iter(HandleSharedScanTableChangesIterator data);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get next batch of data from the table changes iterator.
+ *
+ * # Safety
+ *
+ * The iterator must be valid (returned by [table_changes_scan_execute]) and not yet freed by
+ * [`free_scan_table_changes_iter`].
+ */
+struct ExternResultArrowFFIData scan_table_changes_next(HandleSharedScanTableChangesIterator data);
+#endif
 
 /**
  * Free the memory the passed SharedExpression
@@ -2283,6 +2798,11 @@ uintptr_t visit_expression_literal_float(struct KernelExpressionVisitorState *st
 uintptr_t visit_expression_literal_double(struct KernelExpressionVisitorState *state, double value);
 
 uintptr_t visit_expression_literal_bool(struct KernelExpressionVisitorState *state, bool value);
+
+/**
+ * visit a date literal expression 'value' (i32 representing days since unix epoch)
+ */
+uintptr_t visit_expression_literal_date(struct KernelExpressionVisitorState *state, int32_t value);
 
 /**
  * Enable getting called back for tracing (logging) events in the kernel. `max_level` specifies
@@ -2483,6 +3003,19 @@ NullableCvoid get_from_string_map(const struct CStringMap *map,
                                   AllocateStringFn allocate_fn);
 
 /**
+ * Visit all values in a CStringMap. The callback will be called once for each element of the map
+ *
+ * # Safety
+ *
+ * The engine is responsible for providing a valid [`CStringMap`] pointer and callback
+ */
+void visit_string_map(const struct CStringMap *map,
+                      NullableCvoid engine_context,
+                      void (*visitor)(NullableCvoid engine_context,
+                                      struct KernelStringSlice key,
+                                      struct KernelStringSlice value));
+
+/**
  * Allow getting the transform for a particular row. If the requested row is outside the range of
  * the passed `CTransforms` returns `NULL`, otherwise returns the element at the index of the
  * specified row. See also [`CTransforms`] above.
@@ -2492,8 +3025,8 @@ NullableCvoid get_from_string_map(const struct CStringMap *map,
  * The engine is responsible for providing a valid [`CTransforms`] pointer, and for checking if the
  * return value is `NULL` or not.
  */
-struct OptionHandleSharedExpression get_transform_for_row(uintptr_t row,
-                                                          const struct CTransforms *transforms);
+struct OptionalValueHandleSharedExpression get_transform_for_row(uintptr_t row,
+                                                                 const struct CTransforms *transforms);
 
 /**
  * Get a selection vector out of a [`DvInfo`] struct
@@ -2599,6 +3132,16 @@ struct ExternResultHandleExclusiveTransaction with_engine_info(HandleExclusiveTr
 void add_files(HandleExclusiveTransaction txn, HandleExclusiveEngineData write_metadata);
 
 /**
+ *
+ * Mark the transaction as having data changes or not (these are recorded at the file level).
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+void set_data_change(HandleExclusiveTransaction txn, bool data_change);
+
+/**
  * Attempt to commit a transaction to the table. Returns version number if successful.
  * Returns error if the commit fails.
  *
@@ -2608,6 +3151,35 @@ void add_files(HandleExclusiveTransaction txn, HandleExclusiveEngineData write_m
  * method is called.
  */
 struct ExternResultu64 commit(HandleExclusiveTransaction txn, HandleSharedExternEngine engine);
+
+/**
+ * Associates an app_id and version with a transaction. These will be applied to the table on commit.
+ *
+ * # Returns
+ * A new handle to the transaction that will set the `app_id` version to `version` on commit
+ *
+ * # Safety
+ * Caller is responsible for passing [valid][Handle#Validity] handles. The `app_id` string slice must be valid.
+ * CONSUMES TRANSACTION
+ */
+struct ExternResultHandleExclusiveTransaction with_transaction_id(HandleExclusiveTransaction txn,
+                                                                  struct KernelStringSlice app_id,
+                                                                  int64_t version,
+                                                                  HandleSharedExternEngine engine);
+
+/**
+ * Retrieves the version associated with an app_id from a snapshot.
+ *
+ * # Returns
+ * The version number if found, or an error of type `MissingDataError` when the app_id was not set
+ *
+ * # Safety
+ * Caller must ensure [valid][Handle#Validity] handles are provided for snapshot and engine. The `app_id`
+ * string slice must be valid.
+ */
+struct ExternResultOptionalValuei64 get_app_id_version(HandleSharedSnapshot snapshot,
+                                                       struct KernelStringSlice app_id,
+                                                       HandleSharedExternEngine engine);
 
 /**
  * Gets the write context from a transaction. The write context provides schema and path information

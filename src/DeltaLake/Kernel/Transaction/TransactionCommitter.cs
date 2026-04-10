@@ -58,6 +58,10 @@ namespace DeltaLake.Kernel.Transaction
 
             try
             {
+                Methods.set_data_change(txnPtr, true);
+
+                var errorAllocatorHandle = GCHandle.Alloc(
+                    (AllocateErrorFn)AllocateErrorCallbacks.AllocateError);
                 var nativeArray = CArrowArray.Create();
 
                 try
@@ -67,8 +71,11 @@ namespace DeltaLake.Kernel.Transaction
                     FFI_ArrowArray ffiArray = *(FFI_ArrowArray*)nativeArray;
                     FFI_ArrowSchema* ffiSchemaPtr = (FFI_ArrowSchema*)addFilesSchema;
 
+                    IntPtr errorAllocatorPtr = Marshal.GetFunctionPointerForDelegate(
+                        (AllocateErrorFn)errorAllocatorHandle.Target!);
+
                     ExternResultHandleExclusiveEngineData dataResult =
-                        Methods.get_engine_data(ffiArray, ffiSchemaPtr, enginePtr);
+                        Methods.get_engine_data(ffiArray, ffiSchemaPtr, errorAllocatorPtr);
 
                     if (dataResult.tag != ExternResultHandleExclusiveEngineData_Tag.OkHandleExclusiveEngineData)
                     {
@@ -83,6 +90,8 @@ namespace DeltaLake.Kernel.Transaction
                 }
                 finally
                 {
+                    errorAllocatorHandle.Free();
+
                     // Array: get_engine_data copies FFI_ArrowArray by value and the kernel
                     // takes ownership of the buffers. CArrowArray.Free() would double-free.
                     // Null out the release callback, then free the allocation.
