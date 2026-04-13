@@ -65,7 +65,7 @@ namespace DeltaLake.Kernel.Transaction
             {
                 Methods.set_data_change(txnPtr, true);
 
-                if (appId != null && txnVersion.HasValue)
+                if (appId != null)
                 {
                     byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
                     fixed (byte* appIdPtr = appIdBytes)
@@ -149,6 +149,43 @@ namespace DeltaLake.Kernel.Transaction
                 {
                     Methods.free_transaction(txnPtr);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Queries the latest transaction version for a given application ID from a snapshot.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// </summary>
+        /// <param name="snapshotPtr">The shared snapshot pointer.</param>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="enginePtr">The shared extern engine pointer.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        internal static unsafe long? GetLatestTransactionVersion(
+            SharedSnapshot* snapshotPtr,
+            string appId,
+            SharedExternEngine* enginePtr)
+        {
+            byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
+            fixed (byte* appIdPtr = appIdBytes)
+            {
+                var appIdSlice = new KernelStringSlice
+                {
+                    ptr = appIdPtr,
+                    len = (nuint)appIdBytes.Length,
+                };
+
+                ExternResultOptionalValuei64 result =
+                    Methods.get_app_id_version(snapshotPtr, appIdSlice, enginePtr);
+
+                if (result.tag != ExternResultOptionalValuei64_Tag.OkOptionalValuei64)
+                {
+                    throw KernelException.FromEngineError(
+                        result.Anonymous.Anonymous2_1.err,
+                        "Failed to get transaction version");
+                }
+
+                OptionalValuei64 optVal = result.Anonymous.Anonymous1_1.ok;
+                return optVal.tag == OptionalValuei64_Tag.Somei64 ? optVal.Anonymous.Anonymous_1.some : null;
             }
         }
     }

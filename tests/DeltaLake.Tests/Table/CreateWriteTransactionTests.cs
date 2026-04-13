@@ -652,7 +652,7 @@ public class CreateWriteTransactionTests
     }
 
     [Fact]
-    public async Task GetTransactionVersion_Returns_Version_After_Commit()
+    public async Task GetLatestTransactionVersion_Returns_Version_After_Commit()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -682,7 +682,7 @@ public class CreateWriteTransactionTests
                 options,
                 CancellationToken.None);
 
-            var txnVersion = await table.GetTransactionVersionAsync(
+            var txnVersion = await table.GetLatestTransactionVersionAsync(
                 "version-query-app",
                 CancellationToken.None);
 
@@ -695,7 +695,7 @@ public class CreateWriteTransactionTests
     }
 
     [Fact]
-    public async Task GetTransactionVersion_Returns_Null_For_Unknown_AppId()
+    public async Task GetLatestTransactionVersion_Returns_Null_For_Unknown_AppId()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -703,7 +703,7 @@ public class CreateWriteTransactionTests
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
             using var table = tableParts.table;
 
-            var txnVersion = await table.GetTransactionVersionAsync(
+            var txnVersion = await table.GetLatestTransactionVersionAsync(
                 "nonexistent-app",
                 CancellationToken.None);
 
@@ -716,7 +716,7 @@ public class CreateWriteTransactionTests
     }
 
     [Fact]
-    public async Task GetTransactionVersion_Returns_Latest_After_Multiple_Commits()
+    public async Task GetLatestTransactionVersion_Returns_Latest_After_Multiple_Commits()
     {
         var info = DirectoryHelpers.CreateTempSubdirectory();
         try
@@ -748,7 +748,7 @@ public class CreateWriteTransactionTests
                     CancellationToken.None);
             }
 
-            var txnVersion = await table.GetTransactionVersionAsync(
+            var txnVersion = await table.GetLatestTransactionVersionAsync(
                 "multi-version-app",
                 CancellationToken.None);
 

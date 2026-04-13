@@ -13,7 +13,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Threading.Tasks;
 using DeltaLake.Bridge.Interop;
 using DeltaLake.Extensions;
@@ -361,7 +360,7 @@ namespace DeltaLake.Kernel.Core
         /// <param name="appId">The application identifier to look up.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The last committed version for this appId, or null if none exists.</returns>
-        internal async Task<long?> GetTransactionVersionAsync(
+        internal async Task<long?> GetLatestTransactionVersionAsync(
             string appId,
             ICancellationToken cancellationToken)
         {
@@ -373,36 +372,10 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
-                            fixed (byte* appIdPtr = appIdBytes)
-                            {
-                                var appIdSlice = new KernelStringSlice
-                                {
-                                    ptr = appIdPtr,
-                                    len = (nuint)appIdBytes.Length,
-                                };
-
-                                SharedSnapshot* snapshotPtr = this.state.Snapshot(true);
-
-                                ExternResultOptionalValuei64 result =
-                                    Methods.get_app_id_version(
-                                        snapshotPtr, appIdSlice, this.kernelOwnedSharedExternEnginePtr);
-
-                                if (result.tag != ExternResultOptionalValuei64_Tag.OkOptionalValuei64)
-                                {
-                                    throw KernelException.FromEngineError(
-                                        result.Anonymous.Anonymous2_1.err,
-                                        "Failed to get transaction version");
-                                }
-
-                                OptionalValuei64 optVal = result.Anonymous.Anonymous1_1.ok;
-                                if (optVal.tag == OptionalValuei64_Tag.Somei64)
-                                {
-                                    return (long?)optVal.some;
-                                }
-
-                                return (long?)null;
-                            }
+                            return TransactionCommitter.GetLatestTransactionVersion(
+                                this.state.Snapshot(true),
+                                appId,
+                                this.kernelOwnedSharedExternEnginePtr);
                         }
                     },
                     cancellationToken

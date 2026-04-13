@@ -225,20 +225,11 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public async Task<long> CreateWriteTransactionAsync(
+        public Task<long> CreateWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
             CancellationToken cancellationToken)
         {
-            if (actions == null || actions.Count == 0)
-            {
-                throw new DeltaConfigurationException(
-                    "At least one action is required",
-                    new ArgumentException("actions cannot be null or empty", nameof(actions)));
-            }
-
-            var version = await this.table.CommitAddActionsAsync(actions, null, null, cancellationToken)
-                .ConfigureAwait(false);
-            return (long)version;
+            return this.CreateWriteTransactionAsync(actions, new CommitOptions(), cancellationToken);
         }
 
         /// <inheritdoc/>
@@ -254,6 +245,13 @@ namespace DeltaLake.Table
                     new ArgumentException("actions cannot be null or empty", nameof(actions)));
             }
 
+            if (options?.AppId != null ^ options?.TransactionVersion.HasValue == true)
+            {
+                throw new DeltaConfigurationException(
+                    "Both AppId and TransactionVersion must be provided together, or both must be omitted.",
+                    new ArgumentException("AppId and TransactionVersion must be set together", nameof(options)));
+            }
+
             var version = await this.table.CommitAddActionsAsync(
                 actions,
                 options?.AppId,
@@ -264,13 +262,10 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public async Task<long?> GetTransactionVersionAsync(
+        public Task<long?> GetLatestTransactionVersionAsync(
             string appId,
-            CancellationToken cancellationToken)
-        {
-            return await this.table.GetTransactionVersionAsync(appId, cancellationToken)
-                .ConfigureAwait(false);
-        }
+            CancellationToken cancellationToken) =>
+            this.table.GetLatestTransactionVersionAsync(appId, cancellationToken);
 
         #endregion ITable implementation
 
