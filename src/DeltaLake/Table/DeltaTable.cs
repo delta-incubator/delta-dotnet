@@ -228,9 +228,7 @@ namespace DeltaLake.Table
         public Task<long> CreateWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
             CancellationToken cancellationToken)
-        {
-            return this.CreateWriteTransactionAsync(actions, new CommitOptions(), cancellationToken);
-        }
+            => this.CreateWriteTransactionAsync(actions, new CommitOptions(), cancellationToken);
 
         /// <inheritdoc/>
         public async Task<long> CreateWriteTransactionAsync(
@@ -246,7 +244,7 @@ namespace DeltaLake.Table
             }
 
             bool hasAppId = options?.AppId != null;
-            bool hasVersion = options?.TransactionVersion.HasValue == true;
+            bool hasVersion = options?.TransactionVersion != null;
             if (hasAppId != hasVersion)
             {
                 throw new DeltaConfigurationException(
@@ -266,8 +264,8 @@ namespace DeltaLake.Table
         /// <inheritdoc/>
         public Task<long?> GetLatestTransactionVersionAsync(
             string appId,
-            CancellationToken cancellationToken) =>
-            this.table.GetLatestTransactionVersionAsync(appId, cancellationToken);
+            CancellationToken cancellationToken)
+            => this.table.GetLatestTransactionVersionAsync(appId, cancellationToken);
 
         #endregion ITable implementation
 
