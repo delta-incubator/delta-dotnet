@@ -245,7 +245,9 @@ namespace DeltaLake.Table
                     new ArgumentException("actions cannot be null or empty", nameof(actions)));
             }
 
-            if (options?.AppId != null ^ options?.TransactionVersion.HasValue == true)
+            bool hasAppId = options?.AppId != null;
+            bool hasVersion = options?.TransactionVersion.HasValue == true;
+            if (hasAppId != hasVersion)
             {
                 throw new DeltaConfigurationException(
                     "Both AppId and TransactionVersion must be provided together, or both must be omitted.",
