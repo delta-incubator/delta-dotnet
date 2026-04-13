@@ -21,7 +21,7 @@ namespace DeltaLake.Kernel.Arrow.Builders
     /// <summary>
     /// Builds an Arrow RecordBatch conforming to the delta-kernel add-files schema.
     /// Schema: path (Utf8), partitionValues (Map&lt;Utf8,Utf8&gt;), size (Int64),
-    ///         modificationTime (Int64), dataChange (Boolean)
+    ///         modificationTime (Int64), stats (Struct{numRecords: Int64})
     /// </summary>
     internal static class AddActionRecordBatchBuilder
     {
@@ -29,12 +29,18 @@ namespace DeltaLake.Kernel.Arrow.Builders
             new Field("key", StringType.Default, nullable: false),
             new Field("value", StringType.Default, nullable: true));
 
+        internal static readonly StructType StatsStructType = new StructType(
+            new List<Field>
+            {
+                new Field("numRecords", Int64Type.Default, nullable: true),
+            });
+
         internal static readonly Schema AddFilesSchema = new Schema.Builder()
             .Field(new Field("path", StringType.Default, nullable: false))
             .Field(new Field("partitionValues", PartitionMapType, nullable: false))
             .Field(new Field("size", Int64Type.Default, nullable: false))
             .Field(new Field("modificationTime", Int64Type.Default, nullable: false))
-            .Field(new Field("dataChange", BooleanType.Default, nullable: false))
+            .Field(new Field("stats", StatsStructType, nullable: true))
             .Build();
 
         /// <summary>
@@ -53,7 +59,7 @@ namespace DeltaLake.Kernel.Arrow.Builders
             var valueBuilder = (StringArray.Builder)mapBuilder.ValueBuilder;
             var sizeBuilder = new Int64Array.Builder();
             var modTimeBuilder = new Int64Array.Builder();
-            var dataChangeBuilder = new BooleanArray.Builder();
+            var numRecordsBuilder = new Int64Array.Builder();
 
             // Delta protocol defines path as a URI per RFC 2396 (§6.1: case-sensitive comparison).
             var seenPaths = new HashSet<string>(numRows, StringComparer.Ordinal);
@@ -70,7 +76,7 @@ namespace DeltaLake.Kernel.Arrow.Builders
                 pathBuilder.Append(action.Path);
                 sizeBuilder.Append(action.Size);
                 modTimeBuilder.Append(action.ModificationTime);
-                dataChangeBuilder.Append(action.DataChange);
+                numRecordsBuilder.AppendNull();
 
                 mapBuilder.Append();
                 if (action.PartitionValues != null)
@@ -90,13 +96,18 @@ namespace DeltaLake.Kernel.Arrow.Builders
                 }
             }
 
+            var numRecordsArray = numRecordsBuilder.Build();
+            var statsArray = new StructArray(StatsStructType, numRows,
+                new IArrowArray[] { numRecordsArray },
+                ArrowBuffer.Empty);
+
             return new RecordBatch(AddFilesSchema, new IArrowArray[]
             {
                 pathBuilder.Build(),
                 mapBuilder.Build(),
                 sizeBuilder.Build(),
                 modTimeBuilder.Build(),
-                dataChangeBuilder.Build(),
+                statsArray,
             }, numRows);
         }
     }

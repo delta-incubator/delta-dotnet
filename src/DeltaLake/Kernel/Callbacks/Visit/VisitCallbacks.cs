@@ -92,7 +92,7 @@ namespace DeltaLake.Kernel.Callbacks.Visit
             KernelStringSlice parquetFilePath,
             long parquetFileSize,
             Stats* stats,
-            DvInfo* dvInfo,
+            CDvInfo* dvInfo,
             Expression* transform,
             CStringMap* partitionMap
         );
@@ -103,7 +103,7 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     KernelStringSlice parquetFilePath,
                     long parquetFileSize,
                     Stats* stats,
-                    DvInfo* dvInfo,
+                    CDvInfo* dvInfo,
                     Expression* transform,
                     CStringMap* partitionMap
                 ) =>
@@ -112,7 +112,7 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     var rootString = MarshalExtensions.PtrToStringUTF8((IntPtr)context->TableRoot);
                     var tableRoot = context->KernelTableRoot();
                     ExternResultKernelBoolSlice selectionVectorRes = Methods.selection_vector_from_dv(
-                        dvInfo,
+                        dvInfo->info,
                         context->Engine,
                         tableRoot);
                     if (selectionVectorRes.tag != ExternResultKernelBoolSlice_Tag.OkKernelBoolSlice)

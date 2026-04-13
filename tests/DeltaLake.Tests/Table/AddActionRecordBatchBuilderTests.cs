@@ -31,7 +31,13 @@ public class AddActionRecordBatchBuilderTests
         Assert.Equal("partitionValues", batch.Schema.FieldsList[1].Name);
         Assert.Equal("size", batch.Schema.FieldsList[2].Name);
         Assert.Equal("modificationTime", batch.Schema.FieldsList[3].Name);
-        Assert.Equal("dataChange", batch.Schema.FieldsList[4].Name);
+        Assert.Equal("stats", batch.Schema.FieldsList[4].Name);
+        Assert.True(batch.Schema.FieldsList[4].IsNullable);
+        var statsType = Assert.IsType<StructType>(batch.Schema.FieldsList[4].DataType);
+        Assert.Single(statsType.Fields);
+        Assert.Equal("numRecords", statsType.Fields[0].Name);
+        Assert.IsType<Int64Type>(statsType.Fields[0].DataType);
+        Assert.True(statsType.Fields[0].IsNullable);
         Assert.Equal(1, batch.Length);
     }
 
@@ -182,42 +188,30 @@ public class AddActionRecordBatchBuilderTests
     }
 
     [Fact]
-    public void Build_DataChange_False_Sets_Correctly()
+    public void Build_DataChange_False_Is_Preserved_On_Model()
     {
-        var actions = new List<AddAction>
+        var action = new AddAction
         {
-            new AddAction
-            {
-                Path = "compacted.parquet",
-                Size = 8192,
-                ModificationTime = 1711929600000,
-                DataChange = false,
-            },
+            Path = "compacted.parquet",
+            Size = 8192,
+            ModificationTime = 1711929600000,
+            DataChange = false,
         };
 
-        var batch = AddActionRecordBatchBuilder.Build(actions);
-        var dataChangeColumn = (BooleanArray)batch.Column("dataChange");
-
-        Assert.False(dataChangeColumn.GetValue(0));
+        Assert.False(action.DataChange);
     }
 
     [Fact]
-    public void Build_DataChange_Default_Is_True()
+    public void Build_DataChange_Default_Is_True_On_Model()
     {
-        var actions = new List<AddAction>
+        var action = new AddAction
         {
-            new AddAction
-            {
-                Path = "data.parquet",
-                Size = 1024,
-                ModificationTime = 1711929600000,
-            },
+            Path = "data.parquet",
+            Size = 1024,
+            ModificationTime = 1711929600000,
         };
 
-        var batch = AddActionRecordBatchBuilder.Build(actions);
-        var dataChangeColumn = (BooleanArray)batch.Column("dataChange");
-
-        Assert.True(dataChangeColumn.GetValue(0));
+        Assert.True(action.DataChange);
     }
 
     [Fact]
