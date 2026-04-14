@@ -312,4 +312,82 @@ public class AddActionRecordBatchBuilderTests
 
         Assert.Equal(2, batch.Length);
     }
+
+    [Fact]
+    public void Build_WithNumRecords_PopulatesStatsColumn()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "file1.parquet",
+                Size = 100,
+                ModificationTime = 1000,
+                NumRecords = 42,
+            },
+        };
+        using var batch = AddActionRecordBatchBuilder.Build(actions);
+        var statsArray = (StructArray)batch.Column("stats");
+        Assert.False(statsArray.IsNull(0));
+        var numRecords = (Int64Array)statsArray.Fields[0];
+        Assert.False(numRecords.IsNull(0));
+        Assert.Equal(42L, numRecords.GetValue(0));
+    }
+
+    [Fact]
+    public void Build_WithoutNumRecords_StatsStructIsNonNull_InnerFieldIsNull()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "file1.parquet",
+                Size = 100,
+                ModificationTime = 1000,
+            },
+        };
+        using var batch = AddActionRecordBatchBuilder.Build(actions);
+        var statsArray = (StructArray)batch.Column("stats");
+        Assert.False(statsArray.IsNull(0));
+        var numRecords = (Int64Array)statsArray.Fields[0];
+        Assert.True(numRecords.IsNull(0));
+    }
+
+    [Fact]
+    public void Build_MixedNumRecords_CorrectValues()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction { Path = "a.parquet", Size = 1, ModificationTime = 1, NumRecords = 10 },
+            new AddAction { Path = "b.parquet", Size = 2, ModificationTime = 2 },
+            new AddAction { Path = "c.parquet", Size = 3, ModificationTime = 3, NumRecords = 30 },
+        };
+        using var batch = AddActionRecordBatchBuilder.Build(actions);
+        var statsArray = (StructArray)batch.Column("stats");
+
+        var numRecords = (Int64Array)statsArray.Fields[0];
+        Assert.Equal(10L, numRecords.GetValue(0));
+        Assert.True(numRecords.IsNull(1));
+        Assert.Equal(30L, numRecords.GetValue(2));
+    }
+
+    [Fact]
+    public void Build_NumRecordsZero_IsValid()
+    {
+        var actions = new List<AddAction>
+        {
+            new AddAction
+            {
+                Path = "empty.parquet",
+                Size = 50,
+                ModificationTime = 1000,
+                NumRecords = 0,
+            },
+        };
+        using var batch = AddActionRecordBatchBuilder.Build(actions);
+        var statsArray = (StructArray)batch.Column("stats");
+        Assert.False(statsArray.IsNull(0));
+        var numRecords = (Int64Array)statsArray.Fields[0];
+        Assert.Equal(0L, numRecords.GetValue(0));
+    }
 }

@@ -50,6 +50,13 @@ namespace DeltaLake.Table
         public bool DataChange { get; init; } = true;
 
         /// <summary>
+        /// Number of records in the data file. Used for query planning and optimization.
+        /// When set, this value is written to the stats field in the delta log.
+        /// </summary>
+        [JsonPropertyName("numRecords")]
+        public long? NumRecords { get; init; }
+
+        /// <summary>
         /// Serializes this add action to a JSON string matching the Delta protocol format.
         /// </summary>
         /// <returns>A JSON string representation of this add action.</returns>
