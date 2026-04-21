@@ -271,6 +271,41 @@ namespace DeltaLake.Interfaces
             IReadOnlyList<AddAction> actions,
             CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Commits add-file actions to the Delta log without writing data files,
+        /// with options for transaction identifiers (idempotent writes).
+        /// Returns the new table version after commit.
+        /// </summary>
+        /// <remarks>
+        /// When <see cref="CommitOptions.AppId"/> and <see cref="CommitOptions.TransactionVersion"/>
+        /// are provided, a <c>txn</c> action is included in the commit alongside the <c>add</c> actions.
+        /// This records a progress marker for the application but does <b>not</b> enforce uniqueness —
+        /// duplicate appId/version pairs are accepted by the Delta kernel. During action reconciliation,
+        /// the latest <c>txn</c> version for a given appId wins.
+        /// <para>
+        /// To achieve idempotent writes, callers must check <see cref="GetLatestTransactionVersionAsync"/>
+        /// before committing and skip if the returned version is greater than or equal to the batch version.
+        /// </para>
+        /// </remarks>
+        /// <param name="actions">File metadata for pre-written Parquet files to register.</param>
+        /// <param name="options">Options including optional transaction identifiers.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task{T}"/> representing the committed table version.</returns>
+        Task<long> CreateWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CommitOptions options,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Retrieves the current transaction version for a given application ID.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// Used for idempotent write pre-checks.
+        /// </summary>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        Task<long?> GetLatestTransactionVersionAsync(string appId, CancellationToken cancellationToken);
+
         #endregion Transaction Log Operations
     }
 }

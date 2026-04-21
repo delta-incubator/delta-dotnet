@@ -12,6 +12,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using Apache.Arrow;
 using Apache.Arrow.C;
 using DeltaLake.Kernel.Callbacks.Errors;
@@ -36,12 +37,16 @@ namespace DeltaLake.Kernel.Transaction
         /// <param name="enginePtr">The shared extern engine pointer.</param>
         /// <param name="addFilesBatch">The RecordBatch containing add-file metadata.</param>
         /// <param name="addFilesSchema">Pre-exported CArrowSchema pointer (reused across commits).</param>
+        /// <param name="appId">Optional application identifier for idempotent writes (Delta Protocol txn action).</param>
+        /// <param name="txnVersion">Optional application-specific version for idempotent writes (Delta Protocol txn action).</param>
         /// <returns>The committed table version number.</returns>
         internal static unsafe ulong Commit(
             KernelStringSlice tableLocationSlice,
             SharedExternEngine* enginePtr,
             RecordBatch addFilesBatch,
-            CArrowSchema* addFilesSchema)
+            CArrowSchema* addFilesSchema,
+            string? appId = null,
+            long? txnVersion = null)
         {
             ExternResultHandleExclusiveTransaction txnResult =
                 Methods.transaction(tableLocationSlice, enginePtr);
@@ -59,6 +64,31 @@ namespace DeltaLake.Kernel.Transaction
             try
             {
                 Methods.set_data_change(txnPtr, true);
+
+                if (appId != null)
+                {
+                    byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
+                    fixed (byte* appIdPtr = appIdBytes)
+                    {
+                        var appIdSlice = new KernelStringSlice
+                        {
+                            ptr = appIdPtr,
+                            len = (nuint)appIdBytes.Length,
+                        };
+
+                        ExternResultHandleExclusiveTransaction txnIdResult =
+                            Methods.with_transaction_id(txnPtr, appIdSlice, txnVersion.Value, enginePtr);
+
+                        if (txnIdResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
+                        {
+                            throw KernelException.FromEngineError(
+                                txnIdResult.Anonymous.Anonymous2_1.err,
+                                "Failed to set transaction identifier");
+                        }
+
+                        txnPtr = txnIdResult.Anonymous.Anonymous1_1.ok;
+                    }
+                }
 
                 var errorAllocatorHandle = GCHandle.Alloc(
                     (AllocateErrorFn)AllocateErrorCallbacks.AllocateError);
@@ -119,6 +149,43 @@ namespace DeltaLake.Kernel.Transaction
                 {
                     Methods.free_transaction(txnPtr);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Queries the latest transaction version for a given application ID from a snapshot.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// </summary>
+        /// <param name="snapshotPtr">The shared snapshot pointer.</param>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="enginePtr">The shared extern engine pointer.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        internal static unsafe long? GetLatestTransactionVersion(
+            SharedSnapshot* snapshotPtr,
+            string appId,
+            SharedExternEngine* enginePtr)
+        {
+            byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
+            fixed (byte* appIdPtr = appIdBytes)
+            {
+                var appIdSlice = new KernelStringSlice
+                {
+                    ptr = appIdPtr,
+                    len = (nuint)appIdBytes.Length,
+                };
+
+                ExternResultOptionalValuei64 result =
+                    Methods.get_app_id_version(snapshotPtr, appIdSlice, enginePtr);
+
+                if (result.tag != ExternResultOptionalValuei64_Tag.OkOptionalValuei64)
+                {
+                    throw KernelException.FromEngineError(
+                        result.Anonymous.Anonymous2_1.err,
+                        "Failed to get transaction version");
+                }
+
+                OptionalValuei64 optVal = result.Anonymous.Anonymous1_1.ok;
+                return optVal.tag == OptionalValuei64_Tag.Somei64 ? optVal.Anonymous.Anonymous_1.some : null;
             }
         }
     }

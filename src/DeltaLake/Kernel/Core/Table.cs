@@ -319,10 +319,14 @@ namespace DeltaLake.Kernel.Core
         /// Returns the new table version after commit.
         /// </summary>
         /// <param name="actions">File metadata for pre-written Parquet files.</param>
+        /// <param name="appId">Optional application identifier for idempotent writes.</param>
+        /// <param name="txnVersion">Optional application-specific version for idempotent writes.</param>
         /// <param name="cancellationToken">Cancellation token.</param>
         /// <returns>The committed table version number.</returns>
         internal async Task<ulong> CommitAddActionsAsync(
             IReadOnlyList<AddAction> actions,
+            string? appId,
+            long? txnVersion,
             ICancellationToken cancellationToken)
         {
             this.ThrowIfKernelNotSupported();
@@ -339,7 +343,39 @@ namespace DeltaLake.Kernel.Core
                                 this.tableLocationSlice,
                                 this.kernelOwnedSharedExternEnginePtr,
                                 addFilesBatch,
-                                this.addFilesNativeSchema);
+                                this.addFilesNativeSchema,
+                                appId,
+                                txnVersion);
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Retrieves the current transaction version for a given application ID.
+        /// Returns null if no transaction has been recorded for this appId.
+        /// </summary>
+        /// <param name="appId">The application identifier to look up.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The last committed version for this appId, or null if none exists.</returns>
+        internal async Task<long?> GetLatestTransactionVersionAsync(
+            string appId,
+            ICancellationToken cancellationToken)
+        {
+            this.ThrowIfKernelNotSupported();
+
+            return await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
+                            return TransactionCommitter.GetLatestTransactionVersion(
+                                this.state.Snapshot(true),
+                                appId,
+                                this.kernelOwnedSharedExternEnginePtr);
                         }
                     },
                     cancellationToken

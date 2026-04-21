@@ -225,8 +225,15 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
+        public Task<long> CreateWriteTransactionAsync(
+            IReadOnlyList<AddAction> actions,
+            CancellationToken cancellationToken)
+            => this.CreateWriteTransactionAsync(actions, new CommitOptions(), cancellationToken);
+
+        /// <inheritdoc/>
         public async Task<long> CreateWriteTransactionAsync(
             IReadOnlyList<AddAction> actions,
+            CommitOptions options,
             CancellationToken cancellationToken)
         {
             if (actions == null || actions.Count == 0)
@@ -236,10 +243,29 @@ namespace DeltaLake.Table
                     new ArgumentException("actions cannot be null or empty", nameof(actions)));
             }
 
-            var version = await this.table.CommitAddActionsAsync(actions, cancellationToken)
+            bool hasAppId = options?.AppId != null;
+            bool hasVersion = options?.TransactionVersion != null;
+            if (hasAppId != hasVersion)
+            {
+                throw new DeltaConfigurationException(
+                    "Both AppId and TransactionVersion must be provided together, or both must be omitted.",
+                    new ArgumentException("AppId and TransactionVersion must be set together", nameof(options)));
+            }
+
+            var version = await this.table.CommitAddActionsAsync(
+                actions,
+                options?.AppId,
+                options?.TransactionVersion,
+                cancellationToken)
                 .ConfigureAwait(false);
             return (long)version;
         }
+
+        /// <inheritdoc/>
+        public Task<long?> GetLatestTransactionVersionAsync(
+            string appId,
+            CancellationToken cancellationToken)
+            => this.table.GetLatestTransactionVersionAsync(appId, cancellationToken);
 
         #endregion ITable implementation
 
