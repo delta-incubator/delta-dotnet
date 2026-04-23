@@ -759,4 +759,96 @@ public class CreateWriteTransactionTests
             info.Delete(true);
         }
     }
+
+    [Fact]
+    public async Task CreateWriteTransaction_With_NumRecords_Writes_Stats_To_Log()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var (engine, table) = await TableHelpers.SetupTable(info.FullName, 1);
+            using (engine)
+            using (table)
+            {
+                var actions = new List<AddAction>
+                {
+                    new AddAction
+                    {
+                        Path = "part-00000.parquet",
+                        Size = 1234,
+                        ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                        DataChange = true,
+                        NumRecords = 100,
+                    },
+                };
+
+                long version = await table.CreateWriteTransactionAsync(
+                    actions, CancellationToken.None);
+
+                string logFile = Path.Combine(info.FullName, "_delta_log",
+                    $"{version:D20}.json");
+                string[] lines = await File.ReadAllLinesAsync(logFile);
+
+                string? addLine = lines.FirstOrDefault(l => l.Contains("\"add\""));
+                Assert.NotNull(addLine);
+                // Kernel writes stats as JSON string: "stats":"{\"numRecords\":100}"
+                // The inner JSON may also appear as "numRecords":100 without escaping
+                Assert.True(
+                    addLine.Contains("\"numRecords\":100") || addLine.Contains("numRecords\\\":100"),
+                    $"Expected numRecords in log. Actual add line: {addLine}");
+            }
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
+
+    [Fact]
+    public async Task CreateWriteTransaction_Mixed_NumRecords_Only_Populated_Files_Have_Stats()
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var (engine, table) = await TableHelpers.SetupTable(info.FullName, 1);
+            using (engine)
+            using (table)
+            {
+                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var actions = new List<AddAction>
+                {
+                    new AddAction
+                    {
+                        Path = "with-stats.parquet",
+                        Size = 100,
+                        ModificationTime = now,
+                        NumRecords = 50,
+                    },
+                    new AddAction
+                    {
+                        Path = "no-stats.parquet",
+                        Size = 200,
+                        ModificationTime = now,
+                    },
+                };
+
+                long version = await table.CreateWriteTransactionAsync(
+                    actions, CancellationToken.None);
+
+                string logFile = Path.Combine(info.FullName, "_delta_log",
+                    $"{version:D20}.json");
+                string content = await File.ReadAllTextAsync(logFile);
+
+                Assert.True(
+                    content.Contains("\"numRecords\":50") || content.Contains("numRecords\\\":50"),
+                    $"Expected numRecords in log. Actual content: {content}");
+                Assert.Contains("with-stats.parquet", content);
+                Assert.Contains("no-stats.parquet", content);
+            }
+        }
+        finally
+        {
+            info.Delete(true);
+        }
+    }
 }

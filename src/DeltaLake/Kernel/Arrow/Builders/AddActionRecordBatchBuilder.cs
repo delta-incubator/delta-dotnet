@@ -76,7 +76,15 @@ namespace DeltaLake.Kernel.Arrow.Builders
                 pathBuilder.Append(action.Path);
                 sizeBuilder.Append(action.Size);
                 modTimeBuilder.Append(action.ModificationTime);
-                numRecordsBuilder.AppendNull();
+
+                if (action.NumRecords.HasValue)
+                {
+                    numRecordsBuilder.Append(action.NumRecords.Value);
+                }
+                else
+                {
+                    numRecordsBuilder.AppendNull();
+                }
 
                 mapBuilder.Append();
                 if (action.PartitionValues != null)
