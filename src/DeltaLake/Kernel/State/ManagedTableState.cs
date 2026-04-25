@@ -292,13 +292,13 @@ namespace DeltaLake.Kernel.State
 
             unsafe
             {
-                ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null);
+                ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null, null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
-                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2_1.err, "Failed to create table scan from Delta Kernel.");
+                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2.err, "Failed to create table scan from Delta Kernel.");
                 }
 
-                this.managedScan = scanRes.Anonymous.Anonymous1_1.ok;
+                this.managedScan = scanRes.Anonymous.Anonymous1.ok;
             }
         }
 
@@ -324,6 +324,13 @@ namespace DeltaLake.Kernel.State
             }
         }
 
+        // TODO: delta-kernel-rs upgrade coordination
+        // This code was migrated from snapshot()/scan() to the builder pattern as part of the
+        // v0.17.0 → v0.21.0 upgrade. For future kernel version bumps:
+        // 1. Check https://github.com/delta-incubator/delta-dotnet/pulls for existing upgrade PRs
+        // 2. Review delta-kernel-rs CHANGELOG for FFI breaking changes
+        // 3. Regenerate bindings via 'make generate-kernel-bindings' after updating delta-kernel-rs.version.txt
+        // 4. Prior upgrade PR: https://github.com/delta-incubator/delta-dotnet/pull/179 (v0.14→v0.17)
         private void RefreshSnapshot()
         {
 
@@ -331,13 +338,23 @@ namespace DeltaLake.Kernel.State
 
             unsafe
             {
-                ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot(this.tableLocationSlice, this.sharedExternEnginePtr);
+                // Step 1: Create snapshot builder
+                ExternResultHandleMutableFfiSnapshotBuilder builderRes = Methods.get_snapshot_builder(this.tableLocationSlice, this.sharedExternEnginePtr);
+                if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
+                {
+                    throw KernelException.FromEngineError(builderRes.Anonymous.Anonymous2.err, "Failed to create snapshot builder from Delta Kernel.");
+                }
+                MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
+
+                // Step 2: Build snapshot (latest version)
+                // snapshot_builder_build consumes the builder handle on both success and failure paths.
+                ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {
-                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2_1.err, "Failed to retrieve table snapshot from Delta Kernel.");
+                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2.err, "Failed to build table snapshot from Delta Kernel.");
                 }
 
-                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1_1.ok;
+                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1.ok;
             }
         }
 
@@ -376,6 +393,10 @@ namespace DeltaLake.Kernel.State
 
                 // Memory scoped to this scan
                 //
+                // TODO: scan_metadata_next_arrow (WI-01)
+                // v0.21.0 exposes scan_metadata_next_arrow for batch-mode Arrow scan metadata,
+                // which avoids per-file callback overhead. Consider migrating from the per-file
+                // scan_metadata_next + CScanCallback pattern to the batch Arrow API.
                 SharedScanMetadataIterator* kernelOwnedScanDataIteratorPtr = null;
                 IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
                 EngineContext scanScopedEngineContext = new()
@@ -395,17 +416,17 @@ namespace DeltaLake.Kernel.State
                     ExternResultHandleSharedScanMetadataIterator dataIteratorHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, managedScanPtr);
                     if (dataIteratorHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
                     {
-                        throw KernelException.FromEngineError(dataIteratorHandle.Anonymous.Anonymous2_1.err, "Failed to construct kernel scan data iterator.");
+                        throw KernelException.FromEngineError(dataIteratorHandle.Anonymous.Anonymous2.err, "Failed to construct kernel scan data iterator.");
                     }
-                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1_1.ok;
+                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
                     for (; ; )
                     {
                         ExternResultbool isScanOk = Methods.scan_metadata_next(
                             kernelOwnedScanDataIteratorPtr,
                             scanScopedEngineContextPtr,
                             Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
-                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw KernelException.FromEngineError(isScanOk.Anonymous.Anonymous2_1.err, "Failed to iterate on table scan data.");
-                        else if (!isScanOk.Anonymous.Anonymous1_1.ok) break;
+                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw KernelException.FromEngineError(isScanOk.Anonymous.Anonymous2.err, "Failed to iterate on table scan data.");
+                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
                         else continue;
                     }
                 }

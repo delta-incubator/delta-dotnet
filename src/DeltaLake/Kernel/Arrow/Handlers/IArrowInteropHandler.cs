@@ -24,11 +24,13 @@ namespace DeltaLake.Kernel.Arrow.Handlers
         /// <param name="arrowData">The Arrow/FFI interOp data.</param>
         /// <param name="partitionCols">The partition columns.</param>
         /// <param name="partitionValues">The partition values.</param>
+        /// <param name="engine">The shared extern engine.</param>
         public unsafe void StoreArrowInContext(
             ArrowContext* context,
             ArrowFFIData* arrowData,
             PartitionList* partitionCols,
-            CStringMap* partitionValues
+            CStringMap* partitionValues,
+            SharedExternEngine* engine
         );
 
         /// <summary>

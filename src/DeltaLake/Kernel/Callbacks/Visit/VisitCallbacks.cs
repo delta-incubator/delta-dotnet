@@ -66,8 +66,10 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     SharedScanMetadata* scanMetadata
                 ) =>
                 {
+                    EngineContext* ctx = (EngineContext*)engineContext;
                     Methods.visit_scan_metadata(
                         scanMetadata,
+                        ctx->Engine,
                         engineContext,
 #pragma warning disable CS8604 // ProcessScanData is not null, the delegate is defined literally 2 blocks below
                         Marshal.GetFunctionPointerForDelegate<ProcessScanDataDelegate>(ProcessScanData)
@@ -82,15 +84,21 @@ namespace DeltaLake.Kernel.Callbacks.Visit
         /// <param name="engineContext">The engine context.</param>
         /// <param name="parquetFilePath">The path of the parquet file to read.</param>
         /// <param name="parquetFileSize">The file size.</param>
+        /// <param name="modTime">The file modification time.</param>
         /// <param name="stats">The file statistics.</param>
         /// <param name="dvInfo">The selection vector information.</param>
         /// <param name="transform">The transform to execute on the row</param>
         /// <param name="partitionMap">The partition map.</param>
+        // TODO: scan_metadata_next_arrow (WI-01)
+        // v0.21.0 exposes scan_metadata_next_arrow for batch-mode Arrow scan metadata,
+        // which avoids per-file callback overhead. Consider migrating from the per-file
+        // CScanCallback pattern to the batch Arrow API for improved performance.
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         internal unsafe delegate void ProcessScanDataDelegate(
             void* engineContext,
             KernelStringSlice parquetFilePath,
             long parquetFileSize,
+            long modTime,
             Stats* stats,
             CDvInfo* dvInfo,
             Expression* transform,
@@ -102,6 +110,7 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     void* engineContext,
                     KernelStringSlice parquetFilePath,
                     long parquetFileSize,
+                    long modTime,
                     Stats* stats,
                     CDvInfo* dvInfo,
                     Expression* transform,
@@ -117,10 +126,10 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                         tableRoot);
                     if (selectionVectorRes.tag != ExternResultKernelBoolSlice_Tag.OkKernelBoolSlice)
                     {
-                        throw KernelException.FromEngineError(selectionVectorRes.Anonymous.Anonymous2_1.err, "Could not get selection vector from kernel");
+                        throw KernelException.FromEngineError(selectionVectorRes.Anonymous.Anonymous2.err, "Could not get selection vector from kernel");
                     }
 
-                    KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1_1.ok;
+                    KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
 
                     context->PartitionKeyValueMap = partitionMap;
                     // TODO: Do something with the transform
@@ -156,15 +165,16 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     ExternResultArrowFFIData isRawArrowReadOk = Methods.get_raw_arrow_data(engineData, context->Engine);
                     if (isRawArrowReadOk.tag != ExternResultArrowFFIData_Tag.OkArrowFFIData)
                     {
-                        throw KernelException.FromEngineError(isRawArrowReadOk.Anonymous.Anonymous2_1.err, "Could not read raw Arrow data with Delta Kernel");
+                        throw KernelException.FromEngineError(isRawArrowReadOk.Anonymous.Anonymous2.err, "Could not read raw Arrow data with Delta Kernel");
                     }
 
-                    ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1_1.ok;
+                    ArrowFFIData* arrowData = isRawArrowReadOk.Anonymous.Anonymous1.ok;
                     new ArrowFFIInterOpHandler().StoreArrowInContext(
                         context->ArrowContext,
                         arrowData,
                         context->PartitionList,
-                        context->PartitionKeyValueMap
+                        context->PartitionKeyValueMap,
+                        context->Engine
                     );
                 }
             );

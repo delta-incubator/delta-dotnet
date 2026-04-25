@@ -66,7 +66,7 @@ namespace DeltaLake.Kernel.State
                 return new KernelStringSlice
                 {
                     ptr = null,
-                    len = System.UIntPtr.Zero,
+                    len = 0UL,
                 };
             }
 
@@ -78,8 +78,8 @@ namespace DeltaLake.Kernel.State
 
             return new KernelStringSlice
             {
-                ptr = (byte*)TableRoot,
-                len = new System.UIntPtr(length)
+                ptr = (sbyte*)TableRoot,
+                len = (ulong)length
             };
         }
     }

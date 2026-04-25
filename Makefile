@@ -1,5 +1,5 @@
 generate-kernel-bindings:
-	cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --no-default-features --features "default-engine-rustls"
+	cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --no-default-features --features "default-engine-rustls,arrow-58"
 	cp src/DeltaLake/Kernel/delta-kernel-rs/target/ffi-headers/delta_kernel_ffi.h src/DeltaLake/Kernel/include/
 	ClangSharpPInvokeGenerator -I "$$(llvm-config --libdir)/clang/20/include" -D DEFINE_DEFAULT_ENGINE_BASE=1 @src/DeltaLake/Kernel/GenerateInterop.rsp
 
