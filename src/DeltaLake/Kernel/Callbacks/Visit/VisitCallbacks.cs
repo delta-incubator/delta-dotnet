@@ -132,7 +132,32 @@ namespace DeltaLake.Kernel.Callbacks.Visit
                     KernelBoolSlice selectionVector = selectionVectorRes.Anonymous.Anonymous1.ok;
 
                     context->PartitionKeyValueMap = partitionMap;
-                    // TODO: Do something with the transform
+                    // TODO: Migrate from deprecated partition_map to transform expression
+                    //
+                    // The `partition_map` (CStringMap*) parameter in CScanCallback is deprecated
+                    // as of delta-kernel-rs v0.17.0 and will be removed in a future version.
+                    // The `transform` (Expression*) parameter is its replacement.
+                    //
+                    // Current approach (deprecated):
+                    //   partition_map is passed to StoreArrowInContext → ParseParquetStringPartitions,
+                    //   which calls get_from_string_map per partition column to manually stitch
+                    //   partition values into the Arrow output.
+                    //
+                    // New approach (using transform):
+                    //   The transform expression, when evaluated against physical parquet data,
+                    //   produces the correct logical schema — including partition columns already
+                    //   materialized. This also handles column mapping and other physical→logical
+                    //   transformations.
+                    //
+                    // Migration steps:
+                    //   1. Create an evaluator: Methods.new_expression_evaluator(engine, schema, transform)
+                    //   2. Read parquet data into ExclusiveEngineData (already done via ReadParquetAsArrow)
+                    //   3. Evaluate: Methods.evaluate_expression(evaluator, engineData) → transformed data
+                    //   4. Remove ParseParquetStringPartitions and get_from_string_map call chain
+                    //   5. Remove engine parameter threading through StoreArrowInContext
+                    //
+                    // When transform is NULL, no transformation is needed — data is already logical.
+                    // See: https://github.com/delta-io/delta-kernel-rs/blob/main/ffi/src/scan.rs
                     new ArrowFFIInterOpHandler().ReadParquetAsArrow(
                         context,
                         parquetFilePath,
