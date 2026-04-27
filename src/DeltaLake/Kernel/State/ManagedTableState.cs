@@ -393,7 +393,7 @@ namespace DeltaLake.Kernel.State
 
                 // Memory scoped to this scan
                 //
-                // TODO: scan_metadata_next_arrow (WI-01)
+                // TODO: scan_metadata_next_arrow
                 // v0.21.0 exposes scan_metadata_next_arrow for batch-mode Arrow scan metadata,
                 // which avoids per-file callback overhead. Consider migrating from the per-file
                 // scan_metadata_next + CScanCallback pattern to the batch Arrow API.
