@@ -330,7 +330,6 @@ namespace DeltaLake.Kernel.State
         // 1. Check https://github.com/delta-incubator/delta-dotnet/pulls for existing upgrade PRs
         // 2. Review delta-kernel-rs CHANGELOG for FFI breaking changes
         // 3. Regenerate bindings via 'make generate-kernel-bindings' after updating delta-kernel-rs.version.txt
-        // 4. Prior upgrade PR: https://github.com/delta-incubator/delta-dotnet/pull/179 (v0.14→v0.17)
         private void RefreshSnapshot()
         {
 
