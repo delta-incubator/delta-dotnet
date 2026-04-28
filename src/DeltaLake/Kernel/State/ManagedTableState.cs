@@ -292,7 +292,13 @@ namespace DeltaLake.Kernel.State
 
             unsafe
             {
-                ExternResultHandleSharedScan scanRes = Methods.scan(this.Snapshot(false), this.sharedExternEnginePtr, null, null);
+                // predicate: null = no filter (read all rows)
+                // schema: null = no column projection (read all columns)
+                ExternResultHandleSharedScan scanRes = Methods.scan(
+                    this.Snapshot(false),
+                    this.sharedExternEnginePtr,
+                    predicate: null,
+                    schema: null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
                     throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2.err, "Failed to create table scan from Delta Kernel.");
