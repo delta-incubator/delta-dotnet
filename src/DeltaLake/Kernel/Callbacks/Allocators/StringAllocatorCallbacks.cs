@@ -39,7 +39,7 @@ namespace DeltaLake.Kernel.Callbacks.Allocators
             //
             for (int i = 0; i < len; i++)
             {
-                unmanagedMemory[i] = slice.ptr[i];
+                unmanagedMemory[i] = (byte)slice.ptr[i];
             }
 
             // Set the null terminator.

@@ -44,7 +44,8 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             ArrowContext* context,
             ArrowFFIData* arrowData,
             PartitionList* partitionCols,
-            CStringMap* partitionValue
+            CStringMap* partitionValue,
+            SharedExternEngine* engine
         )
         {
             // Allocate memory for the new set of arriving data.
@@ -61,7 +62,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
             // Copy incoming values into the newly globally allocated memory.
             //
             *thisArrowStructPtr = *arrowData;
-            *thisPartitionsPtr = ArrowFFIInterOpHandler.ParseParquetStringPartitions(partitionCols, partitionValue);
+            *thisPartitionsPtr = ArrowFFIInterOpHandler.ParseParquetStringPartitions(partitionCols, partitionValue, engine);
 
             // Copy old pre-allocated pointers from the ArrowContext, if exists.
             // This is a zero-copy operation, since we're just copying the
@@ -101,7 +102,7 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 #pragma warning restore CS8600
 
             (GCHandle parquetAbsolutePathHandle, IntPtr gcPinnedParquetAbsolutePathPtr) = parquetAbsolutePath.ToPinnedBytePointer();
-            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (byte*)gcPinnedParquetAbsolutePathPtr, len = (nuint)parquetAbsolutePath.Length };
+            KernelStringSlice parquetAbsolutePathSlice = new() { ptr = (sbyte*)gcPinnedParquetAbsolutePathPtr, len = (ulong)parquetAbsolutePath.Length };
             FileMeta parquetMeta = new() { path = parquetAbsolutePathSlice };
 
             try
@@ -110,23 +111,23 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 if (isParquetFileReadOk.tag != ExternResultHandleExclusiveFileReadResultIterator_Tag.OkHandleExclusiveFileReadResultIterator)
                 {
                     throw KernelException.FromEngineError(
-                        isParquetFileReadOk.Anonymous.Anonymous2_1.err,
+                        isParquetFileReadOk.Anonymous.Anonymous2.err,
                         $"Kernel failed to read parquet file at `{parquetAbsolutePath}`"
                     );
                 }
 
-                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1_1.ok;
+                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1.ok;
                 for (; ; )
                 {
                     ExternResultbool isArrowResultReadOk = Methods.read_result_next(arrowReadIterator, context, Marshal.GetFunctionPointerForDelegate(VisitCallbacks.IngestArrowData));
                     if (isArrowResultReadOk.tag != ExternResultbool_Tag.Okbool)
                     {
                         throw KernelException.FromEngineError(
-                            isArrowResultReadOk.Anonymous.Anonymous2_1.err,
+                            isArrowResultReadOk.Anonymous.Anonymous2.err,
                             "Failed to iterate on reading arrow data from parquet"
                         );
                     }
-                    else if (!isArrowResultReadOk.Anonymous.Anonymous1_1.ok) break;
+                    else if (!isArrowResultReadOk.Anonymous.Anonymous1.ok) break;
                 }
                 Methods.free_read_result_iter(arrowReadIterator);
             }
@@ -142,7 +143,8 @@ namespace DeltaLake.Kernel.Arrow.Handlers
 
         private static unsafe ParquetStringPartitions ParseParquetStringPartitions(
             PartitionList* partitionCols,
-            CStringMap* partitionKeyValueMap
+            CStringMap* partitionKeyValueMap,
+            SharedExternEngine* engine
         )
         {
             List<string> colNames = new();
@@ -162,15 +164,21 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 // >>> https://delta-users.slack.com/archives/C04TRPG3LHZ/p1728178727958499
                 //
 #pragma warning disable CS1024, CS8629, CS8600 // If Kernel sends us back null pointers, we are in trouble anyway
-                void* colValPtr = Methods.get_from_string_map(
+                ExternResultNullableCvoid colValRes = Methods.get_from_string_map(
                     partitionKeyValueMap,
                     new KernelStringSlice
                     {
-                        ptr = (byte*)partitionCols->Cols[i],
-                        len = colName != null ? new UIntPtr((uint)colName.Length) : UIntPtr.Zero
+                        ptr = (sbyte*)partitionCols->Cols[i],
+                        len = colName != null ? (ulong)colName.Length : 0UL
                     },
-                    Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString)
+                    Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString),
+                    engine
                 );
+                if (colValRes.tag != ExternResultNullableCvoid_Tag.OkNullableCvoid)
+                {
+                    throw KernelException.FromEngineError(colValRes.Anonymous.Anonymous2.err, $"Failed to get partition value for column '{colName}' from kernel string map.");
+                }
+                void* colValPtr = colValRes.Anonymous.Anonymous1.ok;
                 string colVal = colValPtr != null ? MarshalExtensions.PtrToStringUTF8((IntPtr)colValPtr) : String.Empty;
 #pragma warning restore CS1024, CS8629, CS8600
 

@@ -137,7 +137,7 @@ namespace DeltaLake.Kernel.Core
                 (GCHandle handle, IntPtr ptr) = tableStorageOptions.TableLocation.ToPinnedBytePointer();
                 this.tableLocationHandle = handle;
                 this.gcPinnedTableLocationPtr = (byte*)ptr.ToPointer();
-                this.tableLocationSlice = new KernelStringSlice { ptr = this.gcPinnedTableLocationPtr, len = (nuint)tableStorageOptions.TableLocation.Length };
+                this.tableLocationSlice = new KernelStringSlice { ptr = (sbyte*)this.gcPinnedTableLocationPtr, len = (ulong)tableStorageOptions.TableLocation.Length };
 
                 // Shared engine is the core runtime at the Kernel, tied to this table,
                 // it is managed by the Kernel, but our responsibility to release it.
@@ -148,7 +148,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
                 }
-                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1_1.ok;
+                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
 
                 // The joys of unmanaged code, this is all to pass some Key:Value string pairs
                 // to the Kernel's Engine Builder (e.g. Storage Account/S3 Keys etc.).
@@ -171,8 +171,8 @@ namespace DeltaLake.Kernel.Core
                     this.storageOptionsValueHandles[index] = valueHandle;
                     this.gcPinnedStorageOptionsKeyPtrs[index] = (byte*)keyPtr.ToPointer();
                     this.gcPinnedStorageOptionsValuePtrs[index] = (byte*)valuePtr.ToPointer();
-                    this.storageOptionsKeySlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsKeyPtrs[index], len = (nuint)kvp.Key.Length };
-                    this.storageOptionsValueSlices[index] = new KernelStringSlice { ptr = this.gcPinnedStorageOptionsValuePtrs[index], len = (nuint)kvp.Value.Length };
+                    this.storageOptionsKeySlices[index] = new KernelStringSlice { ptr = (sbyte*)this.gcPinnedStorageOptionsKeyPtrs[index], len = (ulong)kvp.Key.Length };
+                    this.storageOptionsValueSlices[index] = new KernelStringSlice { ptr = (sbyte*)this.gcPinnedStorageOptionsValuePtrs[index], len = (ulong)kvp.Value.Length };
 
                     Methods.set_builder_option(this.kernelOwnedEngineBuilderPtr, this.storageOptionsKeySlices[index], this.storageOptionsValueSlices[index]);
 
@@ -184,7 +184,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
-                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
+                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
 

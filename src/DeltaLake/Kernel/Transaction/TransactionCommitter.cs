@@ -54,11 +54,11 @@ namespace DeltaLake.Kernel.Transaction
             if (txnResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
             {
                 throw KernelException.FromEngineError(
-                    txnResult.Anonymous.Anonymous2_1.err,
+                    txnResult.Anonymous.Anonymous2.err,
                     "Failed to create transaction");
             }
 
-            ExclusiveTransaction* txnPtr = txnResult.Anonymous.Anonymous1_1.ok;
+            ExclusiveTransaction* txnPtr = txnResult.Anonymous.Anonymous1.ok;
             bool committed = false;
 
             try
@@ -72,8 +72,8 @@ namespace DeltaLake.Kernel.Transaction
                     {
                         var appIdSlice = new KernelStringSlice
                         {
-                            ptr = appIdPtr,
-                            len = (nuint)appIdBytes.Length,
+                            ptr = (sbyte*)appIdPtr,
+                            len = (ulong)appIdBytes.Length,
                         };
 
                         ExternResultHandleExclusiveTransaction txnIdResult =
@@ -82,11 +82,11 @@ namespace DeltaLake.Kernel.Transaction
                         if (txnIdResult.tag != ExternResultHandleExclusiveTransaction_Tag.OkHandleExclusiveTransaction)
                         {
                             throw KernelException.FromEngineError(
-                                txnIdResult.Anonymous.Anonymous2_1.err,
+                                txnIdResult.Anonymous.Anonymous2.err,
                                 "Failed to set transaction identifier");
                         }
 
-                        txnPtr = txnIdResult.Anonymous.Anonymous1_1.ok;
+                        txnPtr = txnIdResult.Anonymous.Anonymous1.ok;
                     }
                 }
 
@@ -110,11 +110,11 @@ namespace DeltaLake.Kernel.Transaction
                     if (dataResult.tag != ExternResultHandleExclusiveEngineData_Tag.OkHandleExclusiveEngineData)
                     {
                         throw KernelException.FromEngineError(
-                            dataResult.Anonymous.Anonymous2_1.err,
+                            dataResult.Anonymous.Anonymous2.err,
                             "Failed to create engine data for transaction");
                     }
 
-                    ExclusiveEngineData* engineDataPtr = dataResult.Anonymous.Anonymous1_1.ok;
+                    ExclusiveEngineData* engineDataPtr = dataResult.Anonymous.Anonymous1.ok;
 
                     Methods.add_files(txnPtr, engineDataPtr);
                 }
@@ -137,11 +137,11 @@ namespace DeltaLake.Kernel.Transaction
                 if (commitResult.tag != ExternResultu64_Tag.Oku64)
                 {
                     throw KernelException.FromEngineError(
-                        commitResult.Anonymous.Anonymous2_1.err,
+                        commitResult.Anonymous.Anonymous2.err,
                         "Failed to commit transaction");
                 }
 
-                return (ulong)commitResult.Anonymous.Anonymous1_1.ok;
+                return (ulong)commitResult.Anonymous.Anonymous1.ok;
             }
             finally
             {
@@ -170,8 +170,8 @@ namespace DeltaLake.Kernel.Transaction
             {
                 var appIdSlice = new KernelStringSlice
                 {
-                    ptr = appIdPtr,
-                    len = (nuint)appIdBytes.Length,
+                    ptr = (sbyte*)appIdPtr,
+                    len = (ulong)appIdBytes.Length,
                 };
 
                 ExternResultOptionalValuei64 result =
@@ -180,12 +180,12 @@ namespace DeltaLake.Kernel.Transaction
                 if (result.tag != ExternResultOptionalValuei64_Tag.OkOptionalValuei64)
                 {
                     throw KernelException.FromEngineError(
-                        result.Anonymous.Anonymous2_1.err,
+                        result.Anonymous.Anonymous2.err,
                         "Failed to get transaction version");
                 }
 
-                OptionalValuei64 optVal = result.Anonymous.Anonymous1_1.ok;
-                return optVal.tag == OptionalValuei64_Tag.Somei64 ? optVal.Anonymous.Anonymous_1.some : null;
+                OptionalValuei64 optVal = result.Anonymous.Anonymous1.ok;
+                return optVal.tag == OptionalValuei64_Tag.Somei64 ? optVal.Anonymous.Anonymous.some : null;
             }
         }
     }

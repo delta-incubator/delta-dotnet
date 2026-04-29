@@ -174,7 +174,7 @@ jobs:
 
       - name: Build Kernel
         if: ${{ !matrix.use-cross }}
-        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --no-default-features --features "default-engine-rustls" ${{ steps.target-info.outputs.target-arg }}
+        run: cargo build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release --no-default-features --features "default-engine-rustls,arrow-58" ${{ steps.target-info.outputs.target-arg }}
 
       - name: Build Kernel with cross
         if: ${{ matrix.use-cross }}
@@ -182,7 +182,7 @@ jobs:
           CROSS_CONFIG=src/DeltaLake/Kernel/Build/Cross.toml \
           cross build --manifest-path src/DeltaLake/Kernel/delta-kernel-rs/ffi/Cargo.toml --release \
                       --no-default-features \
-                      --features "default-engine-rustls" \
+                      --features "default-engine-rustls,arrow-58" \
                       --target ${{ matrix.target }}
 
       - name: Upload kernel library

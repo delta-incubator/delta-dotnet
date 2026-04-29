@@ -29,20 +29,20 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         {
             unsafe
             {
-                if (kernelStringSlice.len.ToUInt64() == 0UL)
+                if (kernelStringSlice.len == 0UL)
                 {
                     ptr = null;
                 }
                 else
                 {
                     ptr = (byte*)Marshal.AllocHGlobal((int)kernelStringSlice.len);
-                    for (nuint i = 0; i < kernelStringSlice.len; i++)
+                    for (ulong i = 0; i < kernelStringSlice.len; i++)
                     {
-                        *ptr++ = *kernelStringSlice.ptr++;
+                        *ptr++ = (byte)*kernelStringSlice.ptr++;
                     }
                 }
 
-                len = kernelStringSlice.len;
+                len = (nuint)kernelStringSlice.len;
             }
 
             etype = engineError;
