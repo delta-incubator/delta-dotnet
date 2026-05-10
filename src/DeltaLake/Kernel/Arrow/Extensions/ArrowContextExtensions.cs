@@ -17,6 +17,7 @@ using Apache.Arrow.Types;
 using DeltaLake.Extensions;
 using DeltaLake.Kernel.Interop;
 using DeltaLake.Kernel.State;
+using DeltaArrowContext = DeltaLake.Kernel.State.ArrowContext;
 
 namespace DeltaLake.Kernel.Arrow.Extensions
 {
@@ -33,7 +34,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// </summary>
         /// <param name="context">The Arrow Context to convert.</param>
         /// <returns>The converted Arrow Table.</returns>
-        internal static unsafe Apache.Arrow.Table ToTable(this ArrowContext context)
+        internal static unsafe Apache.Arrow.Table ToTable(this DeltaArrowContext context)
         {
             (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
             return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
@@ -49,7 +50,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// </remarks>
         /// <param name="context">The Arrow Context to convert.</param>
         /// <returns>The converted Record Batch.</returns>
-        internal static unsafe RecordBatch ToRecordBatch(this ArrowContext context)
+        internal static unsafe RecordBatch ToRecordBatch(this DeltaArrowContext context)
         {
             (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
             List<IArrowArray> concatenatedColumns = new();
@@ -74,7 +75,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// </summary>
         /// <param name="context">The Arrow Context to convert.</param>
         /// <returns>The converted tuple of Arrow Schema and Record Batches.</returns>
-        internal static (Schema, List<RecordBatch>) ToSchematizedBatches(this ArrowContext context)
+        internal static (Schema, List<RecordBatch>) ToSchematizedBatches(this DeltaArrowContext context)
         {
             context.ValidateContext();
 
@@ -111,7 +112,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
 
         #region Private Methods
 
-        private static void ValidateContext(this ArrowContext context)
+        private static void ValidateContext(this DeltaArrowContext context)
         {
             if (context.NumBatches == 0)
             {
