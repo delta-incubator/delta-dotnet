@@ -160,7 +160,13 @@ public class KernelTests
                         Assert.Equal(numRows, Regex.Matches(stringResult, hostNamePrefix).Count);
                         Assert.Equal(numColumns, arrowTable.ColumnCount);
                         Assert.Equal(numColumns, dataFrame.Columns.Count);
-                        Assert.Equal(numConcurrentWriters, dataFrame[partitionStringColumnName].Cast<string>().Distinct().Count());
+                        Assert.Equal(
+                            numConcurrentWriters,
+                            Regex.Matches(stringResult, $"{Regex.Escape(hostNamePrefix)}_\\d+_\\d+_\\d+")
+                                .Select(match => match.Value)
+                                .Distinct()
+                                .Count()
+                        );
 
                         var writerSchemaFieldMap = schema.FieldsList.ToDictionary(field => field.Name);
                         var kernelSchemaFieldMap = arrowTable.Schema.FieldsList.ToDictionary(field => field.Name);
