@@ -95,15 +95,9 @@ impl<'a> DeltaLakeParser<'a> {
             .parse_statement()
             .map_err(|error| crate::error::DeltaTableError::from_parser_error(runtime, error))?;
         match statement {
-            deltalake::datafusion::sql::sqlparser::ast::Statement::Update {
-                table: _,
-                assignments,
-                from: _,
-                selection,
-                returning: _,
-                or: _,
-                limit: _,
-            } => Ok((selection, assignments)),
+            deltalake::datafusion::sql::sqlparser::ast::Statement::Update(update) => {
+                Ok((update.selection, update.assignments))
+            }
             _ => Err(DeltaTableError::new(
                 runtime,
                 DeltaTableErrorCode::SqlParser,
@@ -213,7 +207,7 @@ impl<'a> DeltaLakeParser<'a> {
                             false,
                         )?;
                         self.parser.expect_keyword(Keyword::VALUES)?;
-                        let values = self.parser.parse_values(false)?;
+                        let values = self.parser.parse_values(false, false)?;
                         MergeClause::NotMatched {
                             predicate,
                             columns,
