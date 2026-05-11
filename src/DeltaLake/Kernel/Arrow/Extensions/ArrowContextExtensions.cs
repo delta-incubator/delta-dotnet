@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Apache.Arrow;
 using Apache.Arrow.C;
 using Apache.Arrow.Types;
@@ -64,9 +65,46 @@ namespace DeltaLake.Kernel.Arrow.Extensions
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
+
+                // Rebuild StringArrays through Arrow's managed string API to ensure MDA 0.21.1
+                // can safely access them on all platforms (including macOS ARM64 where raw
+                // pointer access via fixed/MemoryMarshal.GetReference can throw NullReferenceException
+                // when Arrow-imported string buffers are accessed through MDA's GetBytes).
+                if (concatenatedColumn is StringArray stringArray)
+                {
+                    concatenatedColumn = RebuildStringArray(stringArray);
+                }
+
                 concatenatedColumns.Add(concatenatedColumn);
             }
             return new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+        }
+
+        /// <summary>
+        /// Rebuilds a <see cref="StringArray"/> by reading each string through Arrow's managed
+        /// API and constructing a new array with values in C#-managed memory.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Microsoft.Data.Analysis.ArrowStringDataFrameColumn"/> in MDA 0.21.1 was
+        /// compiled against Apache.Arrow 11 and uses unsafe fixed-pointer code in its
+        /// <c>GetBytes</c> method. On macOS ARM64, this code throws
+        /// <see cref="NullReferenceException"/> when accessing string buffers that were imported
+        /// from Rust via the Arrow C Data Interface. Rebuilding the array copies the string
+        /// values into C#-managed memory, producing a <see cref="StringArray"/> whose buffers
+        /// MDA can access safely on all platforms.
+        /// </remarks>
+        private static StringArray RebuildStringArray(StringArray source)
+        {
+            StringArray.Builder builder = new();
+            builder.Reserve(source.Length);
+            for (int i = 0; i < source.Length; i++)
+            {
+                if (source.IsNull(i))
+                    builder.AppendNull();
+                else
+                    builder.Append(source.GetString(i, Encoding.UTF8));
+            }
+            return builder.Build();
         }
 
         /// <summary>
