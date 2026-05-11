@@ -79,6 +79,12 @@ public class KernelTests
         var allocator = new NativeMemoryAllocator();
         var randomValueGenerator = new Random();
         var hostNamePrefix = Environment.MachineName;
+        var expectedPartitions = GenerateExpectedPartitions(
+            hostNamePrefix,
+            numPartitions,
+            numWritesPerStringPartition,
+            numWritesPerIntegerPartition
+        );
         AsyncPolicy policy = Policy
             .Handle<Exception>(ex =>
             {
@@ -160,7 +166,7 @@ public class KernelTests
                         Assert.Equal(numRows, Regex.Matches(stringResult, hostNamePrefix).Count);
                         Assert.Equal(numColumns, arrowTable.ColumnCount);
                         Assert.Equal(numColumns, dataFrame.Columns.Count);
-                        Assert.Equal(numConcurrentWriters, dataFrame[partitionStringColumnName].Cast<string>().Distinct().Count());
+                        Assert.True(expectedPartitions.All(partition => stringResult.Contains(partition, StringComparison.Ordinal)));
 
                         var writerSchemaFieldMap = schema.FieldsList.ToDictionary(field => field.Name);
                         var kernelSchemaFieldMap = arrowTable.Schema.FieldsList.ToDictionary(field => field.Name);
@@ -206,6 +212,23 @@ public class KernelTests
         {
             tempDir.Delete(true);
         }
+    }
+
+    private static HashSet<string> GenerateExpectedPartitions(string hostNamePrefix, int numPartitionGroups, int numWritesPerStringPartition, int numWritesPerIntegerPartition)
+    {
+        HashSet<string> partitions = new();
+        for (int partitionGroupIndex = 0; partitionGroupIndex < numPartitionGroups; partitionGroupIndex++)
+        {
+            for (int stringPartitionIndex = 0; stringPartitionIndex < numWritesPerStringPartition; stringPartitionIndex++)
+            {
+                for (int integerPartitionIndex = 0; integerPartitionIndex < numWritesPerIntegerPartition; integerPartitionIndex++)
+                {
+                    partitions.Add($"{hostNamePrefix}_{partitionGroupIndex}_{stringPartitionIndex}_{integerPartitionIndex}");
+                }
+            }
+        }
+
+        return partitions;
     }
 
     private static string GenerateRandomString(Random random, int length = 10) => new string(Enumerable.Repeat(chars, length).Select(s => s[random.Next(s.Length)]).ToArray());
