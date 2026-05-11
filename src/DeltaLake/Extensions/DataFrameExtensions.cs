@@ -50,20 +50,7 @@ namespace DeltaLake.Extensions
 
             for (int i = 0; i < df.Rows.Count; i++)
             for (int j = 0; j < df.Columns.Count; j++)
-            {
-                // MDA 0.21.1 (compiled against Apache.Arrow 11) can throw NullReferenceException
-                // or ArgumentNullException from ArrowStringDataFrameColumn.GetBytes when string
-                // columns were imported from Rust via Arrow C Data Interface on macOS ARM64.
-                // Return empty string as a safe fallback so callers get a usable result.
-                try
-                {
-                    strings[i + 1, j] = df[i, j]?.ToString() ?? string.Empty;
-                }
-                catch (Exception e) when (e is NullReferenceException or ArgumentNullException)
-                {
-                    strings[i + 1, j] = string.Empty;
-                }
-            }
+                strings[i + 1, j] = df[i, j]?.ToString() ?? string.Empty;
 
             return strings;
         }
