@@ -664,17 +664,6 @@ pub extern "C" fn table_load_version(
     cancellation_token: Option<&CancellationToken>,
     callback: TableEmptyCallback,
 ) {
-    if version < 0 {
-        unsafe {
-            callback(Box::into_raw(Box::new(DeltaTableError::new(
-                runtime.as_mut(),
-                DeltaTableErrorCode::InvalidVersion,
-                "version cannot be negative",
-            ))));
-        }
-        return;
-    }
-
     run_async_with_cancellation!(
         runtime,
         table,
