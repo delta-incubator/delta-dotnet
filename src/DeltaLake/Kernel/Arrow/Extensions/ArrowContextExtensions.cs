@@ -64,9 +64,64 @@ namespace DeltaLake.Kernel.Arrow.Extensions
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
+
+                if (concatenatedColumn is StringArray stringArray)
+                {
+                    concatenatedColumn = EnsureNonNullValueBuffer(stringArray);
+                }
+
                 concatenatedColumns.Add(concatenatedColumn);
             }
             return new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+        }
+
+        /// <summary>
+        /// Returns a <see cref="StringArray"/> whose values buffer is guaranteed to have a
+        /// non-null backing reference, preserving zero-copy semantics for the validity and
+        /// offsets buffers.
+        /// </summary>
+        /// <remarks>
+        /// Apache.Arrow 23's <c>CArrowArrayImporter.ImportCArrayBuffer</c> returns
+        /// <see cref="ArrowBuffer.Empty"/> (backed by <see cref="Memory{T}.Empty"/>, whose
+        /// internal reference is <c>null</c>) for a StringArray's values buffer when the
+        /// computed values length is 0 — i.e. when the column contains only nulls or only
+        /// empty strings.
+        ///
+        /// Microsoft.Data.Analysis 0.21.1's <c>ArrowStringDataFrameColumn.GetValueImplementation</c>
+        /// then executes:
+        /// <code>
+        ///     fixed (byte* data = &amp;MemoryMarshal.GetReference(bytes))
+        ///         return Encoding.UTF8.GetString(data, bytes.Length);
+        /// </code>
+        /// On a span over <c>Memory&lt;byte&gt;.Empty</c>, <c>GetReference</c> yields a null
+        /// managed reference, <c>fixed</c> pins it to <c>data == null</c>, and
+        /// <c>Encoding.UTF8.GetString((byte*)null, 0)</c> throws <see cref="ArgumentNullException"/>.
+        /// This surfaces on macOS ARM64 where the JIT does not elide the null reference into
+        /// a non-null sentinel as it does on x64.
+        ///
+        /// The fix substitutes a single-byte managed values buffer only when the original is
+        /// empty, providing a non-null backing pointer for MDA's <c>fixed</c>/<c>GetString</c>
+        /// pattern. The offsets and validity buffers — which carry the actual data — remain
+        /// the original zero-copy Arrow-imported buffers.
+        /// </remarks>
+        private static StringArray EnsureNonNullValueBuffer(StringArray source)
+        {
+            if (source.ValueBuffer.Length != 0)
+            {
+                return source;
+            }
+
+            ArrayData original = source.Data;
+            ArrowBuffer[] buffers = new ArrowBuffer[original.Buffers.Length];
+            buffers[0] = original.Buffers[0]; // validity (zero-copy)
+            buffers[1] = original.Buffers[1]; // offsets  (zero-copy)
+            buffers[2] = new ArrowBuffer(new byte[1]); // sentinel: non-null managed backing
+            return new StringArray(new ArrayData(
+                original.DataType,
+                original.Length,
+                original.NullCount,
+                original.Offset,
+                buffers));
         }
 
         /// <summary>
