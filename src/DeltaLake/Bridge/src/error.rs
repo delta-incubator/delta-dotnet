@@ -94,6 +94,9 @@ impl DeltaTableError {
             deltalake::DeltaTableError::VersionMismatch(_, _) => {
                         DeltaTableErrorCode::VersionMismatch
                     }
+            deltalake::DeltaTableError::VersionDowngrade { .. } => {
+                        DeltaTableErrorCode::InvalidVersion
+                    }
             deltalake::DeltaTableError::MissingFeature { .. } => {
                         DeltaTableErrorCode::MissingFeature
                     }

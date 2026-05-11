@@ -452,7 +452,7 @@ async fn table_new_impl(
     let mut builder = DeltaTableBuilder::from_url(url)?;
 
     if version > 0 {
-        builder = builder.with_version(version)
+        builder = builder.with_version(version as u64)
     }
 
     if let Some(storage_options) = storage_options {
@@ -618,7 +618,7 @@ pub extern "C" fn table_update_incremental(
     callback: TableEmptyCallback,
 ) {
     let max_version = if max_version > 0 {
-        Some(max_version)
+        Some(max_version as u64)
     } else {
         None
     };
@@ -644,7 +644,7 @@ pub extern "C" fn table_update_incremental(
 
 async fn table_update_incremental_impl(
     table: &mut deltalake::DeltaTable,
-    max_version: Option<i64>,
+    max_version: Option<u64>,
 ) -> Result<(), deltalake::DeltaTableError> {
     let latest_version = table.get_latest_version().await?;
     let max_version = if let Some(max_version) = max_version {
@@ -664,6 +664,17 @@ pub extern "C" fn table_load_version(
     cancellation_token: Option<&CancellationToken>,
     callback: TableEmptyCallback,
 ) {
+    if version < 0 {
+        unsafe {
+            callback(Box::into_raw(Box::new(DeltaTableError::new(
+                runtime.as_mut(),
+                DeltaTableErrorCode::InvalidVersion,
+                "version cannot be negative",
+            ))));
+        }
+        return;
+    }
+
     run_async_with_cancellation!(
         runtime,
         table,
@@ -671,7 +682,7 @@ pub extern "C" fn table_load_version(
         rt,
         tbl,
         {
-            match tbl.table.load_version(version).await {
+            match tbl.table.load_version(version as u64).await {
                 Ok(_) => unsafe { callback(std::ptr::null()) },
                 Err(err) => {
                     let error = DeltaTableError::from_error(rt, err);
@@ -956,7 +967,7 @@ pub extern "C" fn table_restore(
 
                     cmd = cmd.with_datetime_to_restore(dt);
                 } else {
-                    cmd = cmd.with_version_to_restore(version_or_timestamp);
+                    cmd = cmd.with_version_to_restore(version_or_timestamp as u64);
                 }
             }
             cmd = cmd
@@ -1569,7 +1580,11 @@ pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
 
     // This mimics original behaviour from delta-rs v0.26.2
     // https://github.com/delta-io/delta-rs/blob/57c1ae6e99a43e4b906437f6cdbb385538fbedb7/crates/core/src/table/mod.rs#L363
-    table.table.version().unwrap_or(-1)
+    table
+        .table
+        .version()
+        .and_then(|version| i64::try_from(version).ok())
+        .unwrap_or(-1)
 }
 
 #[no_mangle]
@@ -1598,9 +1613,8 @@ fn get_table_metadata(table: &mut RawDeltaTable) -> Result<TableMetadata, deltal
 
     let partition_columns = metadata
         .partition_columns()
-        .clone()
-        .into_iter()
-        .map(|col| CString::new(col).unwrap().into_raw())
+        .iter()
+        .map(|col| CString::new(col.as_str()).unwrap().into_raw())
         .collect::<Box<_>>();
 
     Ok(TableMetadata {
