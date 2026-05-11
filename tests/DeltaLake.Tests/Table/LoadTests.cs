@@ -52,8 +52,7 @@ public partial class LoadTests
         Assert.Equal(4UL, table.Version());
         await Assert.ThrowsAsync<DeltaRuntimeException>(async () =>
         await table.LoadVersionAsync(ulong.MaxValue, CancellationToken.None));
-        // table is in an invalid state
-        Assert.NotEqual(4UL, table.Version());
+        Assert.Equal(4UL, table.Version());
     }
 
     [Fact]
