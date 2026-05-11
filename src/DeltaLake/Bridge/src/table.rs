@@ -1580,11 +1580,10 @@ pub extern "C" fn table_version(table_handle: NonNull<RawDeltaTable>) -> i64 {
 
     // This mimics original behaviour from delta-rs v0.26.2
     // https://github.com/delta-io/delta-rs/blob/57c1ae6e99a43e4b906437f6cdbb385538fbedb7/crates/core/src/table/mod.rs#L363
-    table
-        .table
-        .version()
-        .and_then(|version| i64::try_from(version).ok())
-        .unwrap_or(-1)
+    match table.table.version() {
+        Some(version) => i64::try_from(version).unwrap_or(i64::MAX),
+        None => -1,
+    }
 }
 
 #[no_mangle]
