@@ -13,7 +13,7 @@ lto = true
 codegen-units = 1
 
 [dependencies]
-arrow = { version = "58.2.0", features = ["ffi"]}
+arrow = { version = "58.3.0", features = ["ffi"]}
 chrono = "0.4"
 deltalake = { version = "0.32.1", features = ["azure", "gcs", "s3", "datafusion"] }
 futures = "0.3"
