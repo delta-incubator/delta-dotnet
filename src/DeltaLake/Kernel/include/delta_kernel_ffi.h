@@ -113,7 +113,8 @@ typedef enum LogLineFormat {
    * structured logs are consumed as JSON by analysis and viewing tools. The JSON output is not
    * optimized for human readability.
    * Example:
-   * `{"timestamp":"2022-02-15T18:47:10.821315Z","level":"INFO","fields":{"message":"preparing to shave yaks","number_of_yaks":3},"target":"fmt_json"}`
+   * `{"timestamp":"2022-02-15T18:47:10.821315Z","level":"INFO","fields":{"message":"preparing
+   * to shave yaks","number_of_yaks":3},"target":"fmt_json"}`
    */
   JSON,
 } LogLineFormat;
@@ -144,6 +145,16 @@ typedef struct DvInfo DvInfo;
  */
 typedef struct EngineBuilder EngineBuilder;
 #endif
+
+/**
+ * A handle for a [`CommittedTransaction`].
+ *
+ * Returned by [`commit`] and [`create_table_commit`]. Carries the committed version and,
+ * when available, the post-commit snapshot. Use [`committed_transaction_version`] and
+ * [`committed_transaction_post_commit_snapshot`] to read the contents, then release with
+ * [`free_committed_transaction`].
+ */
+typedef struct ExclusiveCommittedTransaction ExclusiveCommittedTransaction;
 
 /**
  * A handle representing an exclusive [`CreateTableTransactionBuilder`].
@@ -657,8 +668,8 @@ typedef struct FfiLogPath {
  */
 typedef struct LogPathArray {
   /**
-   * Pointer to the first element of the FfiLogPath array. If len is 0, this pointer may be null,
-   * otherwise it must be non-null.
+   * Pointer to the first element of the FfiLogPath array. If len is 0, this pointer may be
+   * null, otherwise it must be non-null.
    */
   const struct FfiLogPath *ptr;
   /**
@@ -1678,10 +1689,10 @@ typedef void (*VisitVariadicFn)(void *data, uintptr_t sibling_list_id, uintptr_t
  * future.
  *
  * Every expression the kernel visits belongs to some list of "sibling" elements. The schema
- * itself is a list of schema elements, and every complex type (struct expression, array, junction, etc)
- * contains a list of "child" elements.
- *  1. Before visiting any complex expression type, the kernel asks the engine to allocate a list to
- *     hold its children
+ * itself is a list of schema elements, and every complex type (struct expression, array, junction,
+ * etc) contains a list of "child" elements.
+ *  1. Before visiting any complex expression type, the kernel asks the engine to allocate a list
+ *     to hold its children
  *  2. When visiting any expression element, the kernel passes its parent's "child list" as the
  *     "sibling list" the element should be appended to:
  *      - For a struct literal, first visit each struct field and visit each value
@@ -1690,15 +1701,15 @@ typedef void (*VisitVariadicFn)(void *data, uintptr_t sibling_list_id, uintptr_t
  *      - For a junction `and` or `or` expression, visit each sub-expression.
  *      - For a binary operator expression, visit the left and right operands.
  *      - For a unary `is null` or `not` expression, visit the sub-expression.
- *  3. When visiting a complex expression, the kernel also passes the "child list" containing
- *     that element's (already-visited) children.
+ *  3. When visiting a complex expression, the kernel also passes the "child list" containing that
+ *     element's (already-visited) children.
  *  4. The [`visit_expression`] method returns the id of the list of top-level columns
  *
  * WARNING: The visitor MUST NOT retain internal references to string slices or binary data passed
  * to visitor methods
- * TODO: Visit type information in struct field and null. This will likely involve using the schema
- * visitor. Note that struct literals are currently in flux, and may change significantly. Here is
- * the relevant issue: <https://github.com/delta-io/delta-kernel-rs/issues/412>
+ * TODO: Visit type information in struct field. This will likely involve using the schema visitor.
+ * Note that struct literals are currently in flux, and may change significantly. Here is the
+ * relevant issue: <https://github.com/delta-io/delta-kernel-rs/issues/412>
  */
 typedef struct EngineExpressionVisitor {
   /**
@@ -1752,8 +1763,8 @@ typedef struct EngineExpressionVisitor {
    */
   VisitLiteralFni64 visit_literal_timestamp_ntz;
   /**
-   * Visit a 32bit integer `date` representing days since UNIX epoch 1970-01-01.  The `date` belongs
-   * to the list identified by `sibling_list_id`.
+   * Visit a 32bit integer `date` representing days since UNIX epoch 1970-01-01.  The `date`
+   * belongs to the list identified by `sibling_list_id`.
    */
   VisitLiteralFni32 visit_literal_date;
   /**
@@ -1799,9 +1810,18 @@ typedef struct EngineExpressionVisitor {
                             uintptr_t key_list_id,
                             uintptr_t value_list_id);
   /**
-   * Visits a null value belonging to the list identified by `sibling_list_id.
+   * Visits a typed null value belonging to the list identified by `sibling_list_id`.
+   *
+   * The `type_tag` identifies the data type using the `NullTypeTag` encoding. For decimal
+   * nulls (`type_tag == 12`), `precision` and `scale` carry the decimal type parameters;
+   * for all other types, they are zero. Non-primitive types (struct, array, map, variant)
+   * use `type_tag == 255`.
    */
-  void (*visit_literal_null)(void *data, uintptr_t sibling_list_id);
+  void (*visit_literal_null)(void *data,
+                             uintptr_t sibling_list_id,
+                             uint8_t type_tag,
+                             uint8_t precision,
+                             uint8_t scale);
   /**
    * Visits an `and` expression belonging to the list identified by `sibling_list_id`.
    * The sub-expressions of the array are in a list identified by `child_list_id`
@@ -1829,8 +1849,9 @@ typedef struct EngineExpressionVisitor {
   VisitUnaryFn visit_to_json;
   /**
    * Visits the `ParseJson` expression belonging to the list identified by `sibling_list_id`.
-   * The sub-expression (JSON string) will be in a _one_ item list identified by `child_list_id`.
-   * The `output_schema` handle specifies the schema to parse the JSON into.
+   * The sub-expression (JSON string) will be in a _one_ item list identified by
+   * `child_list_id`. The `output_schema` handle specifies the schema to parse the JSON
+   * into.
    */
   VisitParseJsonFn visit_parse_json;
   /**
@@ -1840,13 +1861,15 @@ typedef struct EngineExpressionVisitor {
    */
   VisitUnaryFn visit_map_to_struct;
   /**
-   * Visits the `LessThan` binary operator belonging to the list identified by `sibling_list_id`.
-   * The operands will be in a _two_ item list identified by `child_list_id`
+   * Visits the `LessThan` binary operator belonging to the list identified by
+   * `sibling_list_id`. The operands will be in a _two_ item list identified by
+   * `child_list_id`
    */
   VisitBinaryFn visit_lt;
   /**
-   * Visits the `GreaterThan` binary operator belonging to the list identified by `sibling_list_id`.
-   * The operands will be in a _two_ item list identified by `child_list_id`
+   * Visits the `GreaterThan` binary operator belonging to the list identified by
+   * `sibling_list_id`. The operands will be in a _two_ item list identified by
+   * `child_list_id`
    */
   VisitBinaryFn visit_gt;
   /**
@@ -1855,8 +1878,9 @@ typedef struct EngineExpressionVisitor {
    */
   VisitBinaryFn visit_eq;
   /**
-   * Visits the `Distinct` binary operator belonging to the list identified by `sibling_list_id`.
-   * The operands will be in a _two_ item list identified by `child_list_id`
+   * Visits the `Distinct` binary operator belonging to the list identified by
+   * `sibling_list_id`. The operands will be in a _two_ item list identified by
+   * `child_list_id`
    */
   VisitBinaryFn visit_distinct;
   /**
@@ -1875,8 +1899,9 @@ typedef struct EngineExpressionVisitor {
    */
   VisitBinaryFn visit_minus;
   /**
-   * Visits the `Multiply` binary operator belonging to the list identified by `sibling_list_id`.
-   * The operands will be in a _two_ item list identified by `child_list_id`
+   * Visits the `Multiply` binary operator belonging to the list identified by
+   * `sibling_list_id`. The operands will be in a _two_ item list identified by
+   * `child_list_id`
    */
   VisitBinaryFn visit_multiply;
   /**
@@ -1885,8 +1910,8 @@ typedef struct EngineExpressionVisitor {
    */
   VisitBinaryFn visit_divide;
   /**
-   * Visits the `Coalesce` variadic operator belonging to the list identified by `sibling_list_id`.
-   * The operands will be in a list identified by `child_list_id`
+   * Visits the `Coalesce` variadic operator belonging to the list identified by
+   * `sibling_list_id`. The operands will be in a list identified by `child_list_id`
    */
   VisitVariadicFn visit_coalesce;
   /**
@@ -1934,7 +1959,8 @@ typedef struct EngineExpressionVisitor {
    * | YES | NO  | Insert a (possibly empty)  list of expressions after the named input field
    * | YES | YES | Replace the named input field with a (possibly empty) list of expressions
    *
-   * NOTE: The expressions of each field transform must be emitted in order at the insertion point.
+   * NOTE: The expressions of each field transform must be emitted in order at the insertion
+   * point.
    */
   void (*visit_field_transform)(void *data,
                                 uintptr_t sibling_list_id,
@@ -2082,7 +2108,8 @@ typedef struct Event {
    */
   uint32_t line;
   /**
-   * file where the event occurred. If unknown the slice `ptr` will be null and the len will be 0
+   * file where the event occurred. If unknown the slice `ptr` will be null and the len will be
+   * 0
    */
   struct KernelStringSlice file;
 } Event;
@@ -2206,13 +2233,16 @@ typedef struct ExternResultHandleSharedScan {
 } ExternResultHandleSharedScan;
 
 /**
- * A schema for columns to select from the snapshot.
+ * An engine-provided schema along with a visitor function to convert it to a kernel schema.
  *
- * Used by [`scan`] and [`scan_builder_with_schema`] for projection pushdown or to specify
- * metadata columns. The engine provides a pointer to its native schema representation along with
- * a visitor function. The kernel allocates visitor state internally, which becomes the second
- * argument to the schema visitor invocation. Thanks to this double indirection, engine and kernel
- * each retain ownership of their respective objects with no need to coordinate memory lifetimes.
+ * Used by [`scan`] and [`scan_builder_with_schema`] for projection pushdown, and by
+ * [`get_create_table_builder`] to specify the table schema at creation time. The engine
+ * provides a pointer to its native schema representation along with a visitor function. The
+ * kernel allocates visitor state internally, which becomes the second argument to the schema
+ * visitor invocation. Thanks to this double indirection, engine and kernel each retain
+ * ownership of their respective objects with no need to coordinate memory lifetimes.
+ *
+ * [`get_create_table_builder`]: crate::transaction::get_create_table_builder
  */
 typedef struct EngineSchema {
   void *schema;
@@ -2403,7 +2433,8 @@ typedef struct CDvInfo {
  * This callback will be invoked for each valid file that needs to be read for a scan.
  *
  * The arguments to the callback are:
- * * `context`: a `void*` context this can be anything that engine needs to pass through to each call
+ * * `context`: a `void*` context this can be anything that engine needs to pass through to each
+ *   call
  * * `path`: a `KernelStringSlice` which is the path to the file
  * * `size`: an `i64` which is the size of the file
  * * `mod_time`: an `i64` which is the time the file was created, as milliseconds since the epoch
@@ -2420,6 +2451,54 @@ typedef void (*CScanCallback)(NullableCvoid engine_context,
                               const struct CDvInfo *dv_info,
                               const struct Expression *transform,
                               const struct CStringMap *partition_map);
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Result of [`scan_metadata_next_arrow`]: an Arrow C Data Interface batch, a selection
+ * vector, and per-row transformation expressions.
+ *
+ * The engine must free this by calling [`free_scan_metadata_arrow_result`] exactly once.
+ */
+typedef struct ScanMetadataArrowResult {
+  /**
+   * Arrow C Data Interface batch containing scan file metadata (path, size, stats, etc.).
+   */
+  struct ArrowFFIData arrow_data;
+  /**
+   * Boolean selection vector indicating active rows. Length equals the batch row count;
+   * `true` at index `i` means row `i` should be processed.
+   */
+  struct KernelBoolSlice selection_vector;
+  /**
+   * Opaque pointer to per-row transformation expressions. Use [`get_transform_for_row`]
+   * with a row index to retrieve the transform for that row. If non-null, the transform
+   * must be applied to data read from the file to produce the correct logical schema.
+   * Owned by this struct and freed by [`free_scan_metadata_arrow_result`].
+   */
+  struct CTransforms *transforms;
+} ScanMetadataArrowResult;
+#endif
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultScanMetadataArrowResult_Tag {
+  OkScanMetadataArrowResult,
+  ErrScanMetadataArrowResult,
+} ExternResultScanMetadataArrowResult_Tag;
+
+typedef struct ExternResultScanMetadataArrowResult {
+  ExternResultScanMetadataArrowResult_Tag tag;
+  union {
+    struct {
+      struct ScanMetadataArrowResult *ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultScanMetadataArrowResult;
 
 /**
  * The `EngineSchemaVisitor` defines a visitor system to allow engines to build their own
@@ -2662,25 +2741,61 @@ typedef struct ExternResultHandleExclusiveTransaction {
 } ExternResultHandleExclusiveTransaction;
 
 /**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveCommittedTransaction *HandleExclusiveCommittedTransaction;
+
+/**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
  * allocated one at all), and engine is responsible for freeing it.
  */
-typedef enum ExternResultu64_Tag {
-  Oku64,
-  Erru64,
-} ExternResultu64_Tag;
+typedef enum ExternResultHandleExclusiveCommittedTransaction_Tag {
+  OkHandleExclusiveCommittedTransaction,
+  ErrHandleExclusiveCommittedTransaction,
+} ExternResultHandleExclusiveCommittedTransaction_Tag;
 
-typedef struct ExternResultu64 {
-  ExternResultu64_Tag tag;
+typedef struct ExternResultHandleExclusiveCommittedTransaction {
+  ExternResultHandleExclusiveCommittedTransaction_Tag tag;
   union {
     struct {
-      uint64_t ok;
+      HandleExclusiveCommittedTransaction ok;
     };
     struct {
       struct EngineError *err;
     };
   };
-} ExternResultu64;
+} ExternResultHandleExclusiveCommittedTransaction;
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -2738,6 +2853,23 @@ typedef struct ExternResultHandleExclusiveCreateTransaction {
     };
   };
 } ExternResultHandleExclusiveCreateTransaction;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueHandleSharedSnapshot_Tag {
+  SomeHandleSharedSnapshot,
+  NoneHandleSharedSnapshot,
+} OptionalValueHandleSharedSnapshot_Tag;
+
+typedef struct OptionalValueHandleSharedSnapshot {
+  OptionalValueHandleSharedSnapshot_Tag tag;
+  union {
+    struct {
+      HandleSharedSnapshot some;
+    };
+  };
+} OptionalValueHandleSharedSnapshot;
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -2852,6 +2984,27 @@ typedef struct ExternResultOptionalValuei64 {
  * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
  */
 typedef struct SharedWriteContext *HandleSharedWriteContext;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedWriteContext_Tag {
+  OkHandleSharedWriteContext,
+  ErrHandleSharedWriteContext,
+} ExternResultHandleSharedWriteContext_Tag;
+
+typedef struct ExternResultHandleSharedWriteContext {
+  ExternResultHandleSharedWriteContext_Tag tag;
+  union {
+    struct {
+      HandleSharedWriteContext ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedWriteContext;
 
 #ifdef __cplusplus
 extern "C" {
@@ -3060,7 +3213,6 @@ void free_snapshot(HandleSharedSnapshot snapshot);
  *
  * This writes the checkpoint parquet file and the `_last_checkpoint` file.
  *
- *
  * # Safety
  *
  * Caller is responsible for passing valid handles.
@@ -3138,8 +3290,8 @@ uintptr_t get_partition_column_count(HandleSharedSnapshot snapshot);
 HandleStringSliceIterator get_partition_columns(HandleSharedSnapshot snapshot);
 
 /**
- * Visit each metadata configuration (key/value pair) for the specified snapshot by invoking the provided
- * `visitor` callback once per entry.
+ * Visit each metadata configuration (key/value pair) for the specified snapshot by invoking the
+ * provided `visitor` callback once per entry.
  *
  * # Safety
  *
@@ -3172,9 +3324,8 @@ void free_protocol(HandleSharedProtocol protocol);
  * Visit all fields of the protocol in a single FFI call. The caller provides:
  * - `visit_versions`: called once with `(context, min_reader_version, min_writer_version)`
  * - `visit_feature`: called once per feature with `(context, is_reader, feature_name)`.
- *   `is_reader` is `true` for reader features, `false` for writer features.
- *   If the protocol uses legacy versioning (no explicit feature lists), the `visit_feature`
- *   callback will not fire.
+ *   `is_reader` is `true` for reader features, `false` for writer features. If the protocol uses
+ *   legacy versioning (no explicit feature lists), the `visit_feature` callback will not fire.
  *
  * # Safety
  * Caller is responsible for providing a valid protocol handle, a valid `context` pointer, and
@@ -3255,7 +3406,8 @@ bool string_slice_next(HandleStringSliceIterator data,
 void free_string_slice_data(HandleStringSliceIterator data);
 
 /**
- * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific domain in this snapshot
+ * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific
+ * domain in this snapshot
  *
  * # Safety
  *
@@ -3267,7 +3419,8 @@ struct ExternResultNullableCvoid get_domain_metadata(HandleSharedSnapshot snapsh
                                                      AllocateStringFn allocate_fn);
 
 /**
- * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific domain in this snapshot
+ * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific
+ * domain in this snapshot
  *
  * # Safety
  *
@@ -3289,13 +3442,13 @@ struct ExternResultbool visit_domain_metadata(HandleSharedSnapshot snapshot,
 uintptr_t engine_data_length(HandleExclusiveEngineData *data);
 
 /**
- * Allow an engine to "unwrap" an [`ExclusiveEngineData`] into the raw pointer for the case it wants
- * to use its own engine data format
+ * Allow an engine to "unwrap" an [`ExclusiveEngineData`] into the raw pointer for the case it
+ * wants to use its own engine data format
  *
  * # Safety
  *
- * `data_handle` must be a valid pointer to a kernel allocated `ExclusiveEngineData`. The Engine must
- * ensure the handle outlives the returned pointer.
+ * `data_handle` must be a valid pointer to a kernel allocated `ExclusiveEngineData`. The Engine
+ * must ensure the handle outlives the returned pointer.
  */
 void *get_raw_engine_data(HandleExclusiveEngineData data);
 
@@ -3303,7 +3456,8 @@ void *get_raw_engine_data(HandleExclusiveEngineData data);
 /**
  * Get an [`ArrowFFIData`] to allow binding to the arrow [C Data
  * Interface](https://arrow.apache.org/docs/format/CDataInterface.html). This includes the data and
- * the schema. If this function returns an `Ok` variant the _engine_ must free the returned struct.
+ * the schema. If this function returns an `Ok` variant the _engine_ must free the returned struct
+ * via [`free_arrow_ffi_data`] exactly once.
  *
  * # Safety
  * data_handle must be a valid ExclusiveEngineData as read by the
@@ -3311,6 +3465,28 @@ void *get_raw_engine_data(HandleExclusiveEngineData data);
  */
 struct ExternResultArrowFFIData get_raw_arrow_data(HandleExclusiveEngineData data,
                                                    HandleSharedExternEngine engine);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Free an [`ArrowFFIData`] pointer produced by a kernel FFI function (e.g.
+ * [`get_raw_arrow_data`] or [`crate::table_changes::scan_table_changes_next`]).
+ *
+ * If the consumer has already imported the inner `FFI_ArrowArray` / `FFI_ArrowSchema` via a
+ * foreign Arrow layer (e.g. arrow-glib's `garrow_record_batch_import`), that import has
+ * moved ownership of the release callbacks out of the structs; dropping the `Box` here is
+ * then a cheap no-op on the arrays. If the consumer has not imported them, the structs'
+ * `Drop` impls will call their release callbacks so no memory is leaked.
+ *
+ * A null pointer is a no-op, matching the convention used by
+ * [`crate::scan::free_scan_metadata_arrow_result`].
+ *
+ * # Safety
+ *
+ * `result` must be either null, or a pointer returned by a kernel FFI function that produces
+ * `*mut ArrowFFIData`. Must be called at most once per non-null pointer.
+ */
+void free_arrow_ffi_data(struct ArrowFFIData *result);
 #endif
 
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
@@ -3403,8 +3579,8 @@ struct ExternResultHandleExclusiveEngineData evaluate_expression(HandleSharedExt
  *
  * - `table_root`: url pointing at the table root (where `_delta_log` folder is located)
  * - `engine`: Implementation of `Engine` apis.
- * - `start_version`: The start version of the change data feed
- *   End version will be the newest table version.
+ * - `start_version`: The start version of the change data feed End version will be the newest
+ *   table version.
  *
  * # Safety
  *
@@ -3492,8 +3668,8 @@ uint64_t table_changes_end_version(HandleExclusiveTableChanges table_changes);
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
  * Get a [`TableChangesScan`] over the table specified by the passed table changes.
- * It is the responsibility of the _engine_ to free this scan when complete by calling [`free_table_changes_scan`].
- * Consumes TableChanges.
+ * It is the responsibility of the _engine_ to free this scan when complete by calling
+ * [`free_table_changes_scan`]. Consumes TableChanges.
  *
  * # Safety
  *
@@ -3577,10 +3753,14 @@ void free_scan_table_changes_iter(HandleSharedScanTableChangesIterator data);
 /**
  * Get next batch of data from the table changes iterator.
  *
+ * Returns `Ok(non-null)` with a heap-allocated [`ArrowFFIData`] containing the next batch,
+ * `Ok(null)` when the iterator is exhausted, or `Err` on failure. A non-null pointer must
+ * be freed by the engine via [`crate::engine_data::free_arrow_ffi_data`] exactly once.
+ *
  * # Safety
  *
- * The iterator must be valid (returned by [table_changes_scan_execute]) and not yet freed by
- * [`free_scan_table_changes_iter`].
+ * The iterator must be valid (returned by [`table_changes_scan_execute`]) and not yet freed
+ * by [`free_scan_table_changes_iter`].
  */
 struct ExternResultArrowFFIData scan_table_changes_next(HandleSharedScanTableChangesIterator data);
 #endif
@@ -3819,7 +3999,8 @@ uintptr_t visit_expression_literal_timestamp(struct KernelExpressionVisitorState
                                              int64_t value);
 
 /**
- * visit a timestamp_ntz literal expression 'value' (i64 representing microseconds since unix epoch)
+ * visit a timestamp_ntz literal expression 'value' (i64 representing microseconds since unix
+ * epoch)
  */
 uintptr_t visit_expression_literal_timestamp_ntz(struct KernelExpressionVisitorState *state,
                                                  int64_t value);
@@ -3847,13 +4028,19 @@ struct ExternResultusize visit_expression_literal_decimal(struct KernelExpressio
                                                           AllocateErrorFn allocate_error);
 
 /**
- * Visit a null literal expression.
+ * Visit a typed null literal expression.
  *
- * Returns an error because NULL literal reconstruction is not supported - type information
- * is lost when converting from kernel to engine format, so we cannot faithfully reconstruct
- * the original NULL literal.
+ * The `type_tag` identifies the data type using the `NullTypeTag` encoding. For decimal nulls
+ * (`type_tag == 12`), `precision` and `scale` specify the decimal type parameters; for all
+ * other types, callers should pass 0 for both.
+ *
+ * Returns an error if the type tag is unrecognized, if the tag is `NonPrimitive` (255), or
+ * if the decimal precision/scale is invalid.
  */
-struct ExternResultusize visit_expression_literal_null(struct KernelExpressionVisitorState *_state,
+struct ExternResultusize visit_expression_literal_null(struct KernelExpressionVisitorState *state,
+                                                       uint8_t type_tag,
+                                                       uint8_t precision,
+                                                       uint8_t scale,
                                                        AllocateErrorFn allocate_error);
 
 uintptr_t visit_predicate_distinct(struct KernelExpressionVisitorState *state,
@@ -3900,8 +4087,8 @@ struct ExternResultHandleSharedPredicate visit_engine_predicate(struct EnginePre
 
 /**
  * Enable getting called back for tracing (logging) events in the kernel. `max_level` specifies
- * that only events `<=` to the specified level should be reported.  More verbose Levels are "greater
- * than" less verbose ones. So Level::ERROR is the lowest, and Level::TRACE the highest.
+ * that only events `<=` to the specified level should be reported.  More verbose Levels are
+ * "greater than" less verbose ones. So Level::ERROR is the lowest, and Level::TRACE the highest.
  *
  * Note that setting up such a call back can only be done ONCE. Calling any of
  * `enable_event_tracing`, `enable_log_line_tracing`, or `enable_formatted_log_line_tracing` more
@@ -3917,8 +4104,7 @@ struct ExternResultHandleSharedPredicate visit_engine_predicate(struct EnginePre
  * # Safety
  * Caller must pass a valid function pointer for the callback
  */
-bool enable_event_tracing(TracingEventFn callback,
-                          enum Level max_level);
+bool enable_event_tracing(TracingEventFn callback, enum Level max_level);
 
 /**
  * Enable getting called back with log lines in the kernel using default settings:
@@ -4017,7 +4203,7 @@ void free_scan(HandleSharedScan scan);
 struct ExternResultHandleSharedScan scan(HandleSharedSnapshot snapshot,
                                          HandleSharedExternEngine engine,
                                          struct EnginePredicate *predicate,
-                                         struct EngineSchema *schema);
+                                         const struct EngineSchema *schema);
 
 /**
  * Create a [`ScanBuilder`] for the given snapshot.
@@ -4068,7 +4254,7 @@ struct ExternResultHandleExclusiveScanBuilder scan_builder_with_predicate(Handle
  */
 struct ExternResultHandleExclusiveScanBuilder scan_builder_with_schema(HandleExclusiveScanBuilder builder,
                                                                        HandleSharedExternEngine engine,
-                                                                       struct EngineSchema *schema);
+                                                                       const struct EngineSchema *schema);
 
 /**
  * Consume an [`ExclusiveScanBuilder`] and produce a [`SharedScan`].
@@ -4136,10 +4322,10 @@ struct ExternResultHandleSharedScanMetadataIterator scan_metadata_iter_init(Hand
                                                                             HandleSharedScan scan);
 
 /**
- * Call the provided `engine_visitor` on the next scan metadata item. The visitor will be provided with
- * a [`SharedScanMetadata`], which contains the actual scan files and the associated selection vector. It is the
- * responsibility of the _engine_ to free the associated resources after use by calling
- * [`free_engine_data`] and [`free_bool_slice`] respectively.
+ * Call the provided `engine_visitor` on the next scan metadata item. The visitor will be provided
+ * with a [`SharedScanMetadata`], which contains the actual scan files and the associated selection
+ * vector. It is the responsibility of the _engine_ to free the associated resources after use by
+ * calling [`free_engine_data`] and [`free_bool_slice`] respectively.
  *
  * # Safety
  *
@@ -4223,8 +4409,8 @@ struct ExternResultKernelRowIndexArray row_indexes_from_dv(const struct DvInfo *
                                                            struct KernelStringSlice root_url);
 
 /**
- * Shim for ffi to call visit_scan_metadata. This will generally be called when iterating through scan
- * data which provides the [`SharedScanMetadata`] as each element in the iterator.
+ * Shim for ffi to call visit_scan_metadata. This will generally be called when iterating through
+ * scan data which provides the [`SharedScanMetadata`] as each element in the iterator.
  *
  * # Safety
  * engine is responsible for passing a valid [`SharedScanMetadata`].
@@ -4233,6 +4419,43 @@ struct ExternResultbool visit_scan_metadata(HandleSharedScanMetadata scan_metada
                                             HandleSharedExternEngine engine,
                                             NullableCvoid engine_context,
                                             CScanCallback callback);
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Get the next scan metadata batch as Arrow via the C Data Interface.
+ *
+ * Advances the iterator by one batch and returns a [`ScanMetadataArrowResult`] containing:
+ * - An Arrow RecordBatch with scan row schema columns (path, size, modificationTime, stats,
+ *   deletionVector, fileConstantValues)
+ * - A boolean selection vector indicating active rows (true = selected)
+ * - Per-row transformation expressions (use [`get_transform_for_row`] to access)
+ *
+ * Returns `Ok(non-null)` with the next batch, `Ok(null)` when the iterator is exhausted,
+ * or `Err` if an error occurred during iteration.
+ *
+ * This is an alternative to the callback-based [`scan_metadata_next`] +
+ * [`visit_scan_metadata`] path, avoiding per-row FFI overhead.
+ *
+ * # Safety
+ *
+ * `data` must be a valid [`SharedScanMetadataIterator`] handle.
+ * `engine` must be a valid [`SharedExternEngine`] handle.
+ */
+struct ExternResultScanMetadataArrowResult scan_metadata_next_arrow(HandleSharedScanMetadataIterator data,
+                                                                    HandleSharedExternEngine engine);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Free a [`ScanMetadataArrowResult`] returned by [`scan_metadata_next_arrow`].
+ *
+ * # Safety
+ *
+ * `result` must be a valid pointer returned by [`scan_metadata_next_arrow`], or null.
+ * Must be called at most once per result.
+ */
+void free_scan_metadata_arrow_result(struct ScanMetadataArrowResult *result);
+#endif
 
 /**
  * Visit the given `schema` using the provided `visitor`. See the documentation of
@@ -4403,7 +4626,8 @@ struct ExternResultusize visit_field_timestamp_ntz(struct KernelSchemaVisitorSta
                                                    AllocateErrorFn allocate_error);
 
 /**
- * Visit a decimal field. Decimal fields store fixed-precision decimal numbers with specified precision and scale.
+ * Visit a decimal field. Decimal fields store fixed-precision decimal numbers with specified
+ * precision and scale.
  *
  * # Safety
  *
@@ -4465,8 +4689,8 @@ struct ExternResultusize visit_field_array(struct KernelSchemaVisitorState *stat
  *
  * # Safety
  *
- * Caller is responsible for providing valid `state`, `name` slice, `key_type_id` and `value_type_id`
- * from previous `visit_data_type_*` calls, and `allocate_error` function pointer.
+ * Caller is responsible for providing valid `state`, `name` slice, `key_type_id` and
+ * `value_type_id` from previous `visit_data_type_*` calls, and `allocate_error` function pointer.
  */
 struct ExternResultusize visit_field_map(struct KernelSchemaVisitorState *state,
                                          struct KernelStringSlice name,
@@ -4494,8 +4718,8 @@ struct ExternResultusize visit_field_variant(struct KernelSchemaVisitorState *st
                                              AllocateErrorFn allocate_error);
 
 /**
- * Constructs a kernel expression that is passed back as a [`SharedExpression`] handle. The expected
- * output expression can be found in `ffi/tests/test_expression_visitor/expected.txt`.
+ * Constructs a kernel expression that is passed back as a [`SharedExpression`] handle. The
+ * expected output expression can be found in `ffi/tests/test_expression_visitor/expected.txt`.
  *
  * # Safety
  * The caller is responsible for freeing the returned memory, either by calling
@@ -4593,6 +4817,19 @@ struct ExternResultHandleExclusiveTransaction with_engine_info(HandleExclusiveTr
                                                                HandleSharedExternEngine engine);
 
 /**
+ * Set the operation that this transaction is performing. This string will be persisted in the
+ * commit and visible to anyone who describes the table history. This CONSUMES the transaction
+ * handle and returns a new handle for the updated transaction.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle. CONSUMES the transaction handle.
+ */
+struct ExternResultHandleExclusiveTransaction with_operation(HandleExclusiveTransaction txn,
+                                                             struct KernelStringSlice operation,
+                                                             HandleSharedExternEngine engine);
+
+/**
  * Add domain metadata to the transaction. The domain metadata will be written to the Delta log
  * as a `domainMetadata` action when the transaction is committed.
  *
@@ -4650,15 +4887,20 @@ void add_files(HandleExclusiveTransaction txn, HandleExclusiveEngineData write_m
 void set_data_change(HandleExclusiveTransaction txn, bool data_change);
 
 /**
- * Attempt to commit a transaction to the table. Returns version number if successful.
- * Returns error if the commit fails.
+ * Attempt to commit a transaction to the table. On success, returns a handle to the
+ * [`CommittedTransaction`] from which the caller can read the version and the optional
+ * post-commit snapshot. The returned handle must be freed with [`free_committed_transaction`].
+ *
+ * Returns an error if the commit fails. The FFI surfaces conflicted and retryable
+ * `CommitResult` variants as errors today (see TODO on `commit_result_to_committed_handle`).
  *
  * # Safety
  *
  * Caller is responsible for passing a valid handle. And MUST NOT USE transaction after this
  * method is called.
  */
-struct ExternResultu64 commit(HandleExclusiveTransaction txn, HandleSharedExternEngine engine);
+struct ExternResultHandleExclusiveCommittedTransaction commit(HandleExclusiveTransaction txn,
+                                                              HandleSharedExternEngine engine);
 
 /**
  * Free a create-table transaction handle without committing.
@@ -4703,19 +4945,68 @@ void create_table_add_files(HandleExclusiveCreateTransaction txn,
 void create_table_set_data_change(HandleExclusiveCreateTransaction txn, bool data_change);
 
 /**
- * Attempt to commit a create-table transaction. Returns version number if successful.
- * Returns error if the commit fails.
+ * Attempt to commit a create-table transaction. On success, returns a handle to the
+ * [`CommittedTransaction`] from which the caller can read the version and the optional
+ * post-commit snapshot. The returned handle must be freed with [`free_committed_transaction`].
+ *
+ * Returns an error if the commit fails.
  *
  * # Safety
  *
  * Caller is responsible for passing a valid handle. And MUST NOT USE transaction after this
  * method is called.
  */
-struct ExternResultu64 create_table_commit(HandleExclusiveCreateTransaction txn,
-                                           HandleSharedExternEngine engine);
+struct ExternResultHandleExclusiveCommittedTransaction create_table_commit(HandleExclusiveCreateTransaction txn,
+                                                                           HandleSharedExternEngine engine);
+
+/**
+ * Free a [`CommittedTransaction`] handle.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle and must not use it after this call.
+ */
+void free_committed_transaction(HandleExclusiveCommittedTransaction txn);
+
+/**
+ * Read the committed version from a [`CommittedTransaction`] handle.
+ *
+ * Does not consume the handle; the caller still owns it and must eventually pass it to
+ * [`free_committed_transaction`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+uint64_t committed_transaction_version(const HandleExclusiveCommittedTransaction *txn);
+
+/**
+ * Reads the post-commit snapshot, if available.
+ *
+ * Returns `Some` with a fresh [`SharedSnapshot`] handle if the committed transaction has an
+ * associated post-commit snapshot. Returns `None` otherwise.
+ *
+ * Not every commit path produces a post-commit snapshot (see
+ * [`CommittedTransaction::post_commit_snapshot`] for the kernel-side rationale); callers
+ * can fall back to building a snapshot via [`get_snapshot_builder`](crate::get_snapshot_builder)
+ * in that case.
+ *
+ * Each `Some` result contains an independent handle that the caller must eventually free with
+ * [`free_snapshot`](crate::free_snapshot). Does not consume the input handle; the caller must
+ * eventually pass it to [`free_committed_transaction`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+struct OptionalValueHandleSharedSnapshot committed_transaction_post_commit_snapshot(const HandleExclusiveCommittedTransaction *txn);
 
 /**
  * Create a new [`CreateTableTransactionBuilder`] for creating a Delta table at the given path.
+ *
+ * The schema is provided via the engine's visitor callback pattern ([`EngineSchema`]): the
+ * kernel allocates a [`KernelSchemaVisitorState`], calls the engine's visitor function to
+ * populate it via `visit_field_*` downcalls, then extracts the final schema.
  *
  * The returned builder can be configured with [`create_table_builder_with_table_property`]
  * before building with [`create_table_builder_build`]. The engine is only used for error
@@ -4724,10 +5015,9 @@ struct ExternResultu64 create_table_commit(HandleExclusiveCreateTransaction txn,
  * # Safety
  *
  * Caller is responsible for passing a valid `path`, `schema`, `engine_info`, and `engine`.
- * Does NOT consume the `schema` handle -- the caller is still responsible for freeing it.
  */
 struct ExternResultHandleExclusiveCreateTableBuilder get_create_table_builder(struct KernelStringSlice path,
-                                                                              HandleSharedSchema schema,
+                                                                              const struct EngineSchema *schema,
                                                                               struct KernelStringSlice engine_info,
                                                                               HandleSharedExternEngine engine);
 
@@ -4818,14 +5108,15 @@ struct ExternResultbool remove_files(HandleExclusiveTransaction txn,
                                      HandleSharedExternEngine engine);
 
 /**
- * Associates an app_id and version with a transaction. These will be applied to the table on commit.
+ * Associates an app_id and version with a transaction. These will be applied to the table on
+ * commit.
  *
  * # Returns
  * A new handle to the transaction that will set the `app_id` version to `version` on commit
  *
  * # Safety
- * Caller is responsible for passing [valid][Handle#Validity] handles. The `app_id` string slice must be valid.
- * CONSUMES TRANSACTION
+ * Caller is responsible for passing [valid][Handle#Validity] handles. The `app_id` string slice
+ * must be valid. CONSUMES TRANSACTION
  */
 struct ExternResultHandleExclusiveTransaction with_transaction_id(HandleExclusiveTransaction txn,
                                                                   struct KernelStringSlice app_id,
@@ -4839,38 +5130,48 @@ struct ExternResultHandleExclusiveTransaction with_transaction_id(HandleExclusiv
  * The version number if found, or an error of type `MissingDataError` when the app_id was not set
  *
  * # Safety
- * Caller must ensure [valid][Handle#Validity] handles are provided for snapshot and engine. The `app_id`
- * string slice must be valid.
+ * Caller must ensure [valid][Handle#Validity] handles are provided for snapshot and engine. The
+ * `app_id` string slice must be valid.
  */
 struct ExternResultOptionalValuei64 get_app_id_version(HandleSharedSnapshot snapshot,
                                                        struct KernelStringSlice app_id,
                                                        HandleSharedExternEngine engine);
 
 /**
- * Gets the write context from a transaction. The write context provides schema and path
- * information needed for writing data.
+ * Gets the write context from a transaction for an unpartitioned table. The write context
+ * provides schema and path information needed for writing data.
+ *
+ * For partitioned tables, use a partitioned write context instead.
+ * TODO(#2355): expose partitioned_write_context via FFI.
  *
  * # Safety
  *
- * Caller is responsible for passing a [valid][Handle#Validity] transaction handle.
+ * Caller is responsible for passing a [valid][Handle#Validity] transaction handle and engine.
  */
-HandleSharedWriteContext get_write_context(HandleExclusiveTransaction txn);
+struct ExternResultHandleSharedWriteContext get_unpartitioned_write_context(HandleExclusiveTransaction txn,
+                                                                            HandleSharedExternEngine engine);
 
 /**
- * Gets the write context from a create-table transaction. The write context provides schema
- * and path information needed for writing data.
+ * Gets the write context from a create-table transaction for an unpartitioned table.
+ *
+ * For partitioned tables, use a partitioned write context instead.
+ * TODO(#2355): expose partitioned_write_context via FFI.
  *
  * # Safety
  *
- * Caller is responsible for passing a [valid][Handle#Validity] transaction handle.
+ * Caller is responsible for passing a [valid][Handle#Validity] transaction handle and engine.
  */
-HandleSharedWriteContext create_table_get_write_context(HandleExclusiveCreateTransaction txn);
+struct ExternResultHandleSharedWriteContext create_table_get_unpartitioned_write_context(HandleExclusiveCreateTransaction txn,
+                                                                                         HandleSharedExternEngine engine);
 
 void free_write_context(HandleSharedWriteContext write_context);
 
 /**
- * Get schema from WriteContext handle. The schema must be freed when no longer needed via
- * [`free_schema`].
+ * Returns the logical (user-facing) write schema from a [`WriteContext`] handle. For
+ * column-mapping-enabled writes, pair with [`get_physical_write_schema`] and
+ * [`get_logical_to_physical`].
+ *
+ * The returned schema must be freed via [`crate::free_schema`].
  *
  * # Safety
  * Engine is responsible for providing a valid WriteContext pointer
@@ -4878,7 +5179,47 @@ void free_write_context(HandleSharedWriteContext write_context);
 HandleSharedSchema get_write_schema(HandleSharedWriteContext write_context);
 
 /**
- * Get write path from WriteContext handle.
+ * Returns the physical write schema from a [`WriteContext`] handle: the schema of the data
+ * written to parquet files. With column mapping enabled, field names are physical
+ * (e.g. `col-<uuid>`) and each field has a `parquet.field.id` metadata entry per the Delta
+ * column-mapping spec; otherwise it matches the logical schema. Partition columns are
+ * excluded unless the `materializePartitionColumns` writer feature or `IcebergCompatV3` is
+ * enabled.
+ *
+ * Use this as the parquet writer schema and as the output schema of the evaluator built
+ * from [`get_logical_to_physical`].
+ *
+ * The returned schema must be freed via [`crate::free_schema`].
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer
+ */
+HandleSharedSchema get_physical_write_schema(HandleSharedWriteContext write_context);
+
+/**
+ * Returns the logical-to-physical transform from a [`WriteContext`] handle. Engines apply
+ * it via an [`ExpressionEvaluator`] to each batch of logical data before writing parquet.
+ * It drops partition columns when partition columns are not materialized. The column
+ * rename itself is encoded in the physical schema (the evaluator matches input columns to
+ * output fields by position), not in this expression.
+ *
+ * To build the evaluator, pass [`get_write_schema`] as the input, this expression as the
+ * transform, and [`get_physical_write_schema`] as the output. See
+ * [`crate::engine_funcs::new_expression_evaluator`].
+ *
+ * The returned expression must be freed via [`crate::expressions::free_kernel_expression`].
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer
+ *
+ * [`ExpressionEvaluator`]: delta_kernel::ExpressionEvaluator
+ */
+HandleSharedExpression get_logical_to_physical(HandleSharedWriteContext write_context);
+
+/**
+ * Get the table root URL from a WriteContext handle. Returns the table root, not the
+ * recommended write directory (which may include Hive-style partition paths or random
+ * prefixes). See TODO(#2355) for full partitioned write support via FFI.
  *
  * # Safety
  * Engine is responsible for providing a valid WriteContext pointer

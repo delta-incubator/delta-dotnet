@@ -90,6 +90,10 @@ namespace DeltaLake.Kernel.Interop
     {
     }
 
+    internal partial struct ExclusiveCommittedTransaction
+    {
+    }
+
     internal partial struct ExclusiveCreateTableBuilder
     {
     }
@@ -235,18 +239,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveRustString_Tag")]
         public ExternResultHandleExclusiveRustString_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L340_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L351_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L341_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L352_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L344_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L355_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -305,18 +309,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultEngineBuilder_Tag")]
         public ExternResultEngineBuilder_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L447_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L458_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L448_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L459_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L451_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L462_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -344,18 +348,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultbool_Tag")]
         public ExternResultbool_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L468_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L479_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L469_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L480_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L472_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L483_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -382,18 +386,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedExternEngine_Tag")]
         public ExternResultHandleSharedExternEngine_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L525_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L536_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L526_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L537_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L529_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L540_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -421,18 +425,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleMutableFfiSnapshotBuilder_Tag")]
         public ExternResultHandleMutableFfiSnapshotBuilder_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L582_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L593_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L583_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L594_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L586_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L597_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -481,18 +485,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedSnapshot_Tag")]
         public ExternResultHandleSharedSnapshot_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L681_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L692_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L682_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L693_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L685_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L696_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -520,18 +524,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResulti64_Tag")]
         public ExternResulti64_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L702_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L713_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L703_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L714_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L706_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L717_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -563,14 +567,14 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::OptionalValueKernelStringSlice_Tag")]
         public OptionalValueKernelStringSlice_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L874_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L885_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L875_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L886_C5")]
             public _Anonymous_e__Struct Anonymous;
 
             internal partial struct _Anonymous_e__Struct
@@ -592,18 +596,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultNullableCvoid_Tag")]
         public ExternResultNullableCvoid_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L892_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L903_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L893_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L904_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L896_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L907_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -701,18 +705,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultArrowFFIData_Tag")]
         public ExternResultArrowFFIData_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L978_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L989_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L979_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L990_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L982_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L993_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -740,18 +744,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveEngineData_Tag")]
         public ExternResultHandleExclusiveEngineData_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L999_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1010_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1000_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1011_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1003_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1014_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -779,18 +783,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveFileReadResultIterator_Tag")]
         public ExternResultHandleExclusiveFileReadResultIterator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1056_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1067_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1057_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1068_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1060_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1071_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -830,18 +834,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedExpressionEvaluator_Tag")]
         public ExternResultHandleSharedExpressionEvaluator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1119_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1130_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1120_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1131_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1123_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1134_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -869,18 +873,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveTableChanges_Tag")]
         public ExternResultHandleExclusiveTableChanges_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1176_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1187_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1177_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1188_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1180_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1191_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -908,18 +912,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedTableChangesScan_Tag")]
         public ExternResultHandleSharedTableChangesScan_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1233_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1244_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1234_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1245_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1237_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1248_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -955,18 +959,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedScanTableChangesIterator_Tag")]
         public ExternResultHandleSharedScanTableChangesIterator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1305_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1316_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1306_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1317_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1309_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1320_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -994,14 +998,14 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::OptionalValueHandleExclusiveRustString_Tag")]
         public OptionalValueHandleExclusiveRustString_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1361_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1372_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1362_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1373_C5")]
             public _Anonymous_e__Struct Anonymous;
 
             internal unsafe partial struct _Anonymous_e__Struct
@@ -1041,14 +1045,14 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::OptionalValueCommit_Tag")]
         public OptionalValueCommit_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1389_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1400_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1390_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1401_C5")]
             public _Anonymous_e__Struct Anonymous;
 
             internal partial struct _Anonymous_e__Struct
@@ -1070,14 +1074,14 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::OptionalValuei64_Tag")]
         public OptionalValuei64_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1406_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1417_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1407_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1418_C5")]
             public _Anonymous_e__Struct Anonymous;
 
             internal partial struct _Anonymous_e__Struct
@@ -1124,18 +1128,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleMutableCommitter_Tag")]
         public ExternResultHandleMutableCommitter_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1486_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1497_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1487_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1498_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1490_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1501_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1246,7 +1250,7 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("void (*)(void *, uintptr_t, uintptr_t, uintptr_t)")]
         public IntPtr visit_literal_map;
 
-        [NativeTypeName("void (*)(void *, uintptr_t)")]
+        [NativeTypeName("void (*)(void *, uintptr_t, uint8_t, uint8_t, uint8_t)")]
         public IntPtr visit_literal_null;
 
         [NativeTypeName("ffi::VisitJunctionFn")]
@@ -1341,18 +1345,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultusize_Tag")]
         public ExternResultusize_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1996_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2022_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1997_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2023_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2000_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2026_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -1380,18 +1384,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedExpression_Tag")]
         public ExternResultHandleSharedExpression_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2017_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2043_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2018_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2044_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2021_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2047_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1427,18 +1431,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedPredicate_Tag")]
         public ExternResultHandleSharedPredicate_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2053_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2079_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2054_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2080_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2057_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2083_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1490,18 +1494,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultKernelBoolSlice_Tag")]
         public ExternResultKernelBoolSlice_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2141_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2168_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2142_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2169_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2145_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2172_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -1529,18 +1533,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedScan_Tag")]
         public ExternResultHandleSharedScan_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2198_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2225_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2199_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2226_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2202_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2229_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1576,18 +1580,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveScanBuilder_Tag")]
         public ExternResultHandleExclusiveScanBuilder_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2269_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2299_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2270_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2300_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2273_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2303_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1615,18 +1619,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleSharedScanMetadataIterator_Tag")]
         public ExternResultHandleSharedScanMetadataIterator_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2326_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2356_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2327_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2357_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2330_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2360_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1654,14 +1658,14 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::OptionalValueHandleSharedExpression_Tag")]
         public OptionalValueHandleSharedExpression_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2346_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2376_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2347_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2377_C5")]
             public _Anonymous_e__Struct Anonymous;
 
             internal unsafe partial struct _Anonymous_e__Struct
@@ -1683,18 +1687,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultKernelRowIndexArray_Tag")]
         public ExternResultKernelRowIndexArray_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2364_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2394_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2365_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2395_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2368_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2398_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
@@ -1727,6 +1731,57 @@ namespace DeltaLake.Kernel.Interop
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal unsafe delegate void CScanCallback([NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("int64_t")] long size, [NativeTypeName("int64_t")] long mod_time, [NativeTypeName("const struct Stats *")] Stats* stats, [NativeTypeName("const struct CDvInfo *")] CDvInfo* dv_info, [NativeTypeName("const struct Expression *")] Expression* transform, [NativeTypeName("const struct CStringMap *")] CStringMap* partition_map);
+
+    internal unsafe partial struct ScanMetadataArrowResult
+    {
+        [NativeTypeName("struct ArrowFFIData")]
+        public ArrowFFIData arrow_data;
+
+        [NativeTypeName("struct KernelBoolSlice")]
+        public KernelBoolSlice selection_vector;
+
+        [NativeTypeName("struct CTransforms *")]
+        public CTransforms* transforms;
+    }
+
+    internal enum ExternResultScanMetadataArrowResult_Tag
+    {
+        OkScanMetadataArrowResult,
+        ErrScanMetadataArrowResult,
+    }
+
+    internal unsafe partial struct ExternResultScanMetadataArrowResult
+    {
+        [NativeTypeName("ffi::ExternResultScanMetadataArrowResult_Tag")]
+        public ExternResultScanMetadataArrowResult_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2493_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2494_C5")]
+            public _Anonymous1_e__Struct Anonymous1;
+
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2497_C5")]
+            public _Anonymous2_e__Struct Anonymous2;
+
+            internal unsafe partial struct _Anonymous1_e__Struct
+            {
+                [NativeTypeName("struct ScanMetadataArrowResult *")]
+                public ScanMetadataArrowResult* ok;
+            }
+
+            internal unsafe partial struct _Anonymous2_e__Struct
+            {
+                [NativeTypeName("struct EngineError *")]
+                public EngineError* err;
+            }
+        }
+    }
 
     internal unsafe partial struct EngineSchemaVisitor
     {
@@ -1798,18 +1853,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveTransaction_Tag")]
         public ExternResultHandleExclusiveTransaction_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2654_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2733_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2655_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2734_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2658_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2737_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1826,35 +1881,35 @@ namespace DeltaLake.Kernel.Interop
         }
     }
 
-    internal enum ExternResultu64_Tag
+    internal enum ExternResultHandleExclusiveCommittedTransaction_Tag
     {
-        Oku64,
-        Erru64,
+        OkHandleExclusiveCommittedTransaction,
+        ErrHandleExclusiveCommittedTransaction,
     }
 
-    internal unsafe partial struct ExternResultu64
+    internal unsafe partial struct ExternResultHandleExclusiveCommittedTransaction
     {
-        [NativeTypeName("ffi::ExternResultu64_Tag")]
-        public ExternResultu64_Tag tag;
+        [NativeTypeName("ffi::ExternResultHandleExclusiveCommittedTransaction_Tag")]
+        public ExternResultHandleExclusiveCommittedTransaction_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2675_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2790_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2676_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2791_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2679_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2794_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
-            internal partial struct _Anonymous1_e__Struct
+            internal unsafe partial struct _Anonymous1_e__Struct
             {
-                [NativeTypeName("uint64_t")]
-                public ulong ok;
+                [NativeTypeName("ffi::HandleExclusiveCommittedTransaction")]
+                public ExclusiveCommittedTransaction* ok;
             }
 
             internal unsafe partial struct _Anonymous2_e__Struct
@@ -1876,18 +1931,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveCreateTransaction_Tag")]
         public ExternResultHandleExclusiveCreateTransaction_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2732_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2847_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2733_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2848_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2736_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2851_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1904,6 +1959,35 @@ namespace DeltaLake.Kernel.Interop
         }
     }
 
+    internal enum OptionalValueHandleSharedSnapshot_Tag
+    {
+        SomeHandleSharedSnapshot,
+        NoneHandleSharedSnapshot,
+    }
+
+    internal unsafe partial struct OptionalValueHandleSharedSnapshot
+    {
+        [NativeTypeName("ffi::OptionalValueHandleSharedSnapshot_Tag")]
+        public OptionalValueHandleSharedSnapshot_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2867_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2868_C5")]
+            public _Anonymous_e__Struct Anonymous;
+
+            internal unsafe partial struct _Anonymous_e__Struct
+            {
+                [NativeTypeName("ffi::HandleSharedSnapshot")]
+                public SharedSnapshot* some;
+            }
+        }
+    }
+
     internal enum ExternResultHandleExclusiveCreateTableBuilder_Tag
     {
         OkHandleExclusiveCreateTableBuilder,
@@ -1915,18 +1999,18 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultHandleExclusiveCreateTableBuilder_Tag")]
         public ExternResultHandleExclusiveCreateTableBuilder_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2789_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2921_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2790_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2922_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2793_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2925_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal unsafe partial struct _Anonymous1_e__Struct
@@ -1954,24 +2038,63 @@ namespace DeltaLake.Kernel.Interop
         [NativeTypeName("ffi::ExternResultOptionalValuei64_Tag")]
         public ExternResultOptionalValuei64_Tag tag;
 
-        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2810_C3")]
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2942_C3")]
         public _Anonymous_e__Union Anonymous;
 
         [StructLayout(LayoutKind.Explicit)]
         internal unsafe partial struct _Anonymous_e__Union
         {
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2811_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2943_C5")]
             public _Anonymous1_e__Struct Anonymous1;
 
             [FieldOffset(0)]
-            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2814_C5")]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2946_C5")]
             public _Anonymous2_e__Struct Anonymous2;
 
             internal partial struct _Anonymous1_e__Struct
             {
                 [NativeTypeName("struct OptionalValuei64")]
                 public OptionalValuei64 ok;
+            }
+
+            internal unsafe partial struct _Anonymous2_e__Struct
+            {
+                [NativeTypeName("struct EngineError *")]
+                public EngineError* err;
+            }
+        }
+    }
+
+    internal enum ExternResultHandleSharedWriteContext_Tag
+    {
+        OkHandleSharedWriteContext,
+        ErrHandleSharedWriteContext,
+    }
+
+    internal unsafe partial struct ExternResultHandleSharedWriteContext
+    {
+        [NativeTypeName("ffi::ExternResultHandleSharedWriteContext_Tag")]
+        public ExternResultHandleSharedWriteContext_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L2999_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L3000_C5")]
+            public _Anonymous1_e__Struct Anonymous1;
+
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L3003_C5")]
+            public _Anonymous2_e__Struct Anonymous2;
+
+            internal unsafe partial struct _Anonymous1_e__Struct
+            {
+                [NativeTypeName("ffi::HandleSharedWriteContext")]
+                public SharedWriteContext* ok;
             }
 
             internal unsafe partial struct _Anonymous2_e__Struct
@@ -2125,6 +2248,9 @@ namespace DeltaLake.Kernel.Interop
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultArrowFFIData")]
         public static extern ExternResultArrowFFIData get_raw_arrow_data([NativeTypeName("ffi::HandleExclusiveEngineData")] ExclusiveEngineData* data, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_arrow_ffi_data([NativeTypeName("struct ArrowFFIData *")] ArrowFFIData* result);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveEngineData")]
@@ -2375,7 +2501,7 @@ namespace DeltaLake.Kernel.Interop
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultusize")]
-        public static extern ExternResultusize visit_expression_literal_null([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* _state, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
+        public static extern ExternResultusize visit_expression_literal_null([NativeTypeName("struct KernelExpressionVisitorState *")] KernelExpressionVisitorState* state, [NativeTypeName("uint8_t")] byte type_tag, [NativeTypeName("uint8_t")] byte precision, [NativeTypeName("uint8_t")] byte scale, [NativeTypeName("ffi::AllocateErrorFn")] IntPtr allocate_error);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
@@ -2426,7 +2552,7 @@ namespace DeltaLake.Kernel.Interop
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedScan")]
-        public static extern ExternResultHandleSharedScan scan([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct EnginePredicate *")] EnginePredicate* predicate, [NativeTypeName("struct EngineSchema *")] EngineSchema* schema);
+        public static extern ExternResultHandleSharedScan scan([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct EnginePredicate *")] EnginePredicate* predicate, [NativeTypeName("const struct EngineSchema *")] EngineSchema* schema);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("ffi::HandleExclusiveScanBuilder")]
@@ -2438,7 +2564,7 @@ namespace DeltaLake.Kernel.Interop
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveScanBuilder")]
-        public static extern ExternResultHandleExclusiveScanBuilder scan_builder_with_schema([NativeTypeName("ffi::HandleExclusiveScanBuilder")] ExclusiveScanBuilder* builder, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("struct EngineSchema *")] EngineSchema* schema);
+        public static extern ExternResultHandleExclusiveScanBuilder scan_builder_with_schema([NativeTypeName("ffi::HandleExclusiveScanBuilder")] ExclusiveScanBuilder* builder, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("const struct EngineSchema *")] EngineSchema* schema);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleSharedScan")]
@@ -2492,6 +2618,13 @@ namespace DeltaLake.Kernel.Interop
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultbool")]
         public static extern ExternResultbool visit_scan_metadata([NativeTypeName("ffi::HandleSharedScanMetadata")] SharedScanMetadata* scan_metadata, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("ffi::NullableCvoid")] void* engine_context, [NativeTypeName("ffi::CScanCallback")] IntPtr callback);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("struct ExternResultScanMetadataArrowResult")]
+        public static extern ExternResultScanMetadataArrowResult scan_metadata_next_arrow([NativeTypeName("ffi::HandleSharedScanMetadataIterator")] SharedScanMetadataIterator* data, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_scan_metadata_arrow_result([NativeTypeName("struct ScanMetadataArrowResult *")] ScanMetadataArrowResult* result);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uintptr_t")]
@@ -2604,6 +2737,10 @@ namespace DeltaLake.Kernel.Interop
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveTransaction")]
+        public static extern ExternResultHandleExclusiveTransaction with_operation([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice operation, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("struct ExternResultHandleExclusiveTransaction")]
         public static extern ExternResultHandleExclusiveTransaction with_domain_metadata([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice domain, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice configuration, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
@@ -2617,8 +2754,8 @@ namespace DeltaLake.Kernel.Interop
         public static extern void set_data_change([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, bool data_change);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct ExternResultu64")]
-        public static extern ExternResultu64 commit([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+        [return: NativeTypeName("struct ExternResultHandleExclusiveCommittedTransaction")]
+        public static extern ExternResultHandleExclusiveCommittedTransaction commit([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void create_table_free_transaction([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn);
@@ -2634,12 +2771,23 @@ namespace DeltaLake.Kernel.Interop
         public static extern void create_table_set_data_change([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn, bool data_change);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct ExternResultu64")]
-        public static extern ExternResultu64 create_table_commit([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+        [return: NativeTypeName("struct ExternResultHandleExclusiveCommittedTransaction")]
+        public static extern ExternResultHandleExclusiveCommittedTransaction create_table_commit([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void free_committed_transaction([NativeTypeName("ffi::HandleExclusiveCommittedTransaction")] ExclusiveCommittedTransaction* txn);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("uint64_t")]
+        public static extern ulong committed_transaction_version([NativeTypeName("const HandleExclusiveCommittedTransaction *")] ExclusiveCommittedTransaction** txn);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("struct OptionalValueHandleSharedSnapshot")]
+        public static extern OptionalValueHandleSharedSnapshot committed_transaction_post_commit_snapshot([NativeTypeName("const HandleExclusiveCommittedTransaction *")] ExclusiveCommittedTransaction** txn);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveCreateTableBuilder")]
-        public static extern ExternResultHandleExclusiveCreateTableBuilder get_create_table_builder([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("ffi::HandleSharedSchema")] SharedSchema* schema, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice engine_info, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+        public static extern ExternResultHandleExclusiveCreateTableBuilder get_create_table_builder([NativeTypeName("struct KernelStringSlice")] KernelStringSlice path, [NativeTypeName("const struct EngineSchema *")] EngineSchema* schema, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice engine_info, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct ExternResultHandleExclusiveCreateTableBuilder")]
@@ -2669,12 +2817,12 @@ namespace DeltaLake.Kernel.Interop
         public static extern ExternResultOptionalValuei64 get_app_id_version([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("struct KernelStringSlice")] KernelStringSlice app_id, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("ffi::HandleSharedWriteContext")]
-        public static extern SharedWriteContext* get_write_context([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn);
+        [return: NativeTypeName("struct ExternResultHandleSharedWriteContext")]
+        public static extern ExternResultHandleSharedWriteContext get_unpartitioned_write_context([NativeTypeName("ffi::HandleExclusiveTransaction")] ExclusiveTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("ffi::HandleSharedWriteContext")]
-        public static extern SharedWriteContext* create_table_get_write_context([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn);
+        [return: NativeTypeName("struct ExternResultHandleSharedWriteContext")]
+        public static extern ExternResultHandleSharedWriteContext create_table_get_unpartitioned_write_context([NativeTypeName("ffi::HandleExclusiveCreateTransaction")] ExclusiveCreateTransaction* txn, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void free_write_context([NativeTypeName("ffi::HandleSharedWriteContext")] SharedWriteContext* write_context);
@@ -2682,6 +2830,14 @@ namespace DeltaLake.Kernel.Interop
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("ffi::HandleSharedSchema")]
         public static extern SharedSchema* get_write_schema([NativeTypeName("ffi::HandleSharedWriteContext")] SharedWriteContext* write_context);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedSchema")]
+        public static extern SharedSchema* get_physical_write_schema([NativeTypeName("ffi::HandleSharedWriteContext")] SharedWriteContext* write_context);
+
+        [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        [return: NativeTypeName("ffi::HandleSharedExpression")]
+        public static extern SharedExpression* get_logical_to_physical([NativeTypeName("ffi::HandleSharedWriteContext")] SharedWriteContext* write_context);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("ffi::NullableCvoid")]
