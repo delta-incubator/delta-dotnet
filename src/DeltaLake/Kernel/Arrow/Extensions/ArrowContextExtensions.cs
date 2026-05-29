@@ -69,6 +69,14 @@ namespace DeltaLake.Kernel.Arrow.Extensions
                 {
                     concatenatedColumn = EnsureNonNullValueBuffer(stringArray);
                 }
+                else if (concatenatedColumn is PrimitiveArray<int> int32Array)
+                {
+                    concatenatedColumn = EnsureNonNullValueBuffer(int32Array, sizeof(int));
+                }
+                else if (concatenatedColumn is PrimitiveArray<long> int64Array)
+                {
+                    concatenatedColumn = EnsureNonNullValueBuffer(int64Array, sizeof(long));
+                }
 
                 concatenatedColumns.Add(concatenatedColumn);
             }
@@ -117,6 +125,33 @@ namespace DeltaLake.Kernel.Arrow.Extensions
             buffers[1] = original.Buffers[1]; // offsets  (zero-copy)
             buffers[2] = new ArrowBuffer(new byte[1]); // sentinel: non-null managed backing
             return new StringArray(new ArrayData(
+                original.DataType,
+                original.Length,
+                original.NullCount,
+                original.Offset,
+                buffers));
+        }
+
+        /// <summary>
+        /// Returns a primitive <see cref="PrimitiveArray{T}"/> whose values buffer is
+        /// guaranteed to have a non-null backing reference. Same root cause and remedy as
+        /// <see cref="EnsureNonNullValueBuffer(StringArray)"/>; a primitive array has only
+        /// validity + values buffers (no offsets). Sentinel size equals one element width
+        /// so the buffer remains correctly aligned.
+        /// </summary>
+        private static PrimitiveArray<T> EnsureNonNullValueBuffer<T>(PrimitiveArray<T> source, int elementByteSize)
+            where T : struct, IEquatable<T>
+        {
+            if (source.ValueBuffer.Length != 0)
+            {
+                return source;
+            }
+
+            ArrayData original = source.Data;
+            ArrowBuffer[] buffers = new ArrowBuffer[original.Buffers.Length];
+            buffers[0] = original.Buffers[0]; // validity (zero-copy)
+            buffers[1] = new ArrowBuffer(new byte[elementByteSize]); // sentinel: non-null managed backing
+            return (PrimitiveArray<T>)ArrowArrayFactory.BuildArray(new ArrayData(
                 original.DataType,
                 original.Length,
                 original.NullCount,
