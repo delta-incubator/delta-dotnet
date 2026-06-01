@@ -130,18 +130,26 @@ namespace DeltaLake.Kernel.Transaction
                     Marshal.FreeHGlobal((IntPtr)nativeArray);
                 }
 
-                ExternResultu64 commitResult =
+                ExternResultHandleExclusiveCommittedTransaction commitResult =
                     Methods.commit(txnPtr, enginePtr);
                 committed = true;
 
-                if (commitResult.tag != ExternResultu64_Tag.Oku64)
+                if (commitResult.tag != ExternResultHandleExclusiveCommittedTransaction_Tag.OkHandleExclusiveCommittedTransaction)
                 {
                     throw KernelException.FromEngineError(
                         commitResult.Anonymous.Anonymous2.err,
                         "Failed to commit transaction");
                 }
 
-                return (ulong)commitResult.Anonymous.Anonymous1.ok;
+                ExclusiveCommittedTransaction* committedTxnPtr = commitResult.Anonymous.Anonymous1.ok;
+                try
+                {
+                    return Methods.committed_transaction_version(&committedTxnPtr);
+                }
+                finally
+                {
+                    Methods.free_committed_transaction(committedTxnPtr);
+                }
             }
             finally
             {
