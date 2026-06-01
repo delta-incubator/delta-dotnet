@@ -1371,7 +1371,6 @@ pub extern "C" fn table_optimize(
         max_concurrent_tasks,
         max_spill_size,
         min_commit_interval,
-        preserve_insertion_order,
         target_size,
         zorder_columns,
         optimize_type,
@@ -1382,7 +1381,6 @@ pub extern "C" fn table_optimize(
             if options.has_max_concurrent_tasks { Some(options.max_concurrent_tasks) } else { None },
             if options.has_max_spill_size { Some(options.max_spill_size) } else { None },
             if options.has_min_commit_interval { Some(options.min_commit_interval) } else { None },
-            if options.has_preserve_insertion_order { Some(options.preserve_insertion_order) } else { None },
             if options.has_target_size { Some(options.target_size) } else { None },
             zorder_columns
                 .iter()
@@ -1404,7 +1402,6 @@ pub extern "C" fn table_optimize(
                 max_concurrent_tasks,
                 max_spill_size,
                 min_commit_interval,
-                preserve_insertion_order,
                 target_size,
                 zorder_columns,
                 optimize_type,
@@ -1491,7 +1488,6 @@ async fn optimize(
     max_concurrent_tasks: Option<u32>,
     max_spill_size: Option<u64>,
     min_commit_interval: Option<u64>,
-    preserve_insertion_order: Option<bool>,
     target_size: Option<u64>,
     zorder_columns: Vec<String>,
     optimize_type: u32,
@@ -1509,9 +1505,6 @@ async fn optimize(
     }
     if let Some(interval_ticks) = min_commit_interval {
         cmd = cmd.with_min_commit_interval(std::time::Duration::from_nanos(interval_ticks * 100)); // .NET ticks are 100ns units
-    }
-    if let Some(preserve) = preserve_insertion_order {
-        cmd = cmd.with_preserve_insertion_order(preserve);
     }
     if let Some(target) = target_size {
         let target = NonZeroU64::try_from(target)

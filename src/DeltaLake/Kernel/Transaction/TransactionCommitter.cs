@@ -65,7 +65,7 @@ namespace DeltaLake.Kernel.Transaction
             {
                 Methods.set_data_change(txnPtr, true);
 
-                if (appId != null)
+                if (appId != null && txnVersion != null)
                 {
                     byte[] appIdBytes = Encoding.UTF8.GetBytes(appId);
                     fixed (byte* appIdPtr = appIdBytes)
