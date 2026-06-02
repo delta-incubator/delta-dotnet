@@ -123,6 +123,23 @@ namespace DeltaLake.Table
         ) => await this.table.ReadAsArrowTableAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>
+        public async IAsyncEnumerable<RecordBatch> QueryTableChangesAsync(
+            TableChangesOptions options,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            foreach (RecordBatch batch in this.table.QueryTableChanges(options))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return batch;
+            }
+        }
+
+        /// <inheritdoc/>
         public async Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
             await this.table.ReadAsDataFrameAsync(cancellationToken).ConfigureAwait(false);
 
