@@ -44,7 +44,6 @@ namespace DeltaLake.Kernel.Core
         /// <summary>
         /// Behavioral flags.
         /// </summary>
-        private bool isKernelSupported;
         private readonly bool isKernelAllocated;
 
         /// <summary>
@@ -128,9 +127,16 @@ namespace DeltaLake.Kernel.Core
             : base(bridgeRuntime, rawBridgetablePtr)
         {
             this.tableStorageOptions = tableStorageOptions;
-            this.isKernelSupported = useKernel && tableStorageOptions.IsKernelSupported();
 
-            if (this.isKernelSupported)
+            // The kernel engine is built only when the URL scheme is kernel-readable
+            // (excludes memory:// — see TableStorageOptionsExtensions.IsKernelSupported)
+            // and the caller has not opted out. When false, kernel-only operations
+            // (CheckpointAsync, ReadAsArrowTableAsync, ReadAsDataFrameAsync,
+            // CommitAddActionsAsync, GetLatestTransactionVersionAsync, LoadVersionAsync,
+            // LoadTimestampAsync) throw on invocation.
+            bool shouldBuildKernel = useKernel && tableStorageOptions.IsKernelSupported();
+
+            if (shouldBuildKernel)
             {
                 // Kernel String Slice is used to communicate the table location.
                 //
@@ -178,6 +184,14 @@ namespace DeltaLake.Kernel.Core
 
                     index++;
                 }
+
+                // Required by Snapshot::checkpoint to avoid deadlocks on the default
+                // single-threaded TokioBackgroundExecutor (kernel FFI test note at
+                // ffi/src/lib.rs:1608). Bounded at 2 workers (matches the kernel's own
+                // checkpoint smoke test) because TokioMultiThreadExecutor::new_owned_runtime
+                // creates one runtime per engine and the kernel FFI exposes no API to share
+                // runtimes across tables; the default num_cpus::get() would multiply per-table.
+                Methods.set_builder_with_multithreaded_executor(this.kernelOwnedEngineBuilderPtr, 2, 0);
 
                 this.sharedExternEngine = Methods.builder_build(this.kernelOwnedEngineBuilderPtr);
                 if (this.sharedExternEngine.tag != ExternResultHandleSharedExternEngine_Tag.OkHandleSharedExternEngine)
@@ -239,7 +253,7 @@ namespace DeltaLake.Kernel.Core
 
         internal override long? Version()
         {
-            if (this.isKernelAllocated && this.isKernelSupported)
+            if (this.isKernelAllocated)
             {
                 unsafe
                 {
@@ -251,7 +265,7 @@ namespace DeltaLake.Kernel.Core
 
         internal override string Uri()
         {
-            if (this.isKernelAllocated && this.isKernelSupported)
+            if (this.isKernelAllocated)
             {
                 unsafe
                 {
@@ -274,25 +288,52 @@ namespace DeltaLake.Kernel.Core
         }
 
         /// <remarks>
-        /// Kernel does not support "loading". The moment the user invokes
-        /// this, we run into a state inconsistency, because further calls to "Version()" via Kernel
-        /// will return the latest version, as opposed to the version the user loaded.
-        ///
-        /// So - we un-support Kernel and invoke "delta-rs" going forward.
+        /// Throws <see cref="NotSupportedException"/> on memory:// tables (the kernel engine
+        /// cannot see bridge writes — each runtime instantiates its own in-memory
+        /// ObjectStore). On file:// tables, delegates to the bridge
+        /// to pin its <c>RawDeltaTable</c> at the requested version, then mirrors that pin
+        /// on the kernel snapshot via <see cref="ISafeState.PinSnapshotTo(long)"/> so
+        /// subsequent kernel-only operations (notably <see cref="CheckpointAsync"/>) honor
+        /// the loaded version rather than the latest log version.
         /// </remarks>
         internal override async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
-            this.isKernelSupported = false;
+            if (!this.tableStorageOptions.IsKernelSupported())
+            {
+                throw new NotSupportedException(
+                    "LoadVersionAsync is not supported for memory:// tables. " +
+                    "Use a file:// URI with a temp directory for in-process scenarios.");
+            }
             await base.LoadVersionAsync(version, cancellationToken).ConfigureAwait(false);
+            if (this.isKernelAllocated)
+            {
+                this.state.PinSnapshotTo((long)version);
+            }
         }
 
         /// <remarks>
-        /// <see cref="LoadVersionAsync"/> remarks.
+        /// Throws <see cref="NotSupportedException"/> on memory:// tables. On file:// tables,
+        /// the bridge resolves the timestamp to a concrete version; the kernel snapshot is
+        /// then pinned to that resolved version via <see cref="ISafeState.PinSnapshotTo(long)"/>.
+        /// This avoids needing a separate timestamp-pin FFI surface.
         /// </remarks>
         internal override async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
         {
-            this.isKernelSupported = false;
+            if (!this.tableStorageOptions.IsKernelSupported())
+            {
+                throw new NotSupportedException(
+                    "LoadTimestampAsync is not supported for memory:// tables. " +
+                    "Use a file:// URI with a temp directory for in-process scenarios.");
+            }
             await base.LoadTimestampAsync(timestampMilliseconds, cancellationToken).ConfigureAwait(false);
+            if (this.isKernelAllocated)
+            {
+                long? resolved = base.Version();
+                if (resolved is long v)
+                {
+                    this.state.PinSnapshotTo(v);
+                }
+            }
         }
 
         /// <remarks>
@@ -304,7 +345,7 @@ namespace DeltaLake.Kernel.Core
         internal override DeltaLake.Table.TableMetadata Metadata()
         {
             DeltaLake.Table.TableMetadata metadata = base.Metadata();
-            if (this.isKernelAllocated && this.isKernelSupported)
+            if (this.isKernelAllocated)
             {
                 unsafe
                 {
@@ -383,6 +424,64 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Writes a checkpoint of the current snapshot via the Delta Kernel FFI.
+        /// </summary>
+        /// <remarks>
+        /// Kernel-only path; bridge <c>table_checkpoint</c> has been removed. The kernel
+        /// automatically chooses V1 or V2 single-file checkpoint format based on the table's
+        /// protocol features; sidecar checkpoints are not produced through this entry point.
+        ///
+        /// <para>Throws <see cref="NotSupportedException"/> when the kernel engine is
+        /// unavailable for this table. This happens on memory:// tables (the kernel engine
+        /// cannot see bridge writes — each runtime instantiates its own in-memory
+        /// ObjectStore) and when the table was opened with
+        /// <c>TableOptions.Version</c> set (kernel engine was not built at construction).
+        /// Use a file:// URI without <c>TableOptions.Version</c> for in-process scenarios;
+        /// version pinning after open is available via <see cref="LoadVersionAsync"/>.</para>
+        ///
+        /// <para>After <see cref="LoadVersionAsync"/> or <see cref="LoadTimestampAsync"/>,
+        /// <see cref="ISafeState.PinSnapshotTo(long)"/> ensures the snapshot used here matches
+        /// the loaded version rather than the latest log version.</para>
+        /// </remarks>
+        /// <param name="cancellationToken">Cancellation token (honored at task boundaries, not mid-FFI).</param>
+        internal async Task CheckpointAsync(ICancellationToken cancellationToken)
+        {
+            if (!this.isKernelAllocated)
+            {
+                throw new NotSupportedException(
+                    "CheckpointAsync requires a kernel-readable table. " +
+                    "memory:// tables and tables opened with TableOptions.Version are not supported. " +
+                    "Use a file:// URI with a temp directory for in-process scenarios.");
+            }
+
+            await SyncToAsyncShim
+                .ExecuteAsync(
+                    () =>
+                    {
+                        unsafe
+                        {
+                            ExternResultbool result = Methods.checkpoint_snapshot(
+                                this.state.Snapshot(refresh: true),
+                                this.kernelOwnedSharedExternEnginePtr);
+
+                            if (result.tag != ExternResultbool_Tag.Okbool)
+                            {
+                                throw KernelException.FromEngineError(
+                                    result.Anonymous.Anonymous2.err,
+                                    "Failed to checkpoint snapshot via kernel FFI");
+                            }
+
+                            // result.Anonymous.Anonymous1.ok is true for both Written and
+                            // AlreadyExists per ffi/src/lib.rs:919-921. Both are non-error.
+                            return result.Anonymous.Anonymous1.ok;
+                        }
+                    },
+                    cancellationToken
+                )
+                .ConfigureAwait(false);
+        }
+
         #endregion Delta Kernel table operations
 
         #region SafeHandle implementation
@@ -440,10 +539,11 @@ namespace DeltaLake.Kernel.Core
 
         private void ThrowIfKernelNotSupported()
         {
-            if (!this.isKernelAllocated || !this.isKernelSupported)
+            if (!this.isKernelAllocated)
             {
                 // There's currently no direct equivalent to this in delta-rs,
-                // so we throw if the Kernel is not being used.
+                // so we throw if the Kernel is not being used (memory:// tables
+                // or tables opened with TableOptions.Version).
                 //
                 throw new InvalidOperationException("This operation is not supported without using the Delta Kernel.");
             }

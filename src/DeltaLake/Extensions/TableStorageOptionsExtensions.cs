@@ -9,6 +9,7 @@
 // </copyright>
 // -----------------------------------------------------------------------------
 
+using System;
 using DeltaLake.Table;
 
 namespace DeltaLake.Extensions
@@ -19,16 +20,25 @@ namespace DeltaLake.Extensions
     public static class TableStorageOptionsExtensions
     {
         /// <summary>
-        /// Returns a value indicating whether the kernel supports the table storage options.
+        /// Returns a value indicating whether the kernel engine can read the table at
+        /// this storage location.
         /// </summary>
         /// <param name="options">The table storage options.</param>
-        /// <returns><c>true</c> if the kernel supports the table storage options; otherwise, <c>false</c>.</returns>
+        /// <returns><c>true</c> if the kernel engine can be used; otherwise, <c>false</c>.</returns>
         public static bool IsKernelSupported(this TableStorageOptions options)
         {
-            // Kernel does not recognize memory locations
-            //
-            if (options.TableLocation.StartsWith("memory://")) return false;
-
+            // The bridge (delta-rs) and the kernel (delta-kernel-rs) each materialize their
+            // own ObjectStore instance per URL. For memory://, those are two separate
+            // object_store::memory::InMemory stores with disjoint backing — the kernel
+            // engine cannot see data written through the bridge. Returning false here keeps
+            // the kernel engine inert for memory:// tables; kernel-only operations
+            // (CheckpointAsync, LoadVersionAsync, LoadTimestampAsync, ReadAsArrowTableAsync,
+            // ReadAsDataFrameAsync, CommitAddActionsAsync, GetLatestTransactionVersionAsync)
+            // throw NotSupportedException on memory:// instead.
+            if (options.TableLocation.StartsWith("memory://", StringComparison.Ordinal))
+            {
+                return false;
+            }
             return true;
         }
     }

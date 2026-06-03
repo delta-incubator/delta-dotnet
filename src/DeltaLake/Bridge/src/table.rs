@@ -1333,34 +1333,6 @@ pub extern "C" fn table_schema(
 }
 
 #[no_mangle]
-pub extern "C" fn table_checkpoint(
-    mut runtime: NonNull<Runtime>,
-    mut table: NonNull<RawDeltaTable>,
-    cancellation_token: Option<&CancellationToken>,
-    callback: TableEmptyCallback,
-) {
-    run_async_with_cancellation!(
-        runtime,
-        table,
-        cancellation_token,
-        rt,
-        tbl,
-        {
-            match deltalake::checkpoints::create_checkpoint(&tbl.table, None).await {
-                Ok(_) => unsafe {
-                    callback(std::ptr::null());
-                },
-                Err(err) => {
-                    let error = DeltaTableError::from_error(rt, err);
-                    unsafe { callback(error.into_raw()) }
-                }
-            };
-        },
-        { callback(std::ptr::null()) }
-    );
-}
-
-#[no_mangle]
 pub extern "C" fn table_optimize(
     mut runtime: NonNull<Runtime>,
     mut table: NonNull<RawDeltaTable>,

@@ -19,14 +19,19 @@ namespace DeltaLake.Extensions
     public static class TableOptionsExtensions
     {
         /// <summary>
-        /// Returns a value indicating whether the kernel supports the table options.
+        /// Returns a value indicating whether the kernel engine can read the table given
+        /// these load-time options.
         /// </summary>
         /// <param name="options">The table options.</param>
-        /// <returns><c>true</c> if the kernel supports the table options; otherwise, <c>false</c>.</returns>
+        /// <returns><c>true</c> if the kernel engine can be used; otherwise, <c>false</c>.</returns>
         public static bool IsKernelSupported(this TableOptions options)
         {
-            // Kernel does not support working with a custom version
-            //
+            // Kernel does not support opening at a specific historical version at construction.
+            // When TableOptions.Version is set, the kernel engine is not built and kernel-only
+            // operations (CheckpointAsync, ReadAsArrowTableAsync, etc.) will throw. Callers who
+            // need version pinning should open the table without TableOptions.Version and call
+            // LoadVersionAsync afterward, which pins both bridge and kernel state via
+            // ManagedTableState.PinSnapshotTo.
             if (options.Version != default) return false;
 
             return true;
