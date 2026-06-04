@@ -36,33 +36,27 @@ namespace DeltaLake.Kernel.State
         private unsafe PartitionList* partitionList = null;
         private unsafe ArrowContext* arrowContext = null;
 
-        // When set, RefreshSnapshot queries this delegate (typically bound to the
-        // bridge's own Version() method) and materializes the kernel snapshot at that
-        // version so the kernel mirror always tracks the bridge's current table state.
-        // When null, RefreshSnapshot builds against the latest log version.
-        private readonly Func<long?>? bridgeVersionGetter;
+        // Set via PinSnapshotTo to mirror the bridge's pinned table version after
+        // construction-with-Version, LoadVersionAsync, LoadTimestampAsync, or
+        // UpdateIncrementalAsync. When set, RefreshSnapshot builds the kernel snapshot at
+        // this version instead of the latest log version, so kernel-only reads
+        // (notably CheckpointAsync) honor the user's load state. When null, the snapshot
+        // reads the latest log version, which is required for kernel-only commits
+        // (CommitAddActionsAsync) to be visible to subsequent kernel reads.
+        private long? pinnedVersion;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
         /// </summary>
         /// <param name="tableLocationSlice">The table location slice.</param>
         /// <param name="sharedExternEnginePtr">The Shared External Engine Pointer, not managed in this class.</param>
-        /// <param name="bridgeVersionGetter">
-        /// Optional delegate returning the bridge's current table version. When supplied,
-        /// the kernel snapshot mirrors the bridge on every refresh so subsequent bridge
-        /// advances (Load*Async, UpdateIncrementalAsync, Insert / Merge / Update / Delete /
-        /// Optimize / Vacuum / Restore / AddConstraint) are reflected by kernel reads
-        /// without per-method overrides.
-        /// </param>
         public unsafe ManagedTableState(
             KernelStringSlice tableLocationSlice,
-            SharedExternEngine* sharedExternEnginePtr,
-            Func<long?>? bridgeVersionGetter = null
+            SharedExternEngine* sharedExternEnginePtr
         )
         {
             this.tableLocationSlice = tableLocationSlice;
             this.sharedExternEnginePtr = sharedExternEnginePtr;
-            this.bridgeVersionGetter = bridgeVersionGetter;
         }
 
 #pragma warning disable CS1587
@@ -77,6 +71,33 @@ namespace DeltaLake.Kernel.State
         {
             if (refresh || managedPointInTimeSnapshot == null) this.RefreshSnapshot();
             return managedPointInTimeSnapshot;
+        }
+
+        /// <inheritdoc/>
+        public void PinSnapshotTo(long version)
+        {
+            if (this.pinnedVersion == version) return;
+            this.pinnedVersion = version;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        /// <inheritdoc/>
+        public void UnpinSnapshot()
+        {
+            if (this.pinnedVersion is null) return;
+            this.pinnedVersion = null;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        private void InvalidateSnapshotDependentCaches()
+        {
+            // Everything derived from a snapshot must rebuild when the pin changes.
+            this.DisposeArrowContext();
+            this.DisposePartitionList();
+            this.DisposeScan();
+            this.DisposeSchema();
+            this.DisposePhysicalSchema();
+            this.DisposeSnapshot();
         }
 
         /// <inheritdoc/>
@@ -366,15 +387,14 @@ namespace DeltaLake.Kernel.State
                 }
                 MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
-                // Step 2: Apply the bridge's current version (when a getter was supplied) so
-                // the kernel snapshot always mirrors the bridge's table state. This
-                // automatically tracks LoadVersionAsync / LoadTimestampAsync /
-                // UpdateIncrementalAsync / Insert / Merge / Update / Delete / Optimize /
-                // Vacuum / Restore / AddConstraint without per-method overrides.
-                long? mirrorVersion = this.bridgeVersionGetter?.Invoke();
-                if (mirrorVersion is long v)
+                // Step 2: Apply pinned version (if any) so the snapshot mirrors the
+                // bridge's pinned state after construction-with-Version,
+                // LoadVersionAsync, LoadTimestampAsync, or UpdateIncrementalAsync. When
+                // null, build against the latest log version so kernel-only commits
+                // (CommitAddActionsAsync) are visible to subsequent kernel reads.
+                if (this.pinnedVersion is long pinned)
                 {
-                    Methods.snapshot_builder_set_version(&builderPtr, (ulong)v);
+                    Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
                 }
 
                 // Step 3: Build snapshot (latest version, or pinned per Step 2)
