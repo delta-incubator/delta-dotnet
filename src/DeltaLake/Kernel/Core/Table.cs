@@ -99,7 +99,9 @@ namespace DeltaLake.Kernel.Core
         /// Initializes a new instance of the <see cref="Table"/> class.
         /// </summary>
         /// <remarks>
-        /// If the user passes in a version at load time, Kernel cannot be used.
+        /// When the caller supplies <see cref="DeltaLake.Table.TableOptions.Version"/>, the kernel
+        /// snapshot is pinned to that version via <see cref="ManagedTableState.PinSnapshotTo"/> so
+        /// the first snapshot materialization matches the bridge's pinned table version.
         /// </remarks>
         /// <param name="bridgeRuntime">The Delta Bridge runtime.</param>
         /// <param name="rawBridgetablePtr">The pre-allocated delta table pointer.</param>
@@ -109,7 +111,13 @@ namespace DeltaLake.Kernel.Core
             RawDeltaTable* rawBridgetablePtr,
             DeltaLake.Table.TableOptions options
         )
-            : this(bridgeRuntime, rawBridgetablePtr, options, options.IsKernelSupported()) { }
+            : this(bridgeRuntime, rawBridgetablePtr, options, options.IsKernelSupported())
+        {
+            if (this.isKernelAllocated && options.Version is ulong pinVersion)
+            {
+                this.state.PinSnapshotTo((long)pinVersion);
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Table"/> class.

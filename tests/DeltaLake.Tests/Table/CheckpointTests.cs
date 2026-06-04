@@ -123,6 +123,53 @@ namespace DeltaLake.Tests.Table
             }
         }
 
+        [Fact]
+        public async Task File_System_Open_With_Version_Pins_Kernel_To_Loaded_Version()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = $"file://{info.FullName}";
+
+                // Build a table with v0..v8.
+                {
+                    var data = await TableHelpers.SetupTable(path, 0);
+                    using var seed = data.table;
+                    var schema = seed.Schema();
+                    var insert = new InsertOptions { SaveMode = SaveMode.Append };
+                    for (var i = 0; i < 7; i++)
+                    {
+                        await seed.InsertAsync(
+                            [TableHelpers.BuildBasicRecordBatch(1)],
+                            schema,
+                            insert,
+                            CancellationToken.None);
+                    }
+                    Assert.Equal(8UL, seed.Version());
+                }
+
+                // Re-open with TableOptions.Version = 5. With the kernel-only-checkpoint migration
+                // the kernel engine is allocated for file:// even when Version is set, and
+                // ManagedTableState.PinSnapshotTo wires the requested version into the first
+                // snapshot materialization so CheckpointAsync produces a checkpoint at v5.
+                using IEngine engine = new DeltaEngine(EngineOptions.Default);
+                using var pinned = await engine.LoadTableAsync(
+                    new TableOptions { TableLocation = path, Version = 5UL },
+                    CancellationToken.None);
+                Assert.Equal(5UL, pinned.Version());
+
+                await pinned.CheckpointAsync(CancellationToken.None);
+
+                var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                Assert.True(File.Exists(lastCheckpoint));
+                Assert.Equal(5UL, ReadVersion(lastCheckpoint));
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
         private ulong? ReadVersion(string path)
         {
             var reader = new System.Text.Json.Utf8JsonReader(File.ReadAllBytes(path));

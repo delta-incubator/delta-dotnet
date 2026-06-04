@@ -20,11 +20,10 @@ namespace DeltaLake.Extensions
     public static class TableStorageOptionsExtensions
     {
         /// <summary>
-        /// Returns a value indicating whether the kernel engine can read the table at
-        /// this storage location.
+        /// Returns a value indicating whether the kernel supports the table storage options.
         /// </summary>
         /// <param name="options">The table storage options.</param>
-        /// <returns><c>true</c> if the kernel engine can be used; otherwise, <c>false</c>.</returns>
+        /// <returns><c>true</c> if the kernel supports the table storage options; otherwise, <c>false</c>.</returns>
         public static bool IsKernelSupported(this TableStorageOptions options)
         {
             // The bridge (delta-rs) and the kernel (delta-kernel-rs) each materialize their
