@@ -28,26 +28,6 @@ namespace DeltaLake.Kernel.State
         public unsafe SharedSnapshot* Snapshot(bool refresh);
 
         /// <summary>
-        /// Pins the lifetime snapshot to the specified table version. Subsequent calls to
-        /// <see cref="Snapshot(bool)"/> rebuild against this pinned version rather than the
-        /// latest log version. Used to mirror the bridge's pinned state after
-        /// <see cref="DeltaLake.Bridge.Table.LoadVersionAsync"/> /
-        /// <see cref="DeltaLake.Bridge.Table.LoadTimestampAsync"/> so kernel operations
-        /// (notably <see cref="DeltaLake.Kernel.Core.Table.CheckpointAsync"/>) honor the
-        /// user-requested version. Invalidates dependent caches (scan, schema, partitions,
-        /// arrow context) so they rebuild against the pinned snapshot on next access.
-        /// </summary>
-        /// <param name="version">The table version to pin the snapshot to.</param>
-        public void PinSnapshotTo(long version);
-
-        /// <summary>
-        /// Removes any pin previously set by <see cref="PinSnapshotTo(long)"/>. Subsequent
-        /// calls to <see cref="Snapshot(bool)"/> revert to building against the latest log
-        /// version. Invalidates dependent caches.
-        /// </summary>
-        public void UnpinSnapshot();
-
-        /// <summary>
         /// Gets the managed point in time scan.
         /// </summary>
         /// <param name="refresh">Whether to refresh.</param>

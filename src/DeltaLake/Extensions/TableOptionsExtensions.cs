@@ -25,8 +25,8 @@ namespace DeltaLake.Extensions
         /// <returns><c>true</c> if the kernel supports the table options; otherwise, <c>false</c>.</returns>
         public static bool IsKernelSupported(this TableOptions options)
         {
-            // Version pinning is honored at construction via ManagedTableState.PinSnapshotTo,
-            // so TableOptions.Version no longer disqualifies the kernel engine.
+            // The kernel snapshot mirrors the bridge's current table version automatically,
+            // so setting TableOptions.Version no longer disqualifies the kernel engine.
             //
             return true;
         }

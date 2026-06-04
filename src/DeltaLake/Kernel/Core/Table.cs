@@ -99,9 +99,12 @@ namespace DeltaLake.Kernel.Core
         /// Initializes a new instance of the <see cref="Table"/> class.
         /// </summary>
         /// <remarks>
-        /// When the caller supplies <see cref="DeltaLake.Table.TableOptions.Version"/>, the kernel
-        /// snapshot is pinned to that version via <see cref="ManagedTableState.PinSnapshotTo"/> so
-        /// the first snapshot materialization matches the bridge's pinned table version.
+        /// The kernel snapshot mirrors the bridge's current table version on every
+        /// refresh via the bridge-version getter passed to <see cref="ManagedTableState"/>,
+        /// so opening with <see cref="DeltaLake.Table.TableOptions.Version"/> set materializes
+        /// the kernel snapshot at that version and subsequent bridge advances
+        /// (LoadVersionAsync, LoadTimestampAsync, UpdateIncrementalAsync, writes) are reflected
+        /// without per-method overrides.
         /// </remarks>
         /// <param name="bridgeRuntime">The Delta Bridge runtime.</param>
         /// <param name="rawBridgetablePtr">The pre-allocated delta table pointer.</param>
@@ -111,13 +114,7 @@ namespace DeltaLake.Kernel.Core
             RawDeltaTable* rawBridgetablePtr,
             DeltaLake.Table.TableOptions options
         )
-            : this(bridgeRuntime, rawBridgetablePtr, options, options.IsKernelSupported())
-        {
-            if (this.isKernelAllocated && options.Version is ulong pinVersion)
-            {
-                this.state.PinSnapshotTo((long)pinVersion);
-            }
-        }
+            : this(bridgeRuntime, rawBridgetablePtr, options, options.IsKernelSupported()) { }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="Table"/> class.
@@ -207,7 +204,12 @@ namespace DeltaLake.Kernel.Core
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
                 this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
-                this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
+                // base.Version returns the bridge's current table version. Passing it as the
+                // mirror getter makes every kernel snapshot refresh align with the bridge
+                // automatically, so LoadVersionAsync / LoadTimestampAsync / UpdateIncrementalAsync
+                // / Insert / Merge / Update / Delete / Optimize / Vacuum / Restore /
+                // AddConstraint all take effect on the kernel side without per-method overrides.
+                this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr, base.Version);
                 this.isKernelAllocated = true;
 
                 // Pre-export the static add-files Arrow schema for reuse across commits.
@@ -298,11 +300,10 @@ namespace DeltaLake.Kernel.Core
         /// <remarks>
         /// Throws <see cref="NotSupportedException"/> on memory:// tables (the kernel engine
         /// cannot see bridge writes — each runtime instantiates its own in-memory
-        /// ObjectStore). On file:// tables, delegates to the bridge
-        /// to pin its <c>RawDeltaTable</c> at the requested version, then mirrors that pin
-        /// on the kernel snapshot via <see cref="ISafeState.PinSnapshotTo(long)"/> so
-        /// subsequent kernel-only operations (notably <see cref="CheckpointAsync"/>) honor
-        /// the loaded version rather than the latest log version.
+        /// ObjectStore). On file:// tables, delegates to the bridge to pin its
+        /// <c>RawDeltaTable</c> at the requested version; the next kernel snapshot refresh
+        /// mirrors the new bridge version automatically via the bridge-version getter passed
+        /// to <see cref="ManagedTableState"/>.
         /// </remarks>
         internal override async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
@@ -313,17 +314,13 @@ namespace DeltaLake.Kernel.Core
                     "Use a file:// URI with a temp directory for in-process scenarios.");
             }
             await base.LoadVersionAsync(version, cancellationToken).ConfigureAwait(false);
-            if (this.isKernelAllocated)
-            {
-                this.state.PinSnapshotTo((long)version);
-            }
         }
 
         /// <remarks>
         /// Throws <see cref="NotSupportedException"/> on memory:// tables. On file:// tables,
-        /// the bridge resolves the timestamp to a concrete version; the kernel snapshot is
-        /// then pinned to that resolved version via <see cref="ISafeState.PinSnapshotTo(long)"/>.
-        /// This avoids needing a separate timestamp-pin FFI surface.
+        /// the bridge resolves the timestamp to a concrete version; the next kernel snapshot
+        /// refresh mirrors the new bridge version automatically via the bridge-version getter
+        /// passed to <see cref="ManagedTableState"/>.
         /// </remarks>
         internal override async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
         {
@@ -334,14 +331,6 @@ namespace DeltaLake.Kernel.Core
                     "Use a file:// URI with a temp directory for in-process scenarios.");
             }
             await base.LoadTimestampAsync(timestampMilliseconds, cancellationToken).ConfigureAwait(false);
-            if (this.isKernelAllocated)
-            {
-                long? resolved = base.Version();
-                if (resolved is long v)
-                {
-                    this.state.PinSnapshotTo(v);
-                }
-            }
         }
 
         /// <remarks>
@@ -440,17 +429,16 @@ namespace DeltaLake.Kernel.Core
         /// automatically chooses V1 or V2 single-file checkpoint format based on the table's
         /// protocol features; sidecar checkpoints are not produced through this entry point.
         ///
-        /// <para>Throws <see cref="NotSupportedException"/> when the kernel engine is
-        /// unavailable for this table. This happens on memory:// tables (the kernel engine
-        /// cannot see bridge writes — each runtime instantiates its own in-memory
-        /// ObjectStore) and when the table was opened with
-        /// <c>TableOptions.Version</c> set (kernel engine was not built at construction).
-        /// Use a file:// URI without <c>TableOptions.Version</c> for in-process scenarios;
-        /// version pinning after open is available via <see cref="LoadVersionAsync"/>.</para>
+        /// <para>Throws <see cref="NotSupportedException"/> on memory:// tables (the kernel
+        /// engine cannot see bridge writes — each runtime instantiates its own in-memory
+        /// ObjectStore). Use a file:// URI for in-process scenarios.</para>
         ///
-        /// <para>After <see cref="LoadVersionAsync"/> or <see cref="LoadTimestampAsync"/>,
-        /// <see cref="ISafeState.PinSnapshotTo(long)"/> ensures the snapshot used here matches
-        /// the loaded version rather than the latest log version.</para>
+        /// <para>The checkpoint is always produced at the bridge's current table version,
+        /// which the kernel snapshot mirrors automatically via the bridge-version getter
+        /// passed to <see cref="ManagedTableState"/>. Calling <see cref="LoadVersionAsync"/>
+        /// or <see cref="LoadTimestampAsync"/> before this method produces a checkpoint at
+        /// the loaded version; opening with <c>TableOptions.Version</c> set does the same
+        /// without a separate Load call.</para>
         /// </remarks>
         /// <param name="cancellationToken">Cancellation token (honored at task boundaries, not mid-FFI).</param>
         internal async Task CheckpointAsync(ICancellationToken cancellationToken)
