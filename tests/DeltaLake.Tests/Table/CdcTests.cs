@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
@@ -21,36 +24,14 @@ public class CdcTests
     [Fact]
     public async Task ReadTableChanges_ExistingFixture_ReturnsRecordBatches()
     {
-        using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using ITable table = await engine.LoadTableAsync(
-            new TableOptions { TableLocation = TableIdentifier.SimpleTableWithCdc.TablePath() },
-            CancellationToken.None);
-
-        var batches = new List<RecordBatch>();
-        await foreach (RecordBatch batch in table.QueryTableChangesAsync(
-            new TableChangesOptions { StartVersion = 0 }, CancellationToken.None))
-        {
-            batches.Add(batch);
-        }
-
+        IReadOnlyList<RecordBatch> batches = await LoadFixtureBatchesAsync();
         Assert.NotEmpty(batches);
     }
 
     [Fact]
     public async Task ReadTableChanges_ExistingFixture_SchemaContainsSystemColumns()
     {
-        using IEngine engine = new DeltaEngine(EngineOptions.Default);
-        using ITable table = await engine.LoadTableAsync(
-            new TableOptions { TableLocation = TableIdentifier.SimpleTableWithCdc.TablePath() },
-            CancellationToken.None);
-
-        var batches = new List<RecordBatch>();
-        await foreach (RecordBatch batch in table.QueryTableChangesAsync(
-            new TableChangesOptions { StartVersion = 0 }, CancellationToken.None))
-        {
-            batches.Add(batch);
-        }
-
+        IReadOnlyList<RecordBatch> batches = await LoadFixtureBatchesAsync();
         Assert.NotEmpty(batches);
         Schema schema = batches[0].Schema;
         Assert.NotNull(schema.GetFieldByName(ChangeTypeColumn));
@@ -86,7 +67,7 @@ public class CdcTests
             // Read only v1 changes
             var batches = new List<RecordBatch>();
             await foreach (RecordBatch batch in table.QueryTableChangesAsync(
-                new TableChangesOptions { StartVersion = 1, EndVersion = 1 }, CancellationToken.None))
+                new TableChangesOptions(startVersion: 1) { EndVersion = 1 }, CancellationToken.None))
             {
                 batches.Add(batch);
             }
@@ -96,10 +77,10 @@ public class CdcTests
             // Every row in every batch must come from commit version 1
             foreach (RecordBatch batch in batches)
             {
-                Int64Array versionCol = (Int64Array)batch.Column(CommitVersionColumn);
+                IArrowArray versionCol = batch.Column(CommitVersionColumn);
                 for (int i = 0; i < versionCol.Length; i++)
                 {
-                    Assert.Equal(1L, versionCol.GetValue(i));
+                    Assert.Equal(1L, GetInt64Value(versionCol, i));
                 }
             }
         }
@@ -110,7 +91,7 @@ public class CdcTests
     }
 
     // -----------------------------------------------------------------------
-    // Data integrity: inserted rows appear in CDC output
+    // Data integrity: inserted rows appear in CDC output with correct type
     // -----------------------------------------------------------------------
 
     [Fact]
@@ -130,8 +111,15 @@ public class CdcTests
 
             int cdcRowCount = 0;
             await foreach (RecordBatch batch in table.QueryTableChangesAsync(
-                new TableChangesOptions { StartVersion = 1 }, CancellationToken.None))
+                new TableChangesOptions(startVersion: 1), CancellationToken.None))
             {
+                // All rows from an INSERT commit must have _change_type == "insert"
+                var changeTypeCol = (StringArray)batch.Column(ChangeTypeColumn);
+                for (int i = 0; i < changeTypeCol.Length; i++)
+                {
+                    Assert.Equal("insert", changeTypeCol.GetString(i));
+                }
+
                 cdcRowCount += batch.Length;
             }
 
@@ -144,6 +132,86 @@ public class CdcTests
     }
 
     // -----------------------------------------------------------------------
+    // Empty range: CREATE TABLE commit (v0) produces no row-level CDC records
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task ReadTableChanges_EmptyVersionRange_ReturnsNoBatches()
+    {
+        var tempDir = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            using IEngine engine = new DeltaEngine(EngineOptions.Default);
+            using ITable table = await CreateCdfTableAsync(engine, tempDir.FullName);
+
+            // v0 is the CREATE TABLE commit — no row data, so CDC should yield nothing.
+            int batchCount = 0;
+            await foreach (RecordBatch _ in table.QueryTableChangesAsync(
+                new TableChangesOptions(startVersion: 0) { EndVersion = 0 }, CancellationToken.None))
+            {
+                batchCount++;
+            }
+
+            Assert.Equal(0, batchCount);
+        }
+        finally
+        {
+            tempDir.Delete(true);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Out-of-range start version: must surface an error, not crash
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task ReadTableChanges_StartVersionBeyondTable_ThrowsOrReturnsEmpty()
+    {
+        // The kernel's behavior for a start version beyond the table's current
+        // version is implementation-defined, but it must not crash the process.
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using ITable table = await engine.LoadTableAsync(
+            new TableOptions { TableLocation = TableIdentifier.SimpleTableWithCdc.TablePath() },
+            CancellationToken.None);
+
+        Exception? ex = await Record.ExceptionAsync(async () =>
+        {
+            await foreach (RecordBatch _ in table.QueryTableChangesAsync(
+                new TableChangesOptions(startVersion: 9999), CancellationToken.None))
+            { }
+        });
+
+        Assert.True(
+            ex is null || ex is KernelException,
+            $"Expected null or KernelException but got {ex?.GetType().Name}: {ex?.Message}");
+    }
+
+    // -----------------------------------------------------------------------
+    // Cancellation: token cancels enumeration
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public async Task ReadTableChanges_Cancelled_ThrowsOperationCanceledException()
+    {
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using ITable table = await engine.LoadTableAsync(
+            new TableOptions { TableLocation = TableIdentifier.SimpleTableWithCdc.TablePath() },
+            CancellationToken.None);
+
+        using var cts = new CancellationTokenSource();
+#pragma warning disable VSTHRD103 // CancelAsync not available on net472
+        cts.Cancel();
+#pragma warning restore VSTHRD103
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () =>
+        {
+            await foreach (RecordBatch _ in table.QueryTableChangesAsync(
+                new TableChangesOptions(startVersion: 0), cts.Token))
+            { }
+        });
+    }
+
+    // -----------------------------------------------------------------------
     // CDF disabled: kernel error code 37
     // -----------------------------------------------------------------------
 
@@ -153,6 +221,8 @@ public class CdcTests
         var tempDir = DirectoryHelpers.CreateTempSubdirectory();
         try
         {
+            // Table created without delta.enableChangeDataFeed — kernel returns
+            // KernelError.ChangeDataFeedUnsupported (code 37).
             var (engine, table) = await TableHelpers.SetupTable(tempDir.FullName, length: 3);
             using var _ = engine;
             using var __ = table;
@@ -160,10 +230,8 @@ public class CdcTests
             var ex = await Assert.ThrowsAsync<KernelException>(async () =>
             {
                 await foreach (RecordBatch _ in table.QueryTableChangesAsync(
-                    new TableChangesOptions { StartVersion = 0 }, CancellationToken.None))
-                {
-                    // should not reach here
-                }
+                    new TableChangesOptions(startVersion: 0), CancellationToken.None))
+                { }
             });
 
             Assert.Equal(KernelError.ChangeDataFeedUnsupported, ex.ErrorCode);
@@ -188,12 +256,9 @@ public class CdcTests
             using var _ = engine;
             using var __ = table;
 
-            await Assert.ThrowsAsync<ArgumentNullException>(async () =>
-            {
-                await foreach (RecordBatch _ in table.QueryTableChangesAsync(
-                    null!, CancellationToken.None))
-                { }
-            });
+            // The null check fires at the call site (not deferred to first MoveNextAsync).
+            Assert.Throws<ArgumentNullException>(() =>
+                table.QueryTableChangesAsync(null!, CancellationToken.None));
         }
         finally
         {
@@ -204,6 +269,23 @@ public class CdcTests
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    private static async Task<IReadOnlyList<RecordBatch>> LoadFixtureBatchesAsync()
+    {
+        using IEngine engine = new DeltaEngine(EngineOptions.Default);
+        using ITable table = await engine.LoadTableAsync(
+            new TableOptions { TableLocation = TableIdentifier.SimpleTableWithCdc.TablePath() },
+            CancellationToken.None);
+
+        var batches = new List<RecordBatch>();
+        await foreach (RecordBatch batch in table.QueryTableChangesAsync(
+            new TableChangesOptions(startVersion: 0), CancellationToken.None))
+        {
+            batches.Add(batch);
+        }
+
+        return batches;
+    }
 
     private static async Task<ITable> CreateCdfTableAsync(IEngine engine, string location)
     {
@@ -232,4 +314,15 @@ public class CdcTests
                 Enumerable.Range(startId, count).Select(i => $"name_{i}"))))
             .Build();
     }
+
+    /// <summary>
+    /// Reads a long value from a column that may be physically Int32 or Int64,
+    /// guarding against Arrow physical-type assumptions.
+    /// </summary>
+    private static long GetInt64Value(IArrowArray array, int index) => array switch
+    {
+        Int64Array a => a.GetValue(index) ?? throw new System.InvalidOperationException($"Null at index {index}"),
+        Int32Array a => a.GetValue(index) ?? throw new System.InvalidOperationException($"Null at index {index}"),
+        _ => throw new System.InvalidCastException($"Unexpected column type for {CommitVersionColumn}: {array.GetType().Name}"),
+    };
 }

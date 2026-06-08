@@ -471,6 +471,7 @@ namespace DeltaLake.Kernel.Core
                 // CRITICAL: table_changes_scan CONSUMES this pointer on both success and failure.
                 ExclusiveTableChanges* tableChangesPtr = changesResult.Anonymous.Anonymous1.ok;
 
+                // TODO: expose predicate push-down via TableChangesOptions once EnginePredicate* is surfaced.
                 ExternResultHandleSharedTableChangesScan scanResult =
                     Methods.table_changes_scan(tableChangesPtr, this.kernelOwnedSharedExternEnginePtr, predicate: null);
                 tableChangesPtr = null;  // now invalid regardless of outcome
@@ -546,16 +547,22 @@ namespace DeltaLake.Kernel.Core
                 }
 
                 // Import via Arrow C Data Interface — ownership of the underlying buffers
-                // transfers to the managed RecordBatch. free_arrow_ffi_data then releases
-                // only the ArrowFFIData* wrapper struct allocated by Rust.
-                Apache.Arrow.Schema schema =
-                    Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(
-                        (Apache.Arrow.C.CArrowSchema*)&arrowDataPtr->schema);
-                Apache.Arrow.RecordBatch batch =
-                    Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(
+                // transfers to the managed RecordBatch. free_arrow_ffi_data is called in
+                // the finally block to release only the ArrowFFIData* wrapper struct allocated
+                // by Rust; the Arrow buffer release callbacks are zeroed on successful import
+                // so free_arrow_ffi_data becomes a cheap no-op for the buffer bytes.
+                try
+                {
+                    Apache.Arrow.Schema schema =
+                        Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(
+                            (Apache.Arrow.C.CArrowSchema*)&arrowDataPtr->schema);
+                    return Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(
                         (Apache.Arrow.C.CArrowArray*)&arrowDataPtr->array, schema);
-                Methods.free_arrow_ffi_data(arrowDataPtr);
-                return batch;
+                }
+                finally
+                {
+                    Methods.free_arrow_ffi_data(arrowDataPtr);
+                }
             }
 
             public void Dispose()

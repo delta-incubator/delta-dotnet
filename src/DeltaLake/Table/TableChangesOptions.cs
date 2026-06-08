@@ -22,15 +22,45 @@ namespace DeltaLake.Table
     public record TableChangesOptions
     {
         /// <summary>
+        /// Initializes a new instance of <see cref="TableChangesOptions"/>.
+        /// </summary>
+        /// <param name="startVersion">The first commit version to include (inclusive).</param>
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when <see cref="EndVersion"/> is set and is less than <paramref name="startVersion"/>.
+        /// </exception>
+        public TableChangesOptions(ulong startVersion)
+        {
+            StartVersion = startVersion;
+        }
+
+        /// <summary>
         /// The first version to include in the change feed (inclusive).
         /// </summary>
         public ulong StartVersion { get; init; }
+
+        private ulong? endVersion;
 
         /// <summary>
         /// The last version to include in the change feed (inclusive).
         /// When <see langword="null"/>, reads from <see cref="StartVersion"/> to the
         /// latest available version.
         /// </summary>
-        public ulong? EndVersion { get; init; }
+        /// <exception cref="System.ArgumentOutOfRangeException">
+        /// Thrown when the value is less than <see cref="StartVersion"/>.
+        /// </exception>
+        public ulong? EndVersion
+        {
+            get => endVersion;
+            init
+            {
+                if (value.HasValue && value.Value < StartVersion)
+                {
+                    throw new System.ArgumentOutOfRangeException(
+                        nameof(EndVersion),
+                        $"EndVersion ({value.Value}) must be greater than or equal to StartVersion ({StartVersion}).");
+                }
+                endVersion = value;
+            }
+        }
     }
 }
