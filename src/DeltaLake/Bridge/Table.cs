@@ -734,38 +734,6 @@ namespace DeltaLake.Bridge
             }
         }
 
-        internal virtual async Task CheckpointAsync(ICancellationToken cancellationToken)
-        {
-            var tsc = new TaskCompletionSource<bool>();
-            using (var scope = new Scope())
-            {
-                unsafe
-                {
-                    Methods.table_checkpoint(
-                        _runtime.Ptr,
-                        _ptr,
-                        null,
-                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
-                        {
-                            if (cancellationToken.IsCancellationRequested)
-                            {
-                                tsc.TrySetCanceled(cancellationToken);
-                            }
-                            else if (fail != null)
-                            {
-                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
-                            }
-                            else
-                            {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
-                            }
-                        }));
-                }
-
-                await tsc.Task.ConfigureAwait(false);
-            }
-        }
-
         #endregion Delta Rust table operations
 
         #region SafeHandle implementation

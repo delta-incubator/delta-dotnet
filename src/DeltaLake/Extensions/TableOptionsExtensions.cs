@@ -25,10 +25,10 @@ namespace DeltaLake.Extensions
         /// <returns><c>true</c> if the kernel supports the table options; otherwise, <c>false</c>.</returns>
         public static bool IsKernelSupported(this TableOptions options)
         {
-            // Kernel does not support working with a custom version
+            // Version pinning is honored at construction by mirroring options.Version onto
+            // the kernel snapshot via PinSnapshotTo, so TableOptions.Version no longer
+            // disqualifies the kernel engine.
             //
-            if (options.Version != default) return false;
-
             return true;
         }
     }

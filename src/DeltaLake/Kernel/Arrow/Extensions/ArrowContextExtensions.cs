@@ -37,7 +37,12 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         internal static unsafe Apache.Arrow.Table ToTable(this DeltaArrowContext context)
         {
             (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
-            return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
+            List<RecordBatch> sanitized = new(recordBatches.Count);
+            foreach (RecordBatch batch in recordBatches)
+            {
+                sanitized.Add(SanitizeNullValueBuffers(batch));
+            }
+            return Apache.Arrow.Table.TableFromRecordBatches(schema, sanitized);
         }
 
         /// <summary>
@@ -64,23 +69,49 @@ namespace DeltaLake.Kernel.Arrow.Extensions
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
-
-                if (concatenatedColumn is StringArray stringArray)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(stringArray);
-                }
-                else if (concatenatedColumn is PrimitiveArray<int> int32Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int32Array, sizeof(int));
-                }
-                else if (concatenatedColumn is PrimitiveArray<long> int64Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int64Array, sizeof(long));
-                }
-
+                concatenatedColumn = SanitizeColumnIfNeeded(concatenatedColumn);
                 concatenatedColumns.Add(concatenatedColumn);
             }
             return new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+        }
+
+        /// <summary>
+        /// Returns a new <see cref="RecordBatch"/> whose StringArray and primitive
+        /// columns are guaranteed to have non-null managed backing references for their
+        /// value buffers. See <see cref="EnsureNonNullValueBuffer(StringArray)"/> for the
+        /// underlying Apache.Arrow 23 + Microsoft.Data.Analysis 0.21.1 interop bug this
+        /// addresses on macOS ARM64.
+        /// </summary>
+        private static RecordBatch SanitizeNullValueBuffers(RecordBatch source)
+        {
+            List<IArrowArray> sanitizedColumns = new(source.ColumnCount);
+            for (int i = 0; i < source.ColumnCount; i++)
+            {
+                sanitizedColumns.Add(SanitizeColumnIfNeeded(source.Column(i)));
+            }
+            return new RecordBatch(source.Schema, sanitizedColumns, source.Length);
+        }
+
+        /// <summary>
+        /// Dispatches to the appropriate <c>EnsureNonNullValueBuffer</c> overload by
+        /// runtime array type. Non-string / non-int32 / non-int64 columns are returned
+        /// unchanged.
+        /// </summary>
+        private static IArrowArray SanitizeColumnIfNeeded(IArrowArray column)
+        {
+            if (column is StringArray stringArray)
+            {
+                return EnsureNonNullValueBuffer(stringArray);
+            }
+            if (column is PrimitiveArray<int> int32Array)
+            {
+                return EnsureNonNullValueBuffer(int32Array, sizeof(int));
+            }
+            if (column is PrimitiveArray<long> int64Array)
+            {
+                return EnsureNonNullValueBuffer(int64Array, sizeof(long));
+            }
+            return column;
         }
 
         /// <summary>

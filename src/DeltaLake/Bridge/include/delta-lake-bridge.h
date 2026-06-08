@@ -391,11 +391,6 @@ void table_insert(struct Runtime *_Nonnull runtime,
 struct GenericOrError table_schema(struct Runtime *_Nonnull runtime,
                                    struct RawDeltaTable *_Nonnull table);
 
-void table_checkpoint(struct Runtime *_Nonnull runtime,
-                      struct RawDeltaTable *_Nonnull table,
-                      const struct CancellationToken *cancellation_token,
-                      TableEmptyCallback callback);
-
 void table_optimize(struct Runtime *_Nonnull runtime,
                     struct RawDeltaTable *_Nonnull table,
                     struct OptimizeOptions *_Nonnull options,

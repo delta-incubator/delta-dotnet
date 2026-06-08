@@ -36,6 +36,15 @@ namespace DeltaLake.Kernel.State
         private unsafe PartitionList* partitionList = null;
         private unsafe ArrowContext* arrowContext = null;
 
+        // Set via PinSnapshotTo to mirror the bridge's pinned table version after
+        // construction-with-Version, LoadVersionAsync, LoadTimestampAsync, or
+        // UpdateIncrementalAsync. When set, RefreshSnapshot builds the kernel snapshot at
+        // this version instead of the latest log version, so kernel-only reads
+        // (notably CheckpointAsync) honor the user's load state. When null, the snapshot
+        // reads the latest log version, which is required for kernel-only commits
+        // (CommitAddActionsAsync) to be visible to subsequent kernel reads.
+        private long? pinnedVersion;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
         /// </summary>
@@ -62,6 +71,33 @@ namespace DeltaLake.Kernel.State
         {
             if (refresh || managedPointInTimeSnapshot == null) this.RefreshSnapshot();
             return managedPointInTimeSnapshot;
+        }
+
+        /// <inheritdoc/>
+        public void PinSnapshotTo(long version)
+        {
+            if (this.pinnedVersion == version) return;
+            this.pinnedVersion = version;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        /// <inheritdoc/>
+        public void UnpinSnapshot()
+        {
+            if (this.pinnedVersion is null) return;
+            this.pinnedVersion = null;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        private void InvalidateSnapshotDependentCaches()
+        {
+            // Everything derived from a snapshot must rebuild when the pin changes.
+            this.DisposeArrowContext();
+            this.DisposePartitionList();
+            this.DisposeScan();
+            this.DisposeSchema();
+            this.DisposePhysicalSchema();
+            this.DisposeSnapshot();
         }
 
         /// <inheritdoc/>
@@ -351,7 +387,17 @@ namespace DeltaLake.Kernel.State
                 }
                 MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
-                // Step 2: Build snapshot (latest version)
+                // Step 2: Apply pinned version (if any) so the snapshot mirrors the
+                // bridge's pinned state after construction-with-Version,
+                // LoadVersionAsync, LoadTimestampAsync, or UpdateIncrementalAsync. When
+                // null, build against the latest log version so kernel-only commits
+                // (CommitAddActionsAsync) are visible to subsequent kernel reads.
+                if (this.pinnedVersion is long pinned)
+                {
+                    Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
+                }
+
+                // Step 3: Build snapshot (latest version, or pinned per Step 2)
                 // snapshot_builder_build consumes the builder handle on both success and failure paths.
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
