@@ -67,6 +67,17 @@ namespace DeltaLake.Kernel.State
         internal IReadOnlyList<RecordBatch> RecordBatches =>
             _recordBatches ?? throw new ObjectDisposedException(nameof(ArrowContextHandle));
 
+        /// <summary>
+        /// Gets the backing record-batch list as <see cref="IList{T}"/> for internal Arrow
+        /// interop callers that need the mutable-list interface required by
+        /// <see cref="Apache.Arrow.Table.TableFromRecordBatches"/>. The handle still owns the
+        /// returned list; callers must not mutate or retain a reference beyond the handle's
+        /// lifetime.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException">Thrown when the handle has already been disposed.</exception>
+        internal IList<RecordBatch> RecordBatchList =>
+            _recordBatches ?? throw new ObjectDisposedException(nameof(ArrowContextHandle));
+
         /// <inheritdoc/>
         public void Dispose() => Dispose(disposing: true);
 

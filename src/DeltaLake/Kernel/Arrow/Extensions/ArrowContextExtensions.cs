@@ -37,10 +37,9 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// <param name="schema">The Arrow schema describing every batch.</param>
         /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
         /// <returns>An <see cref="Apache.Arrow.Table"/> sharing the underlying buffers.</returns>
-        internal static Apache.Arrow.Table BuildSanitizedTable(Schema schema, IReadOnlyList<RecordBatch> batches)
+        internal static Apache.Arrow.Table BuildSanitizedTable(Schema schema, IList<RecordBatch> batches)
         {
-            List<RecordBatch> batchList = batches as List<RecordBatch> ?? new List<RecordBatch>(batches);
-            return Apache.Arrow.Table.TableFromRecordBatches(schema, batchList);
+            return Apache.Arrow.Table.TableFromRecordBatches(schema, batches);
         }
 
         /// <summary>
@@ -53,7 +52,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         /// <param name="schema">The Arrow schema describing every batch.</param>
         /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
         /// <returns>A single concatenated <see cref="RecordBatch"/> safe for DataFrame import.</returns>
-        internal static RecordBatch ConcatenateAndSanitize(Schema schema, IReadOnlyList<RecordBatch> batches)
+        internal static RecordBatch ConcatenateAndSanitize(Schema schema, IList<RecordBatch> batches)
         {
             List<IArrowArray> concatenatedColumns = new();
 

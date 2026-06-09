@@ -212,7 +212,7 @@ namespace DeltaLake.Kernel.Core
                         {
                             Apache.Arrow.Table table = ArrowContextExtensions.BuildSanitizedTable(
                                 handle.Schema,
-                                handle.RecordBatches);
+                                handle.RecordBatchList);
                             return new OwnedArrowTable(table, handle);
                         }
                         catch
@@ -239,7 +239,7 @@ namespace DeltaLake.Kernel.Core
                         {
                             Apache.Arrow.RecordBatch concatenated = ArrowContextExtensions.ConcatenateAndSanitize(
                                 handle.Schema,
-                                handle.RecordBatches);
+                                handle.RecordBatchList);
 #pragma warning disable CA2000 // OwnedDataFrame owns the handle; the intermediate RecordBatch is consumed by FromArrowRecordBatch
                             DataFrame frame = DataFrame.FromArrowRecordBatch(concatenated);
                             return new OwnedDataFrame(frame, handle);
