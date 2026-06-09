@@ -30,57 +30,69 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         #region Extension Methods
 
         /// <summary>
-        /// Converts an Arrow Context to <see cref="Apache.Arrow.Table"/>
+        /// Builds an <see cref="Apache.Arrow.Table"/> from an already-imported set of
+        /// record batches. Accepts caller-owned batches so the caller is free to manage
+        /// <see cref="ArrowContextHandle"/> lifetime explicitly.
         /// </summary>
-        /// <param name="context">The Arrow Context to convert.</param>
-        /// <returns>The converted Arrow Table.</returns>
-        internal static unsafe Apache.Arrow.Table ToTable(this DeltaArrowContext context)
+        /// <param name="schema">The Arrow schema describing every batch.</param>
+        /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
+        /// <returns>An <see cref="Apache.Arrow.Table"/> sharing the underlying buffers.</returns>
+        internal static Apache.Arrow.Table BuildSanitizedTable(Schema schema, IReadOnlyList<RecordBatch> batches)
         {
-            (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
-            return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
+            List<RecordBatch> batchList = batches as List<RecordBatch> ?? new List<RecordBatch>(batches);
+            return Apache.Arrow.Table.TableFromRecordBatches(schema, batchList);
         }
 
         /// <summary>
-        /// Converts an Arrow Context to a single <see cref="Apache.Arrow.RecordBatch"/>"/>
+        /// Concatenates the imported record batches into a single <see cref="RecordBatch"/>,
+        /// applying the StringArray / PrimitiveArray null-value-buffer sanitization required
+        /// by <see cref="Microsoft.Data.Analysis.DataFrame.FromArrowRecordBatch"/> on macOS
+        /// ARM64. Accepts caller-owned batches so the caller manages
+        /// <see cref="ArrowContextHandle"/> lifetime explicitly.
         /// </summary>
-        /// <remarks>
-        /// Inspired from https://github.com/apache/arrow/issues/35371, this is
-        /// the only documented way to convert a list of <see cref="RecordBatch"/>es 
-        /// reliably to a single <see cref="RecordBatch"/>.
-        /// </remarks>
-        /// <param name="context">The Arrow Context to convert.</param>
-        /// <returns>The converted Record Batch.</returns>
-        internal static unsafe RecordBatch ToRecordBatch(this DeltaArrowContext context)
+        /// <param name="schema">The Arrow schema describing every batch.</param>
+        /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
+        /// <returns>A single concatenated <see cref="RecordBatch"/> safe for DataFrame import.</returns>
+        internal static RecordBatch ConcatenateAndSanitize(Schema schema, IReadOnlyList<RecordBatch> batches)
         {
-            (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
             List<IArrowArray> concatenatedColumns = new();
 
             foreach (Field field in schema.FieldsList)
             {
                 List<IArrowArray> columnArrays = new();
-                foreach (RecordBatch recordBatch in recordBatches)
+                foreach (RecordBatch recordBatch in batches)
                 {
                     IArrowArray column = recordBatch.Column(field.Name);
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
-
-                if (concatenatedColumn is StringArray stringArray)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(stringArray);
-                }
-                else if (concatenatedColumn is PrimitiveArray<int> int32Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int32Array, sizeof(int));
-                }
-                else if (concatenatedColumn is PrimitiveArray<long> int64Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int64Array, sizeof(long));
-                }
-
+                concatenatedColumn = SanitizeColumnIfNeeded(concatenatedColumn);
                 concatenatedColumns.Add(concatenatedColumn);
             }
             return new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+        }
+
+        /// <summary>
+        /// Applies the null-value-buffer sentinel substitution to a concatenated column when
+        /// its type is one of the known affected variants (<see cref="StringArray"/>,
+        /// <see cref="PrimitiveArray{T}"/> of <see cref="int"/> or <see cref="long"/>).
+        /// Other column types are returned unchanged.
+        /// </summary>
+        private static IArrowArray SanitizeColumnIfNeeded(IArrowArray concatenatedColumn)
+        {
+            if (concatenatedColumn is StringArray stringArray)
+            {
+                return EnsureNonNullValueBuffer(stringArray);
+            }
+            if (concatenatedColumn is PrimitiveArray<int> int32Array)
+            {
+                return EnsureNonNullValueBuffer(int32Array, sizeof(int));
+            }
+            if (concatenatedColumn is PrimitiveArray<long> int64Array)
+            {
+                return EnsureNonNullValueBuffer(int64Array, sizeof(long));
+            }
+            return concatenatedColumn;
         }
 
         /// <summary>
