@@ -10,6 +10,7 @@ using Azure.Core;
 using Azure.Identity;
 using DeltaLake.Extensions;
 using DeltaLake.Interfaces;
+using DeltaLake.Kernel.Core;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
 
@@ -104,11 +105,11 @@ public class Program
 
             Console.WriteLine($"Table version after transaction: {table.Version()}");
 
-            Apache.Arrow.Table readTable = await table.ReadAsArrowTableAsync(CancellationToken.None);
-            Console.WriteLine(readTable.ToString());
-            
-            DataFrame df = await table.ReadAsDataFrameAsync(CancellationToken.None);
-            Console.WriteLine(df.ToMarkdown());
+            using OwnedArrowTable readTable = await table.ReadAsArrowTableAsync(CancellationToken.None);
+            Console.WriteLine(readTable.Table.ToString());
+
+            using OwnedDataFrame df = await table.ReadAsDataFrameAsync(CancellationToken.None);
+            Console.WriteLine(df.Frame.ToMarkdown());
         }
     }
 

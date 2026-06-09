@@ -49,10 +49,12 @@ namespace DeltaLake.Kernel.State
         public unsafe PartitionList* PartitionList(bool refresh);
 
         /// <summary>
-        /// Gets the <see cref="ArrowContext"/> representing the table data.
+        /// Builds a new caller-owned arrow context for a single read operation.
+        /// The returned <see cref="ArrowContextHandle"/> owns the native allocation and the
+        /// imported managed <see cref="Apache.Arrow.RecordBatch"/> instances. Dispose the
+        /// handle (or the wrapper that owns it) to release native memory.
         /// </summary>
-        /// <param name="refresh">Whether to refresh.</param>
-        /// <returns>The managed arrow context.</returns>
-        public unsafe ArrowContext* ArrowContext(bool refresh);
+        /// <returns>A fresh <see cref="ArrowContextHandle"/> for one read.</returns>
+        public ArrowContextHandle BuildArrowContextOwned();
     }
 }

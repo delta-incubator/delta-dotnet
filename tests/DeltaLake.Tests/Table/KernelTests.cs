@@ -4,6 +4,7 @@ using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
 using DeltaLake.Extensions;
 using DeltaLake.Interfaces;
+using DeltaLake.Kernel.Core;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
 using Polly;
@@ -155,8 +156,11 @@ public class KernelTests
                     {
                         // Exercise: Reads via Kernel
                         //
-                        Apache.Arrow.Table arrowTable = await threadIsolatedTable.ReadAsArrowTableAsync(default);
-                        DataFrame dataFrame = await threadIsolatedTable.ReadAsDataFrameAsync(default);
+                        using OwnedArrowTable arrowOwned = await threadIsolatedTable.ReadAsArrowTableAsync(default);
+                        using OwnedDataFrame frameOwned = await threadIsolatedTable.ReadAsDataFrameAsync(default);
+
+                        Apache.Arrow.Table arrowTable = arrowOwned.Table;
+                        DataFrame dataFrame = frameOwned.Frame;
                         string stringResult = dataFrame.ToMarkdown();
 
                         // Validate: Data Integrity

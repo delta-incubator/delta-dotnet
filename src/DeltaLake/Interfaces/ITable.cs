@@ -15,6 +15,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Apache.Arrow;
 using Apache.Arrow.Ipc;
+using DeltaLake.Kernel.Core;
 using DeltaLake.Table;
 using Microsoft.Data.Analysis;
 using CancellationToken = System.Threading.CancellationToken;
@@ -135,19 +136,31 @@ namespace DeltaLake.Interfaces
         IAsyncEnumerable<RecordBatch> QueryAsync(SelectQuery query, [EnumeratorCancellation] CancellationToken cancellationToken);
 
         /// <summary>
-        /// Read the delta table and return as <see cref="Apache.Arrow.Table"/>.
+        /// Read the delta table and return as an <see cref="OwnedArrowTable"/> wrapper.
         /// </summary>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
-        Task<Apache.Arrow.Table> ReadAsArrowTableAsync(CancellationToken cancellationToken);
+        /// <returns>
+        /// An <see cref="OwnedArrowTable"/> that owns the native Arrow context backing the returned
+        /// <see cref="Apache.Arrow.Table"/>. Dispose the wrapper (preferably via <c>using</c>) when
+        /// reads are complete to release native memory. The contained <see cref="Apache.Arrow.Table"/>
+        /// is undefined after disposal.
+        /// </returns>
+        Task<OwnedArrowTable> ReadAsArrowTableAsync(CancellationToken cancellationToken);
 
         /// <summary>
-        /// Read the delta table and return as a <see cref="DataFrame"/>.
+        /// Read the delta table and return as an <see cref="OwnedDataFrame"/> wrapper.
         /// </summary>
         /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
         /// <remarks>
         /// This loads the entire table into memory.
         /// </remarks>
-        Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken);
+        /// <returns>
+        /// An <see cref="OwnedDataFrame"/> that owns the native Arrow context backing the returned
+        /// <see cref="DataFrame"/>. Dispose the wrapper (preferably via <c>using</c>) when reads are
+        /// complete to release native memory. The contained <see cref="DataFrame"/> is undefined
+        /// after disposal.
+        /// </returns>
+        Task<OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken);
 
         #endregion Read Operations
 

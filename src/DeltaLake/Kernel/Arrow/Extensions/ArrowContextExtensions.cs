@@ -30,57 +30,68 @@ namespace DeltaLake.Kernel.Arrow.Extensions
         #region Extension Methods
 
         /// <summary>
-        /// Converts an Arrow Context to <see cref="Apache.Arrow.Table"/>
+        /// Builds an <see cref="Apache.Arrow.Table"/> from an already-imported set of
+        /// record batches. Accepts caller-owned batches so the caller is free to manage
+        /// <see cref="ArrowContextHandle"/> lifetime explicitly.
         /// </summary>
-        /// <param name="context">The Arrow Context to convert.</param>
-        /// <returns>The converted Arrow Table.</returns>
-        internal static unsafe Apache.Arrow.Table ToTable(this DeltaArrowContext context)
+        /// <param name="schema">The Arrow schema describing every batch.</param>
+        /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
+        /// <returns>An <see cref="Apache.Arrow.Table"/> sharing the underlying buffers.</returns>
+        internal static Apache.Arrow.Table BuildSanitizedTable(Schema schema, IList<RecordBatch> batches)
         {
-            (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
-            return Apache.Arrow.Table.TableFromRecordBatches(schema, recordBatches);
+            return Apache.Arrow.Table.TableFromRecordBatches(schema, batches);
         }
 
         /// <summary>
-        /// Converts an Arrow Context to a single <see cref="Apache.Arrow.RecordBatch"/>"/>
+        /// Concatenates the imported record batches into a single <see cref="RecordBatch"/>,
+        /// applying the StringArray / PrimitiveArray null-value-buffer sanitization required
+        /// by <see cref="Microsoft.Data.Analysis.DataFrame.FromArrowRecordBatch"/> on macOS
+        /// ARM64. Accepts caller-owned batches so the caller manages
+        /// <see cref="ArrowContextHandle"/> lifetime explicitly.
         /// </summary>
-        /// <remarks>
-        /// Inspired from https://github.com/apache/arrow/issues/35371, this is
-        /// the only documented way to convert a list of <see cref="RecordBatch"/>es 
-        /// reliably to a single <see cref="RecordBatch"/>.
-        /// </remarks>
-        /// <param name="context">The Arrow Context to convert.</param>
-        /// <returns>The converted Record Batch.</returns>
-        internal static unsafe RecordBatch ToRecordBatch(this DeltaArrowContext context)
+        /// <param name="schema">The Arrow schema describing every batch.</param>
+        /// <param name="batches">The imported <see cref="RecordBatch"/> instances.</param>
+        /// <returns>A single concatenated <see cref="RecordBatch"/> safe for DataFrame import.</returns>
+        internal static RecordBatch ConcatenateAndSanitize(Schema schema, IList<RecordBatch> batches)
         {
-            (Schema schema, List<RecordBatch> recordBatches) = context.ToSchematizedBatches();
             List<IArrowArray> concatenatedColumns = new();
 
             foreach (Field field in schema.FieldsList)
             {
                 List<IArrowArray> columnArrays = new();
-                foreach (RecordBatch recordBatch in recordBatches)
+                foreach (RecordBatch recordBatch in batches)
                 {
                     IArrowArray column = recordBatch.Column(field.Name);
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
-
-                if (concatenatedColumn is StringArray stringArray)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(stringArray);
-                }
-                else if (concatenatedColumn is PrimitiveArray<int> int32Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int32Array, sizeof(int));
-                }
-                else if (concatenatedColumn is PrimitiveArray<long> int64Array)
-                {
-                    concatenatedColumn = EnsureNonNullValueBuffer(int64Array, sizeof(long));
-                }
-
+                concatenatedColumn = SanitizeColumnIfNeeded(concatenatedColumn);
                 concatenatedColumns.Add(concatenatedColumn);
             }
             return new RecordBatch(schema, concatenatedColumns, concatenatedColumns[0].Length);
+        }
+
+        /// <summary>
+        /// Applies the null-value-buffer sentinel substitution to a concatenated column when
+        /// its type is one of the known affected variants (<see cref="StringArray"/>,
+        /// <see cref="PrimitiveArray{T}"/> of <see cref="int"/> or <see cref="long"/>).
+        /// Other column types are returned unchanged.
+        /// </summary>
+        private static IArrowArray SanitizeColumnIfNeeded(IArrowArray concatenatedColumn)
+        {
+            if (concatenatedColumn is StringArray stringArray)
+            {
+                return EnsureNonNullValueBuffer(stringArray);
+            }
+            if (concatenatedColumn is PrimitiveArray<int> int32Array)
+            {
+                return EnsureNonNullValueBuffer(int32Array, sizeof(int));
+            }
+            if (concatenatedColumn is PrimitiveArray<long> int64Array)
+            {
+                return EnsureNonNullValueBuffer(int64Array, sizeof(long));
+            }
+            return concatenatedColumn;
         }
 
         /// <summary>
@@ -192,7 +203,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
 
             for (int i = 1; i < schemas.Count; i++)
             {
-                if (schemas[i] == schemas[0]) throw new InvalidOperationException($"All schemas must be the same in - got {i}th {schemas[i]} != 0th {schemas[0]}");
+                if (!SchemasMatch(schemas[i], schemas[0])) throw new InvalidOperationException($"All schemas must be the same in - got {i}th {schemas[i]} != 0th {schemas[0]}");
             }
 
             return (schemas[0], recordBatches);
@@ -208,6 +219,53 @@ namespace DeltaLake.Kernel.Arrow.Extensions
             {
                 throw new InvalidOperationException("Arrow Context must contain at least one RecordBatch");
             }
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when two Arrow schemas describe the same set of fields in the
+        /// same order with the same names, nullability, and primitive type identifiers.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Schema"/> does not override <c>operator ==</c> or <c>Equals</c> with
+        /// structural semantics, and the kernel allocates a fresh <see cref="Schema"/>
+        /// instance per imported batch via <c>CArrowSchemaImporter.ImportSchema</c>, so
+        /// reference equality always reports "different" even when two schemas describe
+        /// byte-identical Arrow structures. This helper performs a per-field structural
+        /// comparison sufficient for the kernel's primitive and string type catalogue.
+        ///
+        /// Field-level metadata and schema-level metadata are intentionally ignored. The
+        /// kernel does not propagate metadata across the C-Data Interface import in a stable
+        /// way, so constraining on it would produce spurious mismatches on real Delta scans.
+        ///
+        /// <see cref="Apache.Arrow.Types.IArrowType.TypeId"/> is sufficient for the primitive
+        /// and string types the kernel produces today. If parameterized types (e.g. decimal
+        /// with precision/scale, timestamp with unit) become reachable through this guard in
+        /// the future, extend the comparison to include those type-specific parameters.
+        /// </remarks>
+        /// <param name="first">The first schema to compare. May be null.</param>
+        /// <param name="second">The second schema to compare. May be null.</param>
+        /// <returns>
+        /// <c>true</c> when both schemas are reference-equal (including both <c>null</c>) or
+        /// structurally identical per the field-level checks documented above; <c>false</c>
+        /// when one side is <c>null</c>, field counts differ, or any field's name, nullability,
+        /// or type identifier differs.
+        /// </returns>
+        internal static bool SchemasMatch(Schema first, Schema second)
+        {
+            if (ReferenceEquals(first, second)) return true;
+            if (first is null || second is null) return false;
+            if (first.FieldsList.Count != second.FieldsList.Count) return false;
+
+            for (int i = 0; i < first.FieldsList.Count; i++)
+            {
+                Field a = first.FieldsList[i];
+                Field b = second.FieldsList[i];
+                if (a.Name != b.Name) return false;
+                if (a.IsNullable != b.IsNullable) return false;
+                if (a.DataType.TypeId != b.DataType.TypeId) return false;
+            }
+
+            return true;
         }
 
 #pragma warning disable CA1859, IDE0060 // Although we're not using partitionValue right now, it will be used when Kernel supports reporting Arrow Schema
