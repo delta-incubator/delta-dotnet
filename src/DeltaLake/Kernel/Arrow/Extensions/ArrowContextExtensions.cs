@@ -203,7 +203,7 @@ namespace DeltaLake.Kernel.Arrow.Extensions
 
             for (int i = 1; i < schemas.Count; i++)
             {
-                if (schemas[i] == schemas[0]) throw new InvalidOperationException($"All schemas must be the same in - got {i}th {schemas[i]} != 0th {schemas[0]}");
+                if (!SchemasMatch(schemas[i], schemas[0])) throw new InvalidOperationException($"All schemas must be the same in - got {i}th {schemas[i]} != 0th {schemas[0]}");
             }
 
             return (schemas[0], recordBatches);
@@ -219,6 +219,53 @@ namespace DeltaLake.Kernel.Arrow.Extensions
             {
                 throw new InvalidOperationException("Arrow Context must contain at least one RecordBatch");
             }
+        }
+
+        /// <summary>
+        /// Returns <c>true</c> when two Arrow schemas describe the same set of fields in the
+        /// same order with the same names, nullability, and primitive type identifiers.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="Schema"/> does not override <c>operator ==</c> or <c>Equals</c> with
+        /// structural semantics, and the kernel allocates a fresh <see cref="Schema"/>
+        /// instance per imported batch via <c>CArrowSchemaImporter.ImportSchema</c>, so
+        /// reference equality always reports "different" even when two schemas describe
+        /// byte-identical Arrow structures. This helper performs a per-field structural
+        /// comparison sufficient for the kernel's primitive and string type catalogue.
+        ///
+        /// Field-level metadata and schema-level metadata are intentionally ignored. The
+        /// kernel does not propagate metadata across the C-Data Interface import in a stable
+        /// way, so constraining on it would produce spurious mismatches on real Delta scans.
+        ///
+        /// <see cref="Apache.Arrow.Types.IArrowType.TypeId"/> is sufficient for the primitive
+        /// and string types the kernel produces today. If parameterized types (e.g. decimal
+        /// with precision/scale, timestamp with unit) become reachable through this guard in
+        /// the future, extend the comparison to include those type-specific parameters.
+        /// </remarks>
+        /// <param name="first">The first schema to compare. May be null.</param>
+        /// <param name="second">The second schema to compare. May be null.</param>
+        /// <returns>
+        /// <c>true</c> when both schemas are reference-equal (including both <c>null</c>) or
+        /// structurally identical per the field-level checks documented above; <c>false</c>
+        /// when one side is <c>null</c>, field counts differ, or any field's name, nullability,
+        /// or type identifier differs.
+        /// </returns>
+        internal static bool SchemasMatch(Schema first, Schema second)
+        {
+            if (ReferenceEquals(first, second)) return true;
+            if (first is null || second is null) return false;
+            if (first.FieldsList.Count != second.FieldsList.Count) return false;
+
+            for (int i = 0; i < first.FieldsList.Count; i++)
+            {
+                Field a = first.FieldsList[i];
+                Field b = second.FieldsList[i];
+                if (a.Name != b.Name) return false;
+                if (a.IsNullable != b.IsNullable) return false;
+                if (a.DataType.TypeId != b.DataType.TypeId) return false;
+            }
+
+            return true;
         }
 
 #pragma warning disable CA1859, IDE0060 // Although we're not using partitionValue right now, it will be used when Kernel supports reporting Arrow Schema
