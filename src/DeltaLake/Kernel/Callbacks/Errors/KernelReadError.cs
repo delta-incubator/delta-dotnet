@@ -38,7 +38,7 @@ namespace DeltaLake.Kernel.Callbacks.Errors
                     ptr = (byte*)Marshal.AllocHGlobal((int)kernelStringSlice.len);
                     for (ulong i = 0; i < kernelStringSlice.len; i++)
                     {
-                        *ptr++ = (byte)*kernelStringSlice.ptr++;
+                        ptr[i] = (byte)kernelStringSlice.ptr[i];
                     }
                 }
 
