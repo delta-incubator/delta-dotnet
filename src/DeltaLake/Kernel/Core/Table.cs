@@ -314,6 +314,12 @@ namespace DeltaLake.Kernel.Core
             return metadata;
         }
 
+        internal IEnumerable<Apache.Arrow.RecordBatch> QueryTableChanges(TableChangesOptions options)
+        {
+            ThrowIfKernelNotSupported();
+            return ExecuteTableChanges(options);
+        }
+
         /// <summary>
         /// Commits add-file actions to the Delta log without writing data files.
         /// Returns the new table version after commit.
@@ -435,6 +441,143 @@ namespace DeltaLake.Kernel.Core
                 }
 
                 return partitionColumns;
+            }
+        }
+
+        // Acquires all three FFI handles needed for CDC iteration.
+        // A regular (non-iterator) method so it can contain an unsafe { } block.
+        private TableChangesContext CreateTableChangesContext(TableChangesOptions options)
+        {
+            unsafe
+            {
+                ExternResultHandleExclusiveTableChanges changesResult = options.EndVersion.HasValue
+                    ? Methods.table_changes_between_versions(
+                        this.tableLocationSlice,
+                        this.kernelOwnedSharedExternEnginePtr,
+                        options.StartVersion,
+                        options.EndVersion.Value)
+                    : Methods.table_changes_from_version(
+                        this.tableLocationSlice,
+                        this.kernelOwnedSharedExternEnginePtr,
+                        options.StartVersion);
+
+                if (changesResult.tag != ExternResultHandleExclusiveTableChanges_Tag.OkHandleExclusiveTableChanges)
+                {
+                    throw KernelException.FromEngineError(
+                        changesResult.Anonymous.Anonymous2.err,
+                        "Failed to acquire table changes handle from Delta Kernel.");
+                }
+
+                // CRITICAL: table_changes_scan CONSUMES this pointer on both success and failure.
+                ExclusiveTableChanges* tableChangesPtr = changesResult.Anonymous.Anonymous1.ok;
+
+                // TODO: expose predicate push-down via TableChangesOptions once EnginePredicate* is surfaced.
+                ExternResultHandleSharedTableChangesScan scanResult =
+                    Methods.table_changes_scan(tableChangesPtr, this.kernelOwnedSharedExternEnginePtr, predicate: null);
+                tableChangesPtr = null;  // now invalid regardless of outcome
+
+                if (scanResult.tag != ExternResultHandleSharedTableChangesScan_Tag.OkHandleSharedTableChangesScan)
+                {
+                    throw KernelException.FromEngineError(
+                        scanResult.Anonymous.Anonymous2.err,
+                        "Failed to create table changes scan from Delta Kernel.");
+                }
+
+                SharedTableChangesScan* scanPtr = scanResult.Anonymous.Anonymous1.ok;
+
+                ExternResultHandleSharedScanTableChangesIterator iterResult =
+                    Methods.table_changes_scan_execute(scanPtr, this.kernelOwnedSharedExternEnginePtr);
+
+                if (iterResult.tag != ExternResultHandleSharedScanTableChangesIterator_Tag.OkHandleSharedScanTableChangesIterator)
+                {
+                    Methods.free_table_changes_scan(scanPtr);
+                    throw KernelException.FromEngineError(
+                        iterResult.Anonymous.Anonymous2.err,
+                        "Failed to execute table changes scan from Delta Kernel.");
+                }
+
+                return new TableChangesContext(scanPtr, iterResult.Anonymous.Anonymous1.ok);
+            }
+        }
+
+        // Iterator method: contains no unsafe code — all FFI is delegated to TableChangesContext.
+        private IEnumerable<Apache.Arrow.RecordBatch> ExecuteTableChanges(TableChangesOptions options)
+        {
+            using (TableChangesContext context = CreateTableChangesContext(options))
+            {
+                for (; ; )
+                {
+                    Apache.Arrow.RecordBatch? batch = context.Next();
+                    if (batch == null) yield break;
+                    yield return batch;
+                }
+            }
+        }
+
+        // Holds the scan + iterator handles for a single CDC traversal.
+        // Methods have safe signatures so they are callable from the non-unsafe iterator above.
+        private sealed unsafe class TableChangesContext : IDisposable
+        {
+            private SharedTableChangesScan* scanPtr;
+            private SharedScanTableChangesIterator* iterPtr;
+
+            internal TableChangesContext(
+                SharedTableChangesScan* scanPtr,
+                SharedScanTableChangesIterator* iterPtr)
+            {
+                this.scanPtr = scanPtr;
+                this.iterPtr = iterPtr;
+            }
+
+            internal Apache.Arrow.RecordBatch? Next()
+            {
+                ExternResultArrowFFIData batchResult = Methods.scan_table_changes_next(this.iterPtr);
+
+                if (batchResult.tag == ExternResultArrowFFIData_Tag.ErrArrowFFIData)
+                {
+                    throw KernelException.FromEngineError(
+                        batchResult.Anonymous.Anonymous2.err,
+                        "Failed to advance table changes iterator.");
+                }
+
+                ArrowFFIData* arrowDataPtr = batchResult.Anonymous.Anonymous1.ok;
+                if (arrowDataPtr == null)
+                {
+                    return null;
+                }
+
+                // Import via Arrow C Data Interface — ownership of the underlying buffers
+                // transfers to the managed RecordBatch. free_arrow_ffi_data is called in
+                // the finally block to release only the ArrowFFIData* wrapper struct allocated
+                // by Rust; the Arrow buffer release callbacks are zeroed on successful import
+                // so free_arrow_ffi_data becomes a cheap no-op for the buffer bytes.
+                try
+                {
+                    Apache.Arrow.Schema schema =
+                        Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(
+                            (Apache.Arrow.C.CArrowSchema*)&arrowDataPtr->schema);
+                    return Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(
+                        (Apache.Arrow.C.CArrowArray*)&arrowDataPtr->array, schema);
+                }
+                finally
+                {
+                    Methods.free_arrow_ffi_data(arrowDataPtr);
+                }
+            }
+
+            public void Dispose()
+            {
+                // Free iterator before scan (reverse acquisition order).
+                if (this.iterPtr != null)
+                {
+                    Methods.free_scan_table_changes_iter(this.iterPtr);
+                    this.iterPtr = null;
+                }
+                if (this.scanPtr != null)
+                {
+                    Methods.free_table_changes_scan(this.scanPtr);
+                    this.scanPtr = null;
+                }
             }
         }
 
