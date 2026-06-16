@@ -162,6 +162,24 @@ namespace DeltaLake.Interfaces
         /// </returns>
         Task<OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Reads Change Data Feed records for the specified version range and returns them as a
+        /// stream of <see cref="RecordBatch"/> objects.
+        /// </summary>
+        /// <param name="options">Version range for the change feed.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>
+        /// An <see cref="IAsyncEnumerable{T}"/> of <see cref="RecordBatch"/> objects. Each batch
+        /// includes the system columns <c>_change_type</c>, <c>_commit_version</c>, and
+        /// <c>_commit_timestamp</c> appended by the kernel.
+        /// </returns>
+        /// <remarks>
+        /// The table must have <c>delta.enableChangeDataFeed = true</c> in its configuration.
+        /// </remarks>
+        IAsyncEnumerable<RecordBatch> QueryTableChangesAsync(
+            TableChangesOptions options,
+            [EnumeratorCancellation] CancellationToken cancellationToken);
+
         #endregion Read Operations
 
         #region Transaction Operations
