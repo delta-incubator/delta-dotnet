@@ -61,6 +61,16 @@ namespace DeltaLake.Kernel.Arrow.Extensions
                 foreach (RecordBatch recordBatch in recordBatches)
                 {
                     IArrowArray column = recordBatch.Column(field.Name);
+                    // Patch per-batch before concatenation: ArrowArrayConcatenator on .NET 8.0.27+
+                    // ARM64 propagates a null-backed ArrowBuffer.Empty through to the concatenated
+                    // output when any input batch has an empty buffer (0-row or all-empty-string
+                    // batch). Patching here prevents the null backing from entering the concatenator.
+                    if (column is StringArray perBatchStringArray)
+                        column = EnsureNonNullValueBuffer(perBatchStringArray);
+                    else if (column is PrimitiveArray<int> perBatchInt32Array)
+                        column = EnsureNonNullValueBuffer(perBatchInt32Array, sizeof(int));
+                    else if (column is PrimitiveArray<long> perBatchInt64Array)
+                        column = EnsureNonNullValueBuffer(perBatchInt64Array, sizeof(long));
                     columnArrays.Add(column);
                 }
                 IArrowArray concatenatedColumn = ArrowArrayConcatenator.Concatenate(columnArrays);
