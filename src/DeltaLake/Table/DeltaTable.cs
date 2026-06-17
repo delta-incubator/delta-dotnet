@@ -19,7 +19,6 @@ using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DeltaLake.Errors;
 using DeltaLake.Interfaces;
-using Microsoft.Data.Analysis;
 using Core = DeltaLake.Kernel.Core;
 
 namespace DeltaLake.Table
@@ -118,7 +117,7 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+        public async Task<Core.OwnedArrowTable> ReadAsArrowTableAsync(
             CancellationToken cancellationToken
         ) => await this.table.ReadAsArrowTableAsync(cancellationToken).ConfigureAwait(false);
 
@@ -151,7 +150,7 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public async Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
+        public async Task<Core.OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
             await this.table.ReadAsDataFrameAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>

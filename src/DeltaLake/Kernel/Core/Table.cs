@@ -197,7 +197,7 @@ namespace DeltaLake.Kernel.Core
 
         #region Delta Kernel table operations
 
-        internal async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+        internal async Task<OwnedArrowTable> ReadAsArrowTableAsync(
             ICancellationToken cancellationToken
         )
         {
@@ -207,9 +207,18 @@ namespace DeltaLake.Kernel.Core
                 .ExecuteAsync(
                     () =>
                     {
-                        unsafe
+                        ArrowContextHandle handle = this.state.BuildArrowContextOwned();
+                        try
                         {
-                            return this.state.ArrowContext(true)->ToTable();
+                            Apache.Arrow.Table table = ArrowContextExtensions.BuildSanitizedTable(
+                                handle.Schema,
+                                handle.RecordBatchList);
+                            return new OwnedArrowTable(table, handle);
+                        }
+                        catch
+                        {
+                            handle.Dispose();
+                            throw;
                         }
                     },
                     cancellationToken
@@ -217,7 +226,7 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
-        internal async Task<DataFrame> ReadAsDataFrameAsync(ICancellationToken cancellationToken)
+        internal async Task<OwnedDataFrame> ReadAsDataFrameAsync(ICancellationToken cancellationToken)
         {
             this.ThrowIfKernelNotSupported();
 
@@ -225,11 +234,21 @@ namespace DeltaLake.Kernel.Core
                 .ExecuteAsync(
                     () =>
                     {
-                        unsafe
+                        ArrowContextHandle handle = this.state.BuildArrowContextOwned();
+                        try
                         {
-#pragma warning disable CA2000 // DataFrames use the RecordBatch, so we don't need to dispose of it
-                            return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
+                            Apache.Arrow.RecordBatch concatenated = ArrowContextExtensions.ConcatenateAndSanitize(
+                                handle.Schema,
+                                handle.RecordBatchList);
+#pragma warning disable CA2000 // OwnedDataFrame owns the handle; the intermediate RecordBatch is consumed by FromArrowRecordBatch
+                            DataFrame frame = DataFrame.FromArrowRecordBatch(concatenated);
+                            return new OwnedDataFrame(frame, handle, concatenated);
 #pragma warning restore CA2000
+                        }
+                        catch
+                        {
+                            handle.Dispose();
+                            throw;
                         }
                     },
                     cancellationToken

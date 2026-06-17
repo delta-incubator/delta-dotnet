@@ -11,6 +11,7 @@
 
 using System;
 using System.Runtime.InteropServices;
+using DeltaLake.Kernel.Arrow.Extensions;
 using DeltaLake.Kernel.Callbacks.Allocators;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Kernel.Callbacks.Visit;
@@ -34,7 +35,6 @@ namespace DeltaLake.Kernel.State
         private unsafe SharedSchema* managedSchema = null;
         private unsafe SharedSchema* physicalSchema = null;
         private unsafe PartitionList* partitionList = null;
-        private unsafe ArrowContext* arrowContext = null;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
@@ -92,11 +92,43 @@ namespace DeltaLake.Kernel.State
             return partitionList;
         }
 
-        /// <inheritdoc/>
-        public unsafe ArrowContext* ArrowContext(bool refresh)
+        /// <summary>
+        /// Builds a new caller-owned <see cref="ArrowContextHandle"/> for a single
+        /// read operation. The returned handle owns a freshly-allocated native
+        /// <see cref="ArrowContext"/> and the managed <see cref="Apache.Arrow.RecordBatch"/>
+        /// instances imported from it. The caller (typically an
+        /// <see cref="DeltaLake.Kernel.Core.OwnedArrowTable"/> or
+        /// <see cref="DeltaLake.Kernel.Core.OwnedDataFrame"/>) must dispose the
+        /// handle to release native memory.
+        /// </summary>
+        /// <returns>A fresh <see cref="ArrowContextHandle"/> owning the per-call native allocation and imported batches.</returns>
+        public ArrowContextHandle BuildArrowContextOwned()
         {
-            if (refresh || arrowContext == null) this.RefreshArrowContext();
-            return arrowContext;
+            unsafe
+            {
+                ArrowContext* native = (ArrowContext*)Marshal.AllocHGlobal(Marshal.SizeOf<ArrowContext>());
+                *native = new ArrowContext { NumBatches = 0 };
+
+                try
+                {
+                    SharedSnapshot* snap = this.Snapshot(true);
+                    SharedSchema* schema = this.Schema(true);
+                    PartitionList* partList = this.PartitionList(true);
+                    SharedScan* scan = this.Scan(true);
+                    SharedSchema* physical = this.PhysicalSchema(true);
+
+                    this.PopulateArrowContextViaScan(native, snap, schema, scan, partList, physical);
+
+                    (Apache.Arrow.Schema importedSchema, System.Collections.Generic.List<Apache.Arrow.RecordBatch> batches) =
+                        (*native).ToSchematizedBatches();
+                    return new ArrowContextHandle(native, importedSchema, batches);
+                }
+                catch
+                {
+                    FreeArrowContextNative(native);
+                    throw;
+                }
+            }
         }
 
         #endregion ISafeState implementation
@@ -115,7 +147,6 @@ namespace DeltaLake.Kernel.State
         {
             if (!disposed)
             {
-                this.DisposeArrowContext();
                 this.DisposePartitionList();
                 this.DisposeSnapshot();
                 this.DisposeSchema();
@@ -131,41 +162,48 @@ namespace DeltaLake.Kernel.State
 
         #region Private Dispose methods
 
-        private void DisposeArrowContext()
+        /// <summary>
+        /// Frees the unmanaged memory backing an <see cref="ArrowContext"/> struct, including
+        /// each per-batch <see cref="ArrowFFIData"/> and <see cref="ParquetStringPartitions"/>
+        /// pointer, the outer <c>ArrowStructs</c> and <c>Partitions</c> pointer arrays, and the
+        /// struct itself. Unlike the previous instance helper, this unconditionally frees the
+        /// outer arrays and the struct when the pointer is non-null, eliminating the
+        /// empty-batches outer-array leak path.
+        /// </summary>
+        /// <param name="native">Pointer to the <see cref="ArrowContext"/> to free. No-op when null.</param>
+        internal static unsafe void FreeArrowContextNative(ArrowContext* native)
         {
-            unsafe
+            if (native == null) return;
+
+            if (native->NumBatches != 0)
             {
-                if (this.arrowContext != null && this.arrowContext->NumBatches != 0)
+                for (int i = 0; i < native->NumBatches; i++)
                 {
-                    for (int i = 0; i < this.arrowContext->NumBatches; i++)
+                    ArrowFFIData* arrowStruct = native->ArrowStructs[i];
+                    ParquetStringPartitions* partitions = native->Partitions[i];
+
+                    if (arrowStruct != null)
                     {
-                        ArrowFFIData* arrowStruct = this.arrowContext->ArrowStructs[i];
-                        ParquetStringPartitions* partitions = this.arrowContext->Partitions[i];
-
-                        if (arrowStruct != null)
-                        {
-                            Marshal.FreeHGlobal((IntPtr)arrowStruct);
-                            this.arrowContext->ArrowStructs[i] = null;
-                        }
-
-                        if (partitions != null)
-                        {
-                            for (int j = 0; j < partitions->Len; j++)
-                            {
-                                Marshal.FreeHGlobal((IntPtr)partitions->ColNames[j]);
-                                Marshal.FreeHGlobal((IntPtr)partitions->ColValues[j]);
-                            }
-                            Marshal.FreeHGlobal((IntPtr)partitions);
-                            this.arrowContext->Partitions[i] = null;
-                        }
+                        Marshal.FreeHGlobal((IntPtr)arrowStruct);
+                        native->ArrowStructs[i] = null;
                     }
-                    Marshal.FreeHGlobal((IntPtr)this.arrowContext->ArrowStructs);
-                    Marshal.FreeHGlobal((IntPtr)this.arrowContext->Partitions);
 
-                    Marshal.FreeHGlobal((IntPtr)this.arrowContext);
+                    if (partitions != null)
+                    {
+                        for (int j = 0; j < partitions->Len; j++)
+                        {
+                            Marshal.FreeHGlobal((IntPtr)partitions->ColNames[j]);
+                            Marshal.FreeHGlobal((IntPtr)partitions->ColValues[j]);
+                        }
+                        Marshal.FreeHGlobal((IntPtr)partitions);
+                        native->Partitions[i] = null;
+                    }
                 }
-                this.arrowContext = null;
             }
+
+            if (native->ArrowStructs != null) Marshal.FreeHGlobal((IntPtr)native->ArrowStructs);
+            if (native->Partitions != null) Marshal.FreeHGlobal((IntPtr)native->Partitions);
+            Marshal.FreeHGlobal((IntPtr)native);
         }
 
         private void DisposePartitionList()
@@ -363,83 +401,71 @@ namespace DeltaLake.Kernel.State
             }
         }
 
-        private void RefreshArrowContext()
+        /// <summary>
+        /// Drives the kernel scan-metadata iteration loop and populates
+        /// <paramref name="native"/> via the <see cref="EngineContext"/> visitor
+        /// callback. The caller owns <paramref name="native"/> and is responsible
+        /// for freeing it; this helper only fills the struct's RecordBatches.
+        /// </summary>
+        /// <param name="native">The target <see cref="ArrowContext"/> to populate.</param>
+        /// <param name="snap">The pinned snapshot for the scan.</param>
+        /// <param name="schema">The logical schema for the scan.</param>
+        /// <param name="scan">The kernel scan handle.</param>
+        /// <param name="partList">The partition column list.</param>
+        /// <param name="physical">The physical schema.</param>
+        private unsafe void PopulateArrowContextViaScan(
+            ArrowContext* native,
+            SharedSnapshot* snap,
+            SharedSchema* schema,
+            SharedScan* scan,
+            PartitionList* partList,
+            SharedSchema* physical)
         {
-
-            this.DisposeArrowContext();
-
-            unsafe
+            // Memory scoped to this scan
+            //
+            // TODO: scan_metadata_next_arrow
+            // v0.21.0 exposes scan_metadata_next_arrow for batch-mode Arrow scan metadata,
+            // which avoids per-file callback overhead. Consider migrating from the per-file
+            // scan_metadata_next + CScanCallback pattern to the batch Arrow API.
+            SharedScanMetadataIterator* iter = null;
+            IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(snap, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+            EngineContext ctx = new()
             {
-                // Generate a fresh arrow context and pin it. The pattern here
-                // is a little bit different, because we're the ones
-                // pre-allocating the struct, and not the Kernel. We pass the
-                // Kernel the struct pointer and it will pass it right back to
-                // us via a callback, alongside the actual Arrow data, so we can
-                // fill up the struct with on-the-fly allocated RecordBatches.
-                //
-                // ...If only the Kernel had a method like delta-rs to return Arrow
-                // Stream...
-                //
-                this.arrowContext = (ArrowContext*)Marshal.AllocHGlobal(Marshal.SizeOf<ArrowContext>());
-                *arrowContext = new ArrowContext()
-                {
-                    NumBatches = 0
-                };
+                LogicalSchema = schema,
+                TableRoot = (byte*)tableRootPtr,
+                Engine = this.sharedExternEnginePtr,
+                PartitionList = partList,
+                PartitionKeyValueMap = null,
+                ArrowContext = native,
+                PhysicalSchema = physical,
+            };
+            EngineContext* ctxPtr = &ctx;
 
-                // Refresh the necessary Kernel state together before initiating
-                // the fresh scan - no stale reads allowed!
-                //
-                SharedSnapshot* managedSnapshotPtr = this.Snapshot(true);
-                SharedSchema* managedSchemaPtr = this.Schema(true);
-                PartitionList* managedPartitionListPtr = this.PartitionList(true);
-                SharedScan* managedScanPtr = this.Scan(true);
-                SharedSchema* physicalSchema = this.PhysicalSchema(true);
-                // SharedGlobalScanState* managedGlobalScanStatePtr = this.GlobalScanState(true);
-
-                // Memory scoped to this scan
-                //
-                // TODO: scan_metadata_next_arrow
-                // v0.21.0 exposes scan_metadata_next_arrow for batch-mode Arrow scan metadata,
-                // which avoids per-file callback overhead. Consider migrating from the per-file
-                // scan_metadata_next + CScanCallback pattern to the batch Arrow API.
-                SharedScanMetadataIterator* kernelOwnedScanDataIteratorPtr = null;
-                IntPtr tableRootPtr = (IntPtr)Methods.snapshot_table_root(managedSnapshotPtr, Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
-                EngineContext scanScopedEngineContext = new()
+            try
+            {
+                ExternResultHandleSharedScanMetadataIterator iterHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, scan);
+                if (iterHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
                 {
-                    LogicalSchema = managedSchemaPtr,
-                    TableRoot = (byte*)tableRootPtr,
-                    Engine = this.sharedExternEnginePtr,
-                    PartitionList = managedPartitionListPtr,
-                    PartitionKeyValueMap = null,
-                    ArrowContext = this.arrowContext,
-                    PhysicalSchema = physicalSchema,
-                };
-                EngineContext* scanScopedEngineContextPtr = &scanScopedEngineContext;
-
-                try
-                {
-                    ExternResultHandleSharedScanMetadataIterator dataIteratorHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, managedScanPtr);
-                    if (dataIteratorHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
-                    {
-                        throw KernelException.FromEngineError(dataIteratorHandle.Anonymous.Anonymous2.err, "Failed to construct kernel scan data iterator.");
-                    }
-                    kernelOwnedScanDataIteratorPtr = dataIteratorHandle.Anonymous.Anonymous1.ok;
-                    for (; ; )
-                    {
-                        ExternResultbool isScanOk = Methods.scan_metadata_next(
-                            kernelOwnedScanDataIteratorPtr,
-                            scanScopedEngineContextPtr,
-                            Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
-                        if (isScanOk.tag != ExternResultbool_Tag.Okbool) throw KernelException.FromEngineError(isScanOk.Anonymous.Anonymous2.err, "Failed to iterate on table scan data.");
-                        else if (!isScanOk.Anonymous.Anonymous1.ok) break;
-                        else continue;
-                    }
+                    throw KernelException.FromEngineError(iterHandle.Anonymous.Anonymous2.err, "Failed to construct kernel scan data iterator.");
                 }
-                finally
+                iter = iterHandle.Anonymous.Anonymous1.ok;
+                for (; ; )
                 {
-                    if (kernelOwnedScanDataIteratorPtr != null) Methods.free_scan_metadata_iter(kernelOwnedScanDataIteratorPtr);
-                    if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
+                    ExternResultbool ok = Methods.scan_metadata_next(
+                        iter,
+                        ctxPtr,
+                        Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
+                    if (ok.tag != ExternResultbool_Tag.Okbool)
+                    {
+                        throw KernelException.FromEngineError(ok.Anonymous.Anonymous2.err, "Failed to iterate on table scan data.");
+                    }
+                    if (!ok.Anonymous.Anonymous1.ok) break;
                 }
+            }
+            finally
+            {
+                if (iter != null) Methods.free_scan_metadata_iter(iter);
+                if (tableRootPtr != IntPtr.Zero) Marshal.FreeHGlobal(tableRootPtr);
             }
         }
 
