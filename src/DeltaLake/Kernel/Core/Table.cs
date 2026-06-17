@@ -242,7 +242,7 @@ namespace DeltaLake.Kernel.Core
                                 handle.RecordBatchList);
 #pragma warning disable CA2000 // OwnedDataFrame owns the handle; the intermediate RecordBatch is consumed by FromArrowRecordBatch
                             DataFrame frame = DataFrame.FromArrowRecordBatch(concatenated);
-                            return new OwnedDataFrame(frame, handle);
+                            return new OwnedDataFrame(frame, handle, concatenated);
 #pragma warning restore CA2000
                         }
                         catch

@@ -12,6 +12,7 @@
 // -----------------------------------------------------------------------------
 
 using System;
+using Apache.Arrow;
 using DeltaLake.Kernel.State;
 using Microsoft.Data.Analysis;
 
@@ -33,6 +34,7 @@ namespace DeltaLake.Kernel.Core
     public sealed class OwnedDataFrame : IDisposable
     {
         private readonly ArrowContextHandle _handle;
+        private readonly RecordBatch? _concatenatedBatch;
         private bool _disposed;
 
         /// <summary>
@@ -47,6 +49,19 @@ namespace DeltaLake.Kernel.Core
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="OwnedDataFrame"/> class.
+        /// </summary>
+        /// <param name="frame">The data frame built from the imported record batches.</param>
+        /// <param name="handle">The handle that owns the underlying record batches and native allocation.</param>
+        /// <param name="concatenatedBatch">The concatenated batch used to build <paramref name="frame"/> and kept alive for frame column access.</param>
+        internal OwnedDataFrame(DataFrame frame, ArrowContextHandle handle, RecordBatch concatenatedBatch)
+        {
+            Frame = frame;
+            _handle = handle;
+            _concatenatedBatch = concatenatedBatch;
+        }
+
+        /// <summary>
         /// Gets the underlying data frame. The reference is undefined after the
         /// wrapper is disposed.
         /// </summary>
@@ -57,6 +72,7 @@ namespace DeltaLake.Kernel.Core
         {
             if (_disposed) return;
             _disposed = true;
+            _concatenatedBatch?.Dispose();
             _handle.Dispose();
         }
     }
