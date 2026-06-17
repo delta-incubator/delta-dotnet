@@ -150,7 +150,7 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-            public async Task<Core.OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
+        public async Task<Core.OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
             await this.table.ReadAsDataFrameAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>
