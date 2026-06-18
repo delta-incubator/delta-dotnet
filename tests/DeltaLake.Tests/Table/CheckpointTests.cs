@@ -18,7 +18,7 @@ namespace DeltaLake.Tests.Table
             var info = DirectoryHelpers.CreateTempSubdirectory();
             try
             {
-                await BaseCheckpointTest($"file://{info.FullName}", length);
+                await BaseCheckpointTest(DirectoryHelpers.ToFileUri(info.FullName), length);
             }
             finally
             {
@@ -36,7 +36,7 @@ namespace DeltaLake.Tests.Table
             var info = DirectoryHelpers.CreateTempSubdirectory();
             try
             {
-                await BaseCheckpointTest($"file://{info.FullName}", length);
+                await BaseCheckpointTest(DirectoryHelpers.ToFileUri(info.FullName), length);
                 var last_check_point = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
                 Assert.True(File.Exists(last_check_point));
                 var version = ReadVersion(last_check_point);
@@ -59,7 +59,7 @@ namespace DeltaLake.Tests.Table
             try
             {
                 await BaseCheckpointTestWithMore(
-                    $"file://{info.FullName}",
+                    DirectoryHelpers.ToFileUri(info.FullName),
                     length,
                     async table =>
                     {
@@ -92,7 +92,7 @@ namespace DeltaLake.Tests.Table
             var info = DirectoryHelpers.CreateTempSubdirectory();
             try
             {
-                var data = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+                var data = await TableHelpers.SetupTable(DirectoryHelpers.ToFileUri(info.FullName), 0);
                 using var table = data.table;
                 var schema = table.Schema();
                 var options = new InsertOptions { SaveMode = SaveMode.Append };
@@ -129,7 +129,7 @@ namespace DeltaLake.Tests.Table
             var info = DirectoryHelpers.CreateTempSubdirectory();
             try
             {
-                var path = $"file://{info.FullName}";
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
 
                 // Build a table with v0..v8.
                 {

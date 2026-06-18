@@ -19,7 +19,6 @@ using Apache.Arrow;
 using Apache.Arrow.Ipc;
 using DeltaLake.Errors;
 using DeltaLake.Interfaces;
-using Microsoft.Data.Analysis;
 using Core = DeltaLake.Kernel.Core;
 
 namespace DeltaLake.Table
@@ -118,12 +117,40 @@ namespace DeltaLake.Table
         }
 
         /// <inheritdoc/>
-        public async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+        public async Task<Core.OwnedArrowTable> ReadAsArrowTableAsync(
             CancellationToken cancellationToken
         ) => await this.table.ReadAsArrowTableAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>
-        public async Task<DataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
+        public IAsyncEnumerable<RecordBatch> QueryTableChangesAsync(
+            TableChangesOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (options is null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            return QueryTableChangesCoreAsync(options, cancellationToken);
+        }
+
+        private async IAsyncEnumerable<RecordBatch> QueryTableChangesCoreAsync(
+            TableChangesOptions options,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
+        {
+            // Offload the blocking FFI iteration to the thread pool rather than
+            // running it synchronously on the caller's thread.
+            await Task.Yield();
+            cancellationToken.ThrowIfCancellationRequested();
+            foreach (RecordBatch batch in this.table.QueryTableChanges(options))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return batch;
+            }
+        }
+
+        /// <inheritdoc/>
+        public async Task<Core.OwnedDataFrame> ReadAsDataFrameAsync(CancellationToken cancellationToken) =>
             await this.table.ReadAsDataFrameAsync(cancellationToken).ConfigureAwait(false);
 
         /// <inheritdoc/>

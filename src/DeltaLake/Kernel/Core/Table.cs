@@ -135,13 +135,6 @@ namespace DeltaLake.Kernel.Core
             : base(bridgeRuntime, rawBridgetablePtr)
         {
             this.tableStorageOptions = tableStorageOptions;
-
-            // The kernel engine is built only when the URL scheme is kernel-readable
-            // (excludes memory:// — see TableStorageOptionsExtensions.IsKernelSupported)
-            // and the caller has not opted out. When false, kernel-only operations
-            // (CheckpointAsync, ReadAsArrowTableAsync, ReadAsDataFrameAsync,
-            // CommitAddActionsAsync, GetLatestTransactionVersionAsync, LoadVersionAsync,
-            // LoadTimestampAsync) throw on invocation.
             bool shouldBuildKernel = useKernel && tableStorageOptions.IsKernelSupported();
 
             if (shouldBuildKernel)
@@ -162,7 +155,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
                 }
-                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
+                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1_1.ok;
 
                 // The joys of unmanaged code, this is all to pass some Key:Value string pairs
                 // to the Kernel's Engine Builder (e.g. Storage Account/S3 Keys etc.).
@@ -194,11 +187,7 @@ namespace DeltaLake.Kernel.Core
                 }
 
                 // Required by Snapshot::checkpoint to avoid deadlocks on the default
-                // single-threaded TokioBackgroundExecutor (kernel FFI test note at
-                // ffi/src/lib.rs:1608). Bounded at 2 workers (matches the kernel's own
-                // checkpoint smoke test) because TokioMultiThreadExecutor::new_owned_runtime
-                // creates one runtime per engine and the kernel FFI exposes no API to share
-                // runtimes across tables; the default num_cpus::get() would multiply per-table.
+                // single-threaded TokioBackgroundExecutor.
                 Methods.set_builder_with_multithreaded_executor(this.kernelOwnedEngineBuilderPtr, 2, 0);
 
                 this.sharedExternEngine = Methods.builder_build(this.kernelOwnedEngineBuilderPtr);
@@ -206,7 +195,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
-                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
+                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
 
@@ -219,7 +208,7 @@ namespace DeltaLake.Kernel.Core
 
         #region Delta Kernel table operations
 
-        internal async Task<Apache.Arrow.Table> ReadAsArrowTableAsync(
+        internal async Task<OwnedArrowTable> ReadAsArrowTableAsync(
             ICancellationToken cancellationToken
         )
         {
@@ -229,9 +218,18 @@ namespace DeltaLake.Kernel.Core
                 .ExecuteAsync(
                     () =>
                     {
-                        unsafe
+                        ArrowContextHandle handle = this.state.BuildArrowContextOwned();
+                        try
                         {
-                            return this.state.ArrowContext(true)->ToTable();
+                            Apache.Arrow.Table table = ArrowContextExtensions.BuildSanitizedTable(
+                                handle.Schema,
+                                handle.RecordBatchList);
+                            return new OwnedArrowTable(table, handle);
+                        }
+                        catch
+                        {
+                            handle.Dispose();
+                            throw;
                         }
                     },
                     cancellationToken
@@ -239,7 +237,7 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
-        internal async Task<DataFrame> ReadAsDataFrameAsync(ICancellationToken cancellationToken)
+        internal async Task<OwnedDataFrame> ReadAsDataFrameAsync(ICancellationToken cancellationToken)
         {
             this.ThrowIfKernelNotSupported();
 
@@ -247,11 +245,21 @@ namespace DeltaLake.Kernel.Core
                 .ExecuteAsync(
                     () =>
                     {
-                        unsafe
+                        ArrowContextHandle handle = this.state.BuildArrowContextOwned();
+                        try
                         {
-#pragma warning disable CA2000 // DataFrames use the RecordBatch, so we don't need to dispose of it
-                            return DataFrame.FromArrowRecordBatch(this.state.ArrowContext(true)->ToRecordBatch());
+                            Apache.Arrow.RecordBatch concatenated = ArrowContextExtensions.ConcatenateAndSanitize(
+                                handle.Schema,
+                                handle.RecordBatchList);
+#pragma warning disable CA2000 // OwnedDataFrame owns the handle; the intermediate RecordBatch is consumed by FromArrowRecordBatch
+                            DataFrame frame = DataFrame.FromArrowRecordBatch(concatenated);
+                            return new OwnedDataFrame(frame, handle, concatenated);
 #pragma warning restore CA2000
+                        }
+                        catch
+                        {
+                            handle.Dispose();
+                            throw;
                         }
                     },
                     cancellationToken
@@ -295,15 +303,6 @@ namespace DeltaLake.Kernel.Core
             return base.Uri();
         }
 
-        /// <remarks>
-        /// Throws <see cref="NotSupportedException"/> on memory:// tables (the kernel engine
-        /// cannot see bridge writes — each runtime instantiates its own in-memory
-        /// ObjectStore). On file:// tables, delegates to the bridge to pin its
-        /// <c>RawDeltaTable</c> at the requested version, then mirrors that pin on the
-        /// kernel snapshot via <see cref="ISafeState.PinSnapshotTo(long)"/> so subsequent
-        /// kernel-only operations (notably <see cref="CheckpointAsync"/>) honor the loaded
-        /// version rather than the latest log version.
-        /// </remarks>
         internal override async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
             if (!this.tableStorageOptions.IsKernelSupported())
@@ -312,7 +311,9 @@ namespace DeltaLake.Kernel.Core
                     "LoadVersionAsync is not supported for memory:// tables. " +
                     "Use a file:// URI with a temp directory for in-process scenarios.");
             }
+
             await base.LoadVersionAsync(version, cancellationToken).ConfigureAwait(false);
+
             if (this.isKernelAllocated)
             {
                 this.state.PinSnapshotTo((long)version);
@@ -332,7 +333,9 @@ namespace DeltaLake.Kernel.Core
                     "LoadTimestampAsync is not supported for memory:// tables. " +
                     "Use a file:// URI with a temp directory for in-process scenarios.");
             }
+
             await base.LoadTimestampAsync(timestampMilliseconds, cancellationToken).ConfigureAwait(false);
+
             if (this.isKernelAllocated)
             {
                 long? resolved = base.Version();
@@ -345,14 +348,12 @@ namespace DeltaLake.Kernel.Core
 
         /// <remarks>
         /// Mirrors the bridge's post-advance table version onto the kernel snapshot so
-        /// subsequent kernel reads (notably <see cref="CheckpointAsync"/>) honor the new
-        /// version rather than reading the latest log version. Without this override, the
-        /// kernel snapshot would resolve to <c>HEAD</c> even when the caller requested a
-        /// specific intermediate version via <paramref name="maxVersion"/>.
+        /// subsequent kernel reads honor the new version rather than reading the latest log version.
         /// </remarks>
         internal override async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
             await base.UpdateIncrementalAsync(maxVersion, cancellationToken).ConfigureAwait(false);
+
             if (this.isKernelAllocated)
             {
                 long? advanced = base.Version();
@@ -380,6 +381,12 @@ namespace DeltaLake.Kernel.Core
                 }
             }
             return metadata;
+        }
+
+        internal IEnumerable<Apache.Arrow.RecordBatch> QueryTableChanges(TableChangesOptions options)
+        {
+            ThrowIfKernelNotSupported();
+            return ExecuteTableChanges(options);
         }
 
         /// <summary>
@@ -451,26 +458,6 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
-        /// <summary>
-        /// Writes a checkpoint of the current snapshot via the Delta Kernel FFI.
-        /// </summary>
-        /// <remarks>
-        /// Kernel-only path; bridge <c>table_checkpoint</c> has been removed. The kernel
-        /// automatically chooses V1 or V2 single-file checkpoint format based on the table's
-        /// protocol features; sidecar checkpoints are not produced through this entry point.
-        ///
-        /// <para>Throws <see cref="NotSupportedException"/> on memory:// tables (the kernel
-        /// engine cannot see bridge writes — each runtime instantiates its own in-memory
-        /// ObjectStore). Use a file:// URI for in-process scenarios.</para>
-        ///
-        /// <para>After <see cref="LoadVersionAsync"/>, <see cref="LoadTimestampAsync"/>,
-        /// <see cref="UpdateIncrementalAsync"/>, or opening with <c>TableOptions.Version</c>
-        /// set, <see cref="ISafeState.PinSnapshotTo(long)"/> ensures the snapshot used here
-        /// matches the loaded version rather than the latest log version. Without a pin
-        /// the snapshot resolves to <c>HEAD</c>, so kernel-only commits made via
-        /// <see cref="CommitAddActionsAsync"/> are visible to subsequent reads.</para>
-        /// </remarks>
-        /// <param name="cancellationToken">Cancellation token (honored at task boundaries, not mid-FFI).</param>
         internal async Task CheckpointAsync(ICancellationToken cancellationToken)
         {
             if (!this.isKernelAllocated)
@@ -487,20 +474,19 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            ExternResultbool result = Methods.checkpoint_snapshot(
+                            ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
-                                this.kernelOwnedSharedExternEnginePtr);
+                                this.kernelOwnedSharedExternEnginePtr,
+                                spec: null);
 
-                            if (result.tag != ExternResultbool_Tag.Okbool)
+                            if (result.tag != ExternResultFfiCheckpointWriteResult_Tag.OkFfiCheckpointWriteResult)
                             {
                                 throw KernelException.FromEngineError(
-                                    result.Anonymous.Anonymous2.err,
+                                    result.Anonymous.Anonymous2_1.err,
                                     "Failed to checkpoint snapshot via kernel FFI");
                             }
 
-                            // result.Anonymous.Anonymous1.ok is true for both Written and
-                            // AlreadyExists per ffi/src/lib.rs:919-921. Both are non-error.
-                            return result.Anonymous.Anonymous1.ok;
+                            return result.Anonymous.Anonymous1_1.ok.tag == FfiCheckpointWriteResult_Tag.FfiCheckpointWriteResultWritten;
                         }
                     },
                     cancellationToken
@@ -563,13 +549,150 @@ namespace DeltaLake.Kernel.Core
             }
         }
 
+        // Acquires all three FFI handles needed for CDC iteration.
+        // A regular (non-iterator) method so it can contain an unsafe { } block.
+        private TableChangesContext CreateTableChangesContext(TableChangesOptions options)
+        {
+            unsafe
+            {
+                ExternResultHandleExclusiveTableChanges changesResult = options.EndVersion.HasValue
+                    ? Methods.table_changes_between_versions(
+                        this.tableLocationSlice,
+                        this.kernelOwnedSharedExternEnginePtr,
+                        options.StartVersion,
+                        options.EndVersion.Value)
+                    : Methods.table_changes_from_version(
+                        this.tableLocationSlice,
+                        this.kernelOwnedSharedExternEnginePtr,
+                        options.StartVersion);
+
+                if (changesResult.tag != ExternResultHandleExclusiveTableChanges_Tag.OkHandleExclusiveTableChanges)
+                {
+                    throw KernelException.FromEngineError(
+                        changesResult.Anonymous.Anonymous2_1.err,
+                        "Failed to acquire table changes handle from Delta Kernel.");
+                }
+
+                // CRITICAL: table_changes_scan CONSUMES this pointer on both success and failure.
+                ExclusiveTableChanges* tableChangesPtr = changesResult.Anonymous.Anonymous1_1.ok;
+
+                // TODO: expose predicate push-down via TableChangesOptions once EnginePredicate* is surfaced.
+                ExternResultHandleSharedTableChangesScan scanResult =
+                    Methods.table_changes_scan(tableChangesPtr, this.kernelOwnedSharedExternEnginePtr, predicate: null);
+                tableChangesPtr = null;  // now invalid regardless of outcome
+
+                if (scanResult.tag != ExternResultHandleSharedTableChangesScan_Tag.OkHandleSharedTableChangesScan)
+                {
+                    throw KernelException.FromEngineError(
+                        scanResult.Anonymous.Anonymous2_1.err,
+                        "Failed to create table changes scan from Delta Kernel.");
+                }
+
+                SharedTableChangesScan* scanPtr = scanResult.Anonymous.Anonymous1_1.ok;
+
+                ExternResultHandleSharedScanTableChangesIterator iterResult =
+                    Methods.table_changes_scan_execute(scanPtr, this.kernelOwnedSharedExternEnginePtr);
+
+                if (iterResult.tag != ExternResultHandleSharedScanTableChangesIterator_Tag.OkHandleSharedScanTableChangesIterator)
+                {
+                    Methods.free_table_changes_scan(scanPtr);
+                    throw KernelException.FromEngineError(
+                        iterResult.Anonymous.Anonymous2_1.err,
+                        "Failed to execute table changes scan from Delta Kernel.");
+                }
+
+                return new TableChangesContext(scanPtr, iterResult.Anonymous.Anonymous1_1.ok);
+            }
+        }
+
+        // Iterator method: contains no unsafe code — all FFI is delegated to TableChangesContext.
+        private IEnumerable<Apache.Arrow.RecordBatch> ExecuteTableChanges(TableChangesOptions options)
+        {
+            using (TableChangesContext context = CreateTableChangesContext(options))
+            {
+                for (; ; )
+                {
+                    Apache.Arrow.RecordBatch? batch = context.Next();
+                    if (batch == null) yield break;
+                    yield return batch;
+                }
+            }
+        }
+
+        // Holds the scan + iterator handles for a single CDC traversal.
+        // Methods have safe signatures so they are callable from the non-unsafe iterator above.
+        private sealed unsafe class TableChangesContext : IDisposable
+        {
+            private SharedTableChangesScan* scanPtr;
+            private SharedScanTableChangesIterator* iterPtr;
+
+            internal TableChangesContext(
+                SharedTableChangesScan* scanPtr,
+                SharedScanTableChangesIterator* iterPtr)
+            {
+                this.scanPtr = scanPtr;
+                this.iterPtr = iterPtr;
+            }
+
+            internal Apache.Arrow.RecordBatch? Next()
+            {
+                ExternResultArrowFFIData batchResult = Methods.scan_table_changes_next(this.iterPtr);
+
+                if (batchResult.tag == ExternResultArrowFFIData_Tag.ErrArrowFFIData)
+                {
+                    throw KernelException.FromEngineError(
+                        batchResult.Anonymous.Anonymous2_1.err,
+                        "Failed to advance table changes iterator.");
+                }
+
+                ArrowFFIData* arrowDataPtr = batchResult.Anonymous.Anonymous1_1.ok;
+                if (arrowDataPtr == null)
+                {
+                    return null;
+                }
+
+                // Import via Arrow C Data Interface — ownership of the underlying buffers
+                // transfers to the managed RecordBatch. free_arrow_ffi_data is called in
+                // the finally block to release only the ArrowFFIData* wrapper struct allocated
+                // by Rust; the Arrow buffer release callbacks are zeroed on successful import
+                // so free_arrow_ffi_data becomes a cheap no-op for the buffer bytes.
+                try
+                {
+                    Apache.Arrow.Schema schema =
+                        Apache.Arrow.C.CArrowSchemaImporter.ImportSchema(
+                            (Apache.Arrow.C.CArrowSchema*)&arrowDataPtr->schema);
+                    return Apache.Arrow.C.CArrowArrayImporter.ImportRecordBatch(
+                        (Apache.Arrow.C.CArrowArray*)&arrowDataPtr->array, schema);
+                }
+                finally
+                {
+                    Methods.free_arrow_ffi_data(arrowDataPtr);
+                }
+            }
+
+            public void Dispose()
+            {
+                // Free iterator before scan (reverse acquisition order).
+                if (this.iterPtr != null)
+                {
+                    Methods.free_scan_table_changes_iter(this.iterPtr);
+                    this.iterPtr = null;
+                }
+                if (this.scanPtr != null)
+                {
+                    Methods.free_table_changes_scan(this.scanPtr);
+                    this.scanPtr = null;
+                }
+            }
+        }
+
         private void ThrowIfKernelNotSupported()
         {
             if (!this.isKernelAllocated)
             {
                 // There's currently no direct equivalent to this in delta-rs,
                 // so we throw if the Kernel is not being used (memory:// tables
-                // or tables opened with TableOptions.Version).
+                // or tables opened without kernel support).
                 //
                 throw new InvalidOperationException("This operation is not supported without using the Delta Kernel.");
             }

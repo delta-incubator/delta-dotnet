@@ -47,14 +47,14 @@
 
     <!-- DEBUG Rust Build -->
 
-    <Target Name="CargoBridgeBuildDebug" BeforeTargets="DispatchToInnerBuilds"
+    <Target Name="CargoBridgeBuildDebug" BeforeTargets="DispatchToInnerBuilds;PreBuildEvent"
         Condition="'$(Configuration)' == 'Debug'">
         <Exec Command="cargo build" WorkingDirectory="Bridge" />
     </Target>
 
-    <Target Name="CargoKernelBuildDebug" BeforeTargets="DispatchToInnerBuilds"
+    <Target Name="CargoKernelBuildDebug" BeforeTargets="DispatchToInnerBuilds;PreBuildEvent"
         Condition="'$(Configuration)' == 'Debug'">
-        <Exec Command="cargo build --no-default-features --features default-engine-rustls,arrow-58" 
+        <Exec Command="cargo build --no-default-features --features default-engine-rustls,arrow-58"
         WorkingDirectory="Kernel/delta-kernel-rs/ffi" />
     </Target>
 
@@ -84,12 +84,12 @@
 
     <!-- RELEASE Rust Build -->
 
-    <Target Name="CargoBridgeBuildRelease" BeforeTargets="DispatchToInnerBuilds"
+    <Target Name="CargoBridgeBuildRelease" BeforeTargets="DispatchToInnerBuilds;PreBuildEvent"
         Condition="'$(Configuration)' == 'Release' AND '$(RustLibraryRoot)' == ''">
         <Exec Command="cargo build --release" WorkingDirectory="Bridge" />
     </Target>
 
-    <Target Name="CargoKernelBuildRelease" BeforeTargets="DispatchToInnerBuilds"
+    <Target Name="CargoKernelBuildRelease" BeforeTargets="DispatchToInnerBuilds;PreBuildEvent"
         Condition="'$(Configuration)' == 'Release' AND '$(KernelLibraryRoot)' == ''">
         <Exec Command="cargo build --release --no-default-features --features default-engine-rustls,arrow-58"
          WorkingDirectory="Kernel/delta-kernel-rs/ffi" />

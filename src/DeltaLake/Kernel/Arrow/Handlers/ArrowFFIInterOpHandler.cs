@@ -111,23 +111,23 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 if (isParquetFileReadOk.tag != ExternResultHandleExclusiveFileReadResultIterator_Tag.OkHandleExclusiveFileReadResultIterator)
                 {
                     throw KernelException.FromEngineError(
-                        isParquetFileReadOk.Anonymous.Anonymous2.err,
+                        isParquetFileReadOk.Anonymous.Anonymous2_1.err,
                         $"Kernel failed to read parquet file at `{parquetAbsolutePath}`"
                     );
                 }
 
-                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1.ok;
+                ExclusiveFileReadResultIterator* arrowReadIterator = isParquetFileReadOk.Anonymous.Anonymous1_1.ok;
                 for (; ; )
                 {
                     ExternResultbool isArrowResultReadOk = Methods.read_result_next(arrowReadIterator, context, Marshal.GetFunctionPointerForDelegate(VisitCallbacks.IngestArrowData));
                     if (isArrowResultReadOk.tag != ExternResultbool_Tag.Okbool)
                     {
                         throw KernelException.FromEngineError(
-                            isArrowResultReadOk.Anonymous.Anonymous2.err,
+                            isArrowResultReadOk.Anonymous.Anonymous2_1.err,
                             "Failed to iterate on reading arrow data from parquet"
                         );
                     }
-                    else if (!isArrowResultReadOk.Anonymous.Anonymous1.ok) break;
+                    else if (!isArrowResultReadOk.Anonymous.Anonymous1_1.ok) break;
                 }
                 Methods.free_read_result_iter(arrowReadIterator);
             }
@@ -176,9 +176,9 @@ namespace DeltaLake.Kernel.Arrow.Handlers
                 );
                 if (colValRes.tag != ExternResultNullableCvoid_Tag.OkNullableCvoid)
                 {
-                    throw KernelException.FromEngineError(colValRes.Anonymous.Anonymous2.err, $"Failed to get partition value for column '{colName}' from kernel string map.");
+                    throw KernelException.FromEngineError(colValRes.Anonymous.Anonymous2_1.err, $"Failed to get partition value for column '{colName}' from kernel string map.");
                 }
-                void* colValPtr = colValRes.Anonymous.Anonymous1.ok;
+                void* colValPtr = colValRes.Anonymous.Anonymous1_1.ok;
                 string colVal = colValPtr != null ? MarshalExtensions.PtrToStringUTF8((IntPtr)colValPtr) : String.Empty;
 #pragma warning restore CS1024, CS8629, CS8600
 
