@@ -376,10 +376,10 @@ namespace DeltaLake.Kernel.State
                     schema: null);
                 if (scanRes.tag != ExternResultHandleSharedScan_Tag.OkHandleSharedScan)
                 {
-                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2_1.err, "Failed to create table scan from Delta Kernel.");
+                    throw KernelException.FromEngineError(scanRes.Anonymous.Anonymous2.err, "Failed to create table scan from Delta Kernel.");
                 }
 
-                this.managedScan = scanRes.Anonymous.Anonymous1_1.ok;
+                this.managedScan = scanRes.Anonymous.Anonymous1.ok;
             }
         }
 
@@ -422,9 +422,9 @@ namespace DeltaLake.Kernel.State
                 ExternResultHandleMutableFfiSnapshotBuilder builderRes = Methods.get_snapshot_builder(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
                 {
-                    throw KernelException.FromEngineError(builderRes.Anonymous.Anonymous2_1.err, "Failed to create snapshot builder from Delta Kernel.");
+                    throw KernelException.FromEngineError(builderRes.Anonymous.Anonymous2.err, "Failed to create snapshot builder from Delta Kernel.");
                 }
-                MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1_1.ok;
+                MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
                 // Step 2: Apply pinned version (if any)
                 if (this.pinnedVersion is long pinned)
@@ -437,10 +437,10 @@ namespace DeltaLake.Kernel.State
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {
-                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2_1.err, "Failed to build table snapshot from Delta Kernel.");
+                    throw KernelException.FromEngineError(snapshotRes.Anonymous.Anonymous2.err, "Failed to build table snapshot from Delta Kernel.");
                 }
 
-                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1_1.ok;
+                this.managedPointInTimeSnapshot = snapshotRes.Anonymous.Anonymous1.ok;
             }
         }
 
@@ -489,9 +489,9 @@ namespace DeltaLake.Kernel.State
                 ExternResultHandleSharedScanMetadataIterator iterHandle = Methods.scan_metadata_iter_init(this.sharedExternEnginePtr, scan);
                 if (iterHandle.tag != ExternResultHandleSharedScanMetadataIterator_Tag.OkHandleSharedScanMetadataIterator)
                 {
-                    throw KernelException.FromEngineError(iterHandle.Anonymous.Anonymous2_1.err, "Failed to construct kernel scan data iterator.");
+                    throw KernelException.FromEngineError(iterHandle.Anonymous.Anonymous2.err, "Failed to construct kernel scan data iterator.");
                 }
-                iter = iterHandle.Anonymous.Anonymous1_1.ok;
+                iter = iterHandle.Anonymous.Anonymous1.ok;
                 for (; ; )
                 {
                     ExternResultbool ok = Methods.scan_metadata_next(
@@ -500,9 +500,9 @@ namespace DeltaLake.Kernel.State
                         Marshal.GetFunctionPointerForDelegate<VisitScanDataDelegate>(VisitCallbacks.VisitScanData));
                     if (ok.tag != ExternResultbool_Tag.Okbool)
                     {
-                        throw KernelException.FromEngineError(ok.Anonymous.Anonymous2_1.err, "Failed to iterate on table scan data.");
+                        throw KernelException.FromEngineError(ok.Anonymous.Anonymous2.err, "Failed to iterate on table scan data.");
                     }
-                    if (!ok.Anonymous.Anonymous1_1.ok) break;
+                    if (!ok.Anonymous.Anonymous1.ok) break;
                 }
             }
             finally

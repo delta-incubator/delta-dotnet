@@ -155,7 +155,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not initiate engine builder from Delta Kernel");
                 }
-                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1_1.ok;
+                this.kernelOwnedEngineBuilderPtr = engineBuilder.Anonymous.Anonymous1.ok;
 
                 // The joys of unmanaged code, this is all to pass some Key:Value string pairs
                 // to the Kernel's Engine Builder (e.g. Storage Account/S3 Keys etc.).
@@ -195,7 +195,7 @@ namespace DeltaLake.Kernel.Core
                 {
                     throw new InvalidOperationException("Could not build engine from the engine builder sent to Delta Kernel.");
                 }
-                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1_1.ok;
+                this.kernelOwnedSharedExternEnginePtr = this.sharedExternEngine.Anonymous.Anonymous1.ok;
                 this.state = new ManagedTableState(this.tableLocationSlice, this.kernelOwnedSharedExternEnginePtr);
                 this.isKernelAllocated = true;
 
@@ -474,19 +474,18 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
+                            ExternResultbool result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
-                                this.kernelOwnedSharedExternEnginePtr,
-                                spec: null);
+                                this.kernelOwnedSharedExternEnginePtr);
 
-                            if (result.tag != ExternResultFfiCheckpointWriteResult_Tag.OkFfiCheckpointWriteResult)
+                            if (result.tag != ExternResultbool_Tag.Okbool)
                             {
                                 throw KernelException.FromEngineError(
-                                    result.Anonymous.Anonymous2_1.err,
+                                    result.Anonymous.Anonymous2.err,
                                     "Failed to checkpoint snapshot via kernel FFI");
                             }
 
-                            return result.Anonymous.Anonymous1_1.ok.tag == FfiCheckpointWriteResult_Tag.FfiCheckpointWriteResultWritten;
+                            return result.Anonymous.Anonymous1.ok;
                         }
                     },
                     cancellationToken
@@ -569,12 +568,12 @@ namespace DeltaLake.Kernel.Core
                 if (changesResult.tag != ExternResultHandleExclusiveTableChanges_Tag.OkHandleExclusiveTableChanges)
                 {
                     throw KernelException.FromEngineError(
-                        changesResult.Anonymous.Anonymous2_1.err,
+                        changesResult.Anonymous.Anonymous2.err,
                         "Failed to acquire table changes handle from Delta Kernel.");
                 }
 
                 // CRITICAL: table_changes_scan CONSUMES this pointer on both success and failure.
-                ExclusiveTableChanges* tableChangesPtr = changesResult.Anonymous.Anonymous1_1.ok;
+                ExclusiveTableChanges* tableChangesPtr = changesResult.Anonymous.Anonymous1.ok;
 
                 // TODO: expose predicate push-down via TableChangesOptions once EnginePredicate* is surfaced.
                 ExternResultHandleSharedTableChangesScan scanResult =
@@ -584,11 +583,11 @@ namespace DeltaLake.Kernel.Core
                 if (scanResult.tag != ExternResultHandleSharedTableChangesScan_Tag.OkHandleSharedTableChangesScan)
                 {
                     throw KernelException.FromEngineError(
-                        scanResult.Anonymous.Anonymous2_1.err,
+                        scanResult.Anonymous.Anonymous2.err,
                         "Failed to create table changes scan from Delta Kernel.");
                 }
 
-                SharedTableChangesScan* scanPtr = scanResult.Anonymous.Anonymous1_1.ok;
+                SharedTableChangesScan* scanPtr = scanResult.Anonymous.Anonymous1.ok;
 
                 ExternResultHandleSharedScanTableChangesIterator iterResult =
                     Methods.table_changes_scan_execute(scanPtr, this.kernelOwnedSharedExternEnginePtr);
@@ -597,11 +596,11 @@ namespace DeltaLake.Kernel.Core
                 {
                     Methods.free_table_changes_scan(scanPtr);
                     throw KernelException.FromEngineError(
-                        iterResult.Anonymous.Anonymous2_1.err,
+                        iterResult.Anonymous.Anonymous2.err,
                         "Failed to execute table changes scan from Delta Kernel.");
                 }
 
-                return new TableChangesContext(scanPtr, iterResult.Anonymous.Anonymous1_1.ok);
+                return new TableChangesContext(scanPtr, iterResult.Anonymous.Anonymous1.ok);
             }
         }
 
@@ -641,11 +640,11 @@ namespace DeltaLake.Kernel.Core
                 if (batchResult.tag == ExternResultArrowFFIData_Tag.ErrArrowFFIData)
                 {
                     throw KernelException.FromEngineError(
-                        batchResult.Anonymous.Anonymous2_1.err,
+                        batchResult.Anonymous.Anonymous2.err,
                         "Failed to advance table changes iterator.");
                 }
 
-                ArrowFFIData* arrowDataPtr = batchResult.Anonymous.Anonymous1_1.ok;
+                ArrowFFIData* arrowDataPtr = batchResult.Anonymous.Anonymous1.ok;
                 if (arrowDataPtr == null)
                 {
                     return null;

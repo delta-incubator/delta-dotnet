@@ -69,14 +69,14 @@ namespace DeltaLake.Table
                 Description = MarshalExtensions.PtrToStringUTF8(new IntPtr(metadata->description)),
                 FormatProvider = MarshalExtensions.PtrToStringUTF8(new IntPtr(metadata->format_provider)) ?? string.Empty,
                 SchemaString = MarshalExtensions.PtrToStringUTF8(new IntPtr(metadata->schema_string)) ?? string.Empty,
-                CreatedTime = DateTimeOffset.FromUnixTimeMilliseconds(metadata->created_time),
+                CreatedTime = DateTimeOffset.FromUnixTimeMilliseconds(metadata->created_time.ToInt64()),
                 FormatOptions = KeyValueToDictionaryNullable(metadata->format_options),
                 PartitionColumns = partitionColumns,
                 Configuration = KeyValueToDictionary(metadata->configuration),
             };
         }
 
-        private unsafe static string[] StringArrayFromPointer(sbyte** pointer, int length)
+        private unsafe static string[] StringArrayFromPointer(byte** pointer, int length)
         {
             if (pointer == null)
             {
