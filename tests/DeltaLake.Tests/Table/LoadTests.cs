@@ -8,6 +8,26 @@ public partial class LoadTests
 {
     public static TableIdentifier[] AllTables = TableHelpers.Tables.Keys.ToArray();
 
+    [Fact]
+    public async Task Memory_LoadVersionAsync_Throws_NotSupported()
+    {
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var table = data.table;
+        var ex = await Assert.ThrowsAsync<NotSupportedException>(
+            async () => await table.LoadVersionAsync(0, CancellationToken.None));
+        Assert.Contains("memory://", ex.Message);
+    }
+
+    [Fact]
+    public async Task Memory_LoadDateTimeAsync_Throws_NotSupported()
+    {
+        var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var table = data.table;
+        var ex = await Assert.ThrowsAsync<NotSupportedException>(
+            async () => await table.LoadDateTimeAsync(0L, CancellationToken.None));
+        Assert.Contains("memory://", ex.Message);
+    }
+
     [Theory]
     [InlineData(1)]
     [InlineData(2)]

@@ -36,6 +36,10 @@ namespace DeltaLake.Kernel.State
         private unsafe SharedSchema* physicalSchema = null;
         private unsafe PartitionList* partitionList = null;
 
+        // When set, RefreshSnapshot builds at this version instead of latest.
+        // This keeps kernel reads aligned with bridge version-loading APIs.
+        private long? pinnedVersion;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="ManagedTableState"/> class.
         /// </summary>
@@ -62,6 +66,39 @@ namespace DeltaLake.Kernel.State
         {
             if (refresh || managedPointInTimeSnapshot == null) this.RefreshSnapshot();
             return managedPointInTimeSnapshot;
+        }
+
+        /// <inheritdoc/>
+        public void PinSnapshotTo(long version)
+        {
+            if (this.pinnedVersion == version)
+            {
+                return;
+            }
+
+            this.pinnedVersion = version;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        /// <inheritdoc/>
+        public void UnpinSnapshot()
+        {
+            if (this.pinnedVersion is null)
+            {
+                return;
+            }
+
+            this.pinnedVersion = null;
+            this.InvalidateSnapshotDependentCaches();
+        }
+
+        private void InvalidateSnapshotDependentCaches()
+        {
+            this.DisposePartitionList();
+            this.DisposeScan();
+            this.DisposeSchema();
+            this.DisposePhysicalSchema();
+            this.DisposeSnapshot();
         }
 
         /// <inheritdoc/>
@@ -389,7 +426,13 @@ namespace DeltaLake.Kernel.State
                 }
                 MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
-                // Step 2: Build snapshot (latest version)
+                // Step 2: Apply pinned version (if any)
+                if (this.pinnedVersion is long pinned)
+                {
+                    Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
+                }
+
+                // Step 3: Build snapshot (latest version, or pinned per Step 2)
                 // snapshot_builder_build consumes the builder handle on both success and failure paths.
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
