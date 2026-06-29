@@ -28,6 +28,11 @@ namespace DeltaLake.Kernel.Callbacks.Errors
         {
             ErrorCode = source->etype.etype;
             KernelMessage = source->Message;
+
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                this.HelpLink = $"KernelError={ErrorCode}; KernelMessage={KernelMessage}";
+            }
         }
 
         /// <summary>
@@ -64,7 +69,15 @@ namespace DeltaLake.Kernel.Callbacks.Errors
                 return KernelReadError.ProcessEngineError(source, error => new KernelException(error));
             }
 
-            return KernelReadError.ProcessEngineError(source, error => new KernelException(message, error));
+            return KernelReadError.ProcessEngineError(
+                source,
+                error =>
+                {
+                    string kernelMessage = error->Message;
+                    string detailedMessage =
+                        $"{message} (KernelError: {error->etype.etype}; KernelMessage: {kernelMessage})";
+                    return new KernelException(detailedMessage, error);
+                });
         }
     }
 }

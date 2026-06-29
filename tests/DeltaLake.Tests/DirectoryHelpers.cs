@@ -12,4 +12,9 @@ internal static class DirectoryHelpers
         return new DirectoryInfo(tempPath);
 #endif
     }
+
+    public static string ToFileUri(string localPath)
+    {
+        return new Uri(localPath).AbsoluteUri;
+    }
 }
