@@ -474,8 +474,12 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
+                            // Advance the maintained snapshot incrementally (reads only commits
+                            // since the cached snapshot via get_snapshot_builder_from) instead of a
+                            // full from-path rebuild, falling back to a full build when there is no
+                            // cached snapshot, the pin is earlier than the cache, or the advance fails.
                             ExternResultbool result = Methods.checkpoint_snapshot(
-                                this.state.Snapshot(refresh: true),
+                                this.state.AdvanceSnapshot(),
                                 this.kernelOwnedSharedExternEnginePtr);
 
                             if (result.tag != ExternResultbool_Tag.Okbool)

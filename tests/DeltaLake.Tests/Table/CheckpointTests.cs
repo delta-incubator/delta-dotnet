@@ -170,6 +170,138 @@ namespace DeltaLake.Tests.Table
             }
         }
 
+        [Fact]
+        public async Task File_System_Checkpoint_After_Append_Advances_Incrementally()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+
+                // The first checkpoint (inside BaseCheckpointTestWithMore) materializes and caches
+                // the kernel snapshot at v3. The `more` callback then appends on the SAME table
+                // handle and checkpoints again. Because the delta-rs bridge InsertAsync has no
+                // kernel-snapshot invalidation, the cached snapshot is stale-but-non-null, so the
+                // second CheckpointAsync -> AdvanceSnapshot takes the incremental
+                // get_snapshot_builder_from path (advances v3 -> v5 without re-reading the full log).
+                // If InsertAsync ever begins invalidating the kernel snapshot, AdvanceSnapshot falls
+                // back to a full rebuild and the version assertion below still holds.
+                await BaseCheckpointTestWithMore(path, 2, async table =>
+                {
+                    var schema = table.Schema();
+                    var options = new InsertOptions { SaveMode = SaveMode.Append };
+
+                    await table.InsertAsync([TableHelpers.BuildBasicRecordBatch(1)], schema, options, CancellationToken.None);
+                    await table.InsertAsync([TableHelpers.BuildBasicRecordBatch(1)], schema, options, CancellationToken.None);
+                    Assert.Equal(5UL, table.Version());
+
+                    await table.CheckpointAsync(CancellationToken.None);
+
+                    var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                    Assert.True(File.Exists(lastCheckpoint));
+                    Assert.Equal(5UL, ReadVersion(lastCheckpoint));
+                });
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_After_UpdateIncremental_Matches_Version()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+
+                // Writer builds v0..v8.
+                {
+                    var data = await TableHelpers.SetupTable(path, 0);
+                    using var seed = data.table;
+                    var schema = seed.Schema();
+                    var insert = new InsertOptions { SaveMode = SaveMode.Append };
+                    for (var i = 0; i < 7; i++)
+                    {
+                        await seed.InsertAsync(
+                            [TableHelpers.BuildBasicRecordBatch(1)],
+                            schema,
+                            insert,
+                            CancellationToken.None);
+                    }
+                    Assert.Equal(8UL, seed.Version());
+                }
+
+                // Open a reader pinned at v1, incrementally advance it to v5, then checkpoint.
+                // UpdateIncrementalAsync advances the bridge and mirrors the version via
+                // PinSnapshotTo; the subsequent checkpoint must be produced at the advanced version.
+                using IEngine engine = new DeltaEngine(EngineOptions.Default);
+                using var reader = await engine.LoadTableAsync(
+                    new TableOptions { TableLocation = path, Version = 1UL },
+                    CancellationToken.None);
+                Assert.Equal(1UL, reader.Version());
+
+                await reader.UpdateIncrementalAsync(5, CancellationToken.None);
+                Assert.Equal(5UL, reader.Version());
+
+                await reader.CheckpointAsync(CancellationToken.None);
+
+                var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                Assert.True(File.Exists(lastCheckpoint));
+                Assert.Equal(5UL, ReadVersion(lastCheckpoint));
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_After_Backward_LoadVersion_Falls_Back()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+                var data = await TableHelpers.SetupTable(path, 0);
+                using var table = data.table;
+                var schema = table.Schema();
+                var options = new InsertOptions { SaveMode = SaveMode.Append };
+                for (var i = 0; i < 7; i++)
+                {
+                    await table.InsertAsync([TableHelpers.BuildBasicRecordBatch(1)], schema, options, CancellationToken.None);
+                }
+                Assert.Equal(8UL, table.Version());
+
+                // Materialize + cache a kernel snapshot at latest (v8) via a checkpoint.
+                await table.CheckpointAsync(CancellationToken.None);
+                var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                Assert.Equal(8UL, ReadVersion(lastCheckpoint));
+
+                // Load an EARLIER version. LoadVersionAsync pins to v5 and invalidates the cached
+                // snapshot, so AdvanceSnapshot rebuilds from path at the pinned (earlier) version
+                // rather than attempting an illegal backward incremental advance (get_snapshot_builder_from
+                // only advances forward). The checkpoint must be produced at v5 without crashing.
+                await table.LoadVersionAsync(5, CancellationToken.None);
+                Assert.Equal(5UL, table.Version());
+
+                await table.CheckpointAsync(CancellationToken.None);
+
+                // The v5 checkpoint parquet is written (proving the backward fallback produced a
+                // valid checkpoint at the pinned version). Note the kernel's _last_checkpoint hint
+                // has a regression guard: it is NOT lowered from 8 to 5, so the hint legitimately
+                // still reads 8 while both 8.checkpoint.parquet and 5.checkpoint.parquet exist.
+                var checkpointV5 = Path.Join(info.FullName, "_delta_log", "00000000000000000005.checkpoint.parquet");
+                Assert.True(File.Exists(checkpointV5), "expected 00000000000000000005.checkpoint.parquet to be written");
+                Assert.Equal(8UL, ReadVersion(lastCheckpoint));
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
         private ulong? ReadVersion(string path)
         {
             var reader = new System.Text.Json.Utf8JsonReader(File.ReadAllBytes(path));

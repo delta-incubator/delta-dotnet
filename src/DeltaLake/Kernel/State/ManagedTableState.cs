@@ -69,6 +69,71 @@ namespace DeltaLake.Kernel.State
         }
 
         /// <inheritdoc/>
+        public unsafe SharedSnapshot* AdvanceSnapshot()
+        {
+            // No cached snapshot yet: a full from-path build is the only correct option.
+            if (this.managedPointInTimeSnapshot == null)
+            {
+                this.RefreshSnapshot();
+                return this.managedPointInTimeSnapshot;
+            }
+
+            // Backward-version guard: get_snapshot_builder_from advances forward only and REJECTS an
+            // earlier target version. If pinned earlier than the cached snapshot, rebuild from path.
+            if (this.pinnedVersion is long pinnedCheck)
+            {
+                ulong cachedVersion = Methods.version(this.managedPointInTimeSnapshot);
+                if ((ulong)pinnedCheck < cachedVersion)
+                {
+                    this.RefreshSnapshot();
+                    return this.managedPointInTimeSnapshot;
+                }
+            }
+
+            SharedSnapshot* previous = this.managedPointInTimeSnapshot;
+
+            // Borrow the previous snapshot to build an advanced one (reads only new commits).
+            // get_snapshot_builder_from clone_as_arc's the handle, so `previous` remains ours to free.
+            ExternResultHandleMutableFfiSnapshotBuilder builderRes =
+                Methods.get_snapshot_builder_from(previous, this.sharedExternEnginePtr);
+            if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
+            {
+                // Could not create an incremental builder; fall back to a correct full rebuild.
+                this.RefreshSnapshot();
+                return this.managedPointInTimeSnapshot;
+            }
+            MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
+
+            if (this.pinnedVersion is long pinned)
+            {
+                Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
+            }
+
+            // snapshot_builder_build consumes/frees the builder on all paths.
+            ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
+            if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
+            {
+                // Build failed; `previous` is still valid. Fall back to a correct full rebuild.
+                this.RefreshSnapshot();
+                return this.managedPointInTimeSnapshot;
+            }
+
+            SharedSnapshot* advanced = snapshotRes.Anonymous.Anonymous1.ok;
+
+            // The snapshot moved: invalidate dependents WITHOUT freeing the new snapshot, then swap
+            // and free the previous handle. Do NOT call InvalidateSnapshotDependentCaches() here because
+            // it also calls DisposeSnapshot(), which would free the handle we are about to install.
+            this.DisposePartitionList();
+            this.DisposeScan();
+            this.DisposeSchema();
+            this.DisposePhysicalSchema();
+
+            Methods.free_snapshot(previous);
+            this.managedPointInTimeSnapshot = advanced;
+            return this.managedPointInTimeSnapshot;
+        }
+
+        /// <inheritdoc/>
         public void PinSnapshotTo(long version)
         {
             if (this.pinnedVersion == version)
