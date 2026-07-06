@@ -288,7 +288,9 @@ namespace DeltaLake.Kernel.Core
                     IntPtr tableRootPtr = IntPtr.Zero;
                     try
                     {
-                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(true), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+                        // The table root is version-invariant, so use the cached snapshot
+                        // (Snapshot(false)) rather than forcing an incremental refresh.
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(false), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
 
                         // Kernel returns an extra "/", delta-rs does not
                         //
@@ -414,13 +416,21 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            return TransactionCommitter.Commit(
+                            ulong committedVersion = TransactionCommitter.Commit(
                                 this.tableLocationSlice,
                                 this.kernelOwnedSharedExternEnginePtr,
                                 addFilesBatch,
                                 this.addFilesNativeSchema,
                                 appId,
-                                txnVersion);
+                                txnVersion,
+                                out SharedSnapshot* postCommitSnapshot);
+
+                            // Advance the cached snapshot for free using the kernel's post-commit
+                            // snapshot (no re-list). When the kernel produced none, the next
+                            // Snapshot(true) incrementally re-lists and observes this commit.
+                            this.state.InstallSnapshot(postCommitSnapshot);
+
+                            return committedVersion;
                         }
                     },
                     cancellationToken
@@ -474,12 +484,11 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            // Advance the maintained snapshot incrementally (reads only commits
-                            // since the cached snapshot via get_snapshot_builder_from) instead of a
-                            // full from-path rebuild, falling back to a full build when there is no
-                            // cached snapshot, the pin is earlier than the cache, or the advance fails.
+                            // Snapshot(true) now transparently advances the maintained snapshot
+                            // incrementally (get_snapshot_builder_from) via RefreshSnapshot, so the
+                            // checkpoint reads only new commits instead of a full from-path rebuild.
                             ExternResultbool result = Methods.checkpoint_snapshot(
-                                this.state.AdvanceSnapshot(),
+                                this.state.Snapshot(refresh: true),
                                 this.kernelOwnedSharedExternEnginePtr);
 
                             if (result.tag != ExternResultbool_Tag.Okbool)

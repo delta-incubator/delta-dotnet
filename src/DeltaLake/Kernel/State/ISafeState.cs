@@ -40,6 +40,16 @@ namespace DeltaLake.Kernel.State
         public unsafe SharedSnapshot* AdvanceSnapshot();
 
         /// <summary>
+        /// Installs an externally-produced snapshot handle (e.g. the kernel's post-commit
+        /// snapshot after a write) as the maintained snapshot, taking ownership of it. Disposes
+        /// the derived caches (scan, schema, partitions) and frees the previous snapshot. A
+        /// <c>null</c> handle is a no-op. This advances the cache to the given snapshot without
+        /// re-reading the log.
+        /// </summary>
+        /// <param name="snapshot">The snapshot handle to install; ownership transfers to this state object.</param>
+        public unsafe void InstallSnapshot(SharedSnapshot* snapshot);
+
+        /// <summary>
         /// Pins the lifetime snapshot to the specified table version. Subsequent calls to
         /// <see cref="Snapshot(bool)"/> rebuild against this pinned version rather than the
         /// latest log version. Used to mirror the bridge's pinned state after

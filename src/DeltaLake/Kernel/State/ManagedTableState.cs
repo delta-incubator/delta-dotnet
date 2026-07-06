@@ -71,66 +71,34 @@ namespace DeltaLake.Kernel.State
         /// <inheritdoc/>
         public unsafe SharedSnapshot* AdvanceSnapshot()
         {
-            // No cached snapshot yet: a full from-path build is the only correct option.
-            if (this.managedPointInTimeSnapshot == null)
+            // Incremental advancement now lives transparently in RefreshSnapshot(): every
+            // Snapshot(refresh: true) advances the cached snapshot via get_snapshot_builder_from
+            // (pin-aware) with a full from-path fallback. This method is retained on ISafeState
+            // for source stability and delegates to the single snapshot chokepoint.
+            return this.Snapshot(refresh: true);
+        }
+
+        /// <inheritdoc/>
+        public unsafe void InstallSnapshot(SharedSnapshot* snapshot)
+        {
+            if (snapshot == null)
             {
-                this.RefreshSnapshot();
-                return this.managedPointInTimeSnapshot;
+                return;
             }
 
-            // Backward-version guard: get_snapshot_builder_from advances forward only and REJECTS an
-            // earlier target version. If pinned earlier than the cached snapshot, rebuild from path.
-            if (this.pinnedVersion is long pinnedCheck)
-            {
-                ulong cachedVersion = Methods.version(this.managedPointInTimeSnapshot);
-                if ((ulong)pinnedCheck < cachedVersion)
-                {
-                    this.RefreshSnapshot();
-                    return this.managedPointInTimeSnapshot;
-                }
-            }
-
-            SharedSnapshot* previous = this.managedPointInTimeSnapshot;
-
-            // Borrow the previous snapshot to build an advanced one (reads only new commits).
-            // get_snapshot_builder_from clone_as_arc's the handle, so `previous` remains ours to free.
-            ExternResultHandleMutableFfiSnapshotBuilder builderRes =
-                Methods.get_snapshot_builder_from(previous, this.sharedExternEnginePtr);
-            if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
-            {
-                // Could not create an incremental builder; fall back to a correct full rebuild.
-                this.RefreshSnapshot();
-                return this.managedPointInTimeSnapshot;
-            }
-            MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
-
-            if (this.pinnedVersion is long pinned)
-            {
-                Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
-            }
-
-            // snapshot_builder_build consumes/frees the builder on all paths.
-            ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
-            if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
-            {
-                // Build failed; `previous` is still valid. Fall back to a correct full rebuild.
-                this.RefreshSnapshot();
-                return this.managedPointInTimeSnapshot;
-            }
-
-            SharedSnapshot* advanced = snapshotRes.Anonymous.Anonymous1.ok;
-
-            // The snapshot moved: invalidate dependents WITHOUT freeing the new snapshot, then swap
-            // and free the previous handle. Do NOT call InvalidateSnapshotDependentCaches() here because
-            // it also calls DisposeSnapshot(), which would free the handle we are about to install.
+            // The snapshot moved: invalidate the four dependents (derived from the OLD snapshot)
+            // WITHOUT freeing the new snapshot, then free the previous handle and install.
             this.DisposePartitionList();
             this.DisposeScan();
             this.DisposeSchema();
             this.DisposePhysicalSchema();
 
-            Methods.free_snapshot(previous);
-            this.managedPointInTimeSnapshot = advanced;
-            return this.managedPointInTimeSnapshot;
+            if (this.managedPointInTimeSnapshot != null)
+            {
+                Methods.free_snapshot(this.managedPointInTimeSnapshot);
+            }
+
+            this.managedPointInTimeSnapshot = snapshot;
         }
 
         /// <inheritdoc/>
@@ -213,11 +181,16 @@ namespace DeltaLake.Kernel.State
 
                 try
                 {
+                    // Snapshot(true) advances the maintained snapshot incrementally via
+                    // RefreshSnapshot. When the version is unchanged, RefreshSnapshot preserves
+                    // the derived caches (scan/schema/partition); when it advances, it disposes
+                    // them. So the derived handles are requested with refresh:false: they reuse
+                    // the caches on no-change and rebuild (via the null guard) after an advance.
                     SharedSnapshot* snap = this.Snapshot(true);
-                    SharedSchema* schema = this.Schema(true);
-                    PartitionList* partList = this.PartitionList(true);
-                    SharedScan* scan = this.Scan(true);
-                    SharedSchema* physical = this.PhysicalSchema(true);
+                    SharedSchema* schema = this.Schema(false);
+                    PartitionList* partList = this.PartitionList(false);
+                    SharedScan* scan = this.Scan(false);
+                    SharedSchema* physical = this.PhysicalSchema(false);
 
                     this.PopulateArrowContextViaScan(native, snap, schema, scan, partList, physical);
 
@@ -478,11 +451,69 @@ namespace DeltaLake.Kernel.State
         // 3. Regenerate bindings via 'make generate-kernel-bindings' after updating delta-kernel-rs.version.txt
         private void RefreshSnapshot()
         {
-
-            this.DisposeSnapshot();
-
             unsafe
             {
+                SharedSnapshot* previous = this.managedPointInTimeSnapshot;
+
+                // Incremental path: a cached snapshot exists AND we are not targeting an
+                // earlier pinned version (get_snapshot_builder_from advances forward only and
+                // REJECTS an earlier target). Reads only the commits since `previous`.
+                bool pinnedEarlier = false;
+                if (previous != null && this.pinnedVersion is long pinnedCheck)
+                {
+                    pinnedEarlier = (ulong)pinnedCheck < Methods.version(previous);
+                }
+
+                if (previous != null && !pinnedEarlier)
+                {
+                    // get_snapshot_builder_from clone_as_arc's the handle, so `previous` remains ours to free.
+                    ExternResultHandleMutableFfiSnapshotBuilder incBuilderRes =
+                        Methods.get_snapshot_builder_from(previous, this.sharedExternEnginePtr);
+                    if (incBuilderRes.tag == ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
+                    {
+                        MutableFfiSnapshotBuilder* incBuilderPtr = incBuilderRes.Anonymous.Anonymous1.ok;
+                        if (this.pinnedVersion is long pinnedFwd)
+                        {
+                            Methods.snapshot_builder_set_version(&incBuilderPtr, (ulong)pinnedFwd);
+                        }
+
+                        // snapshot_builder_build consumes/frees the builder on all paths.
+                        ExternResultHandleSharedSnapshot incSnapshotRes = Methods.snapshot_builder_build(incBuilderPtr);
+                        if (incSnapshotRes.tag == ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
+                        {
+                            SharedSnapshot* advanced = incSnapshotRes.Anonymous.Anonymous1.ok;
+
+                            // Equal-version short-circuit: no new commits. Keep `previous` AND all
+                            // derived caches (scan/schema/partition) intact and free the redundant
+                            // advanced handle. This lets BuildArrowContextOwned reuse the derived
+                            // caches: they are disposed ONLY when the version actually advances.
+                            if (advanced != null && Methods.version(advanced) == Methods.version(previous))
+                            {
+                                Methods.free_snapshot(advanced);
+                                return;
+                            }
+
+                            // Version advanced: invalidate the four dependents (derived from the OLD
+                            // version) WITHOUT freeing the new snapshot, then free previous + install.
+                            // Do NOT call InvalidateSnapshotDependentCaches() here: it also calls
+                            // DisposeSnapshot(), which would free the handle we are about to install.
+                            this.DisposePartitionList();
+                            this.DisposeScan();
+                            this.DisposeSchema();
+                            this.DisposePhysicalSchema();
+
+                            Methods.free_snapshot(previous);
+                            this.managedPointInTimeSnapshot = advanced;
+                            return;
+                        }
+                        // Incremental build failed; `previous` is still valid. Fall through to full rebuild.
+                    }
+                    // Incremental builder-create failed; fall through to full rebuild.
+                }
+
+                // Full from-path build: first load, earlier pin, or incremental failure.
+                this.DisposeSnapshot(); // frees `previous` (if any) and nulls the field
+
                 // Step 1: Create snapshot builder
                 ExternResultHandleMutableFfiSnapshotBuilder builderRes = Methods.get_snapshot_builder(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
