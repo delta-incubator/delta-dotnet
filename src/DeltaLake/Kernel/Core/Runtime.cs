@@ -60,15 +60,6 @@ namespace DeltaLake.Kernel.Core
             System.Threading.CancellationToken cancellationToken
         )
         {
-            // NOTE: create-table runs through the delta-rs BRIDGE (create_deltalake), not the
-            // kernel commit path, so there is no kernel ExclusiveCommittedTransaction / post-commit
-            // snapshot to install here (unlike CommitAddActionsAsync, which advances the cached
-            // kernel snapshot for free via committed_transaction_post_commit_snapshot). The kernel's
-            // maintained snapshot is built lazily on the first kernel read/Version() via the
-            // incremental RefreshSnapshot. Installing a post-commit snapshot at create time would
-            // require routing create-table through the (currently unused) kernel create-table FFI
-            // (get_create_table_builder / create_table_commit); the payoff is negligible because the
-            // first snapshot build on a brand-new empty table is already cheap.
             IntPtr tablePtr = await base.CreateTablePtrAsync(options, cancellationToken).ConfigureAwait(false);
             unsafe
             {

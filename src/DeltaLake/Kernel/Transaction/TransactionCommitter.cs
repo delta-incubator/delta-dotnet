@@ -39,24 +39,15 @@ namespace DeltaLake.Kernel.Transaction
         /// <param name="addFilesSchema">Pre-exported CArrowSchema pointer (reused across commits).</param>
         /// <param name="appId">Optional application identifier for idempotent writes (Delta Protocol txn action).</param>
         /// <param name="txnVersion">Optional application-specific version for idempotent writes (Delta Protocol txn action).</param>
-        /// <param name="postCommitSnapshot">
-        /// On return, the kernel's post-commit snapshot handle at the committed version when the
-        /// kernel produced one (owned by the caller; independent of the committed transaction and
-        /// safe to use after it is freed), or <c>null</c> when the commit produced none. The caller
-        /// takes ownership and must install it into state or free it via <c>free_snapshot</c>.
-        /// </param>
         /// <returns>The committed table version number.</returns>
         internal static unsafe ulong Commit(
             KernelStringSlice tableLocationSlice,
             SharedExternEngine* enginePtr,
             RecordBatch addFilesBatch,
             CArrowSchema* addFilesSchema,
-            string? appId,
-            long? txnVersion,
-            out SharedSnapshot* postCommitSnapshot)
+            string? appId = null,
+            long? txnVersion = null)
         {
-            postCommitSnapshot = null;
-
             ExternResultHandleExclusiveTransaction txnResult =
                 Methods.transaction(tableLocationSlice, enginePtr);
 
@@ -153,21 +144,7 @@ namespace DeltaLake.Kernel.Transaction
                 ExclusiveCommittedTransaction* committedTxnPtr = commitResult.Anonymous.Anonymous1.ok;
                 try
                 {
-                    ulong committedVersion = Methods.committed_transaction_version(&committedTxnPtr);
-
-                    // Capture the kernel's post-commit snapshot (at the committed version) BEFORE
-                    // freeing the committed transaction. It is an independent Arc-clone that
-                    // outlives free_committed_transaction, so the caller can install it to advance
-                    // the cached snapshot for free (no re-list). None => caller falls back to a
-                    // normal incremental refresh on the next read.
-                    OptionalValueHandleSharedSnapshot pcs =
-                        Methods.committed_transaction_post_commit_snapshot(&committedTxnPtr);
-                    if (pcs.tag == OptionalValueHandleSharedSnapshot_Tag.SomeHandleSharedSnapshot)
-                    {
-                        postCommitSnapshot = pcs.Anonymous.Anonymous.some;
-                    }
-
-                    return committedVersion;
+                    return Methods.committed_transaction_version(&committedTxnPtr);
                 }
                 finally
                 {

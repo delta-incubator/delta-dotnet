@@ -79,29 +79,6 @@ namespace DeltaLake.Kernel.State
         }
 
         /// <inheritdoc/>
-        public unsafe void InstallSnapshot(SharedSnapshot* snapshot)
-        {
-            if (snapshot == null)
-            {
-                return;
-            }
-
-            // The snapshot moved: invalidate the four dependents (derived from the OLD snapshot)
-            // WITHOUT freeing the new snapshot, then free the previous handle and install.
-            this.DisposePartitionList();
-            this.DisposeScan();
-            this.DisposeSchema();
-            this.DisposePhysicalSchema();
-
-            if (this.managedPointInTimeSnapshot != null)
-            {
-                Methods.free_snapshot(this.managedPointInTimeSnapshot);
-            }
-
-            this.managedPointInTimeSnapshot = snapshot;
-        }
-
-        /// <inheritdoc/>
         public void PinSnapshotTo(long version)
         {
             if (this.pinnedVersion == version)

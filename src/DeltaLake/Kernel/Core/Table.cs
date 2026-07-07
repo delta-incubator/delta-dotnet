@@ -416,21 +416,16 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            ulong committedVersion = TransactionCommitter.Commit(
+                            // The commit writes to the on-disk log; the next kernel read/Version()
+                            // observes it via the incremental RefreshSnapshot (Snapshot(refresh:true)),
+                            // which re-lists from the cached version forward.
+                            return TransactionCommitter.Commit(
                                 this.tableLocationSlice,
                                 this.kernelOwnedSharedExternEnginePtr,
                                 addFilesBatch,
                                 this.addFilesNativeSchema,
                                 appId,
-                                txnVersion,
-                                out SharedSnapshot* postCommitSnapshot);
-
-                            // Advance the cached snapshot for free using the kernel's post-commit
-                            // snapshot (no re-list). When the kernel produced none, the next
-                            // Snapshot(true) incrementally re-lists and observes this commit.
-                            this.state.InstallSnapshot(postCommitSnapshot);
-
-                            return committedVersion;
+                                txnVersion);
                         }
                     },
                     cancellationToken
