@@ -69,16 +69,6 @@ namespace DeltaLake.Kernel.State
         }
 
         /// <inheritdoc/>
-        public unsafe SharedSnapshot* AdvanceSnapshot()
-        {
-            // Incremental advancement now lives transparently in RefreshSnapshot(): every
-            // Snapshot(refresh: true) advances the cached snapshot via get_snapshot_builder_from
-            // (pin-aware) with a full from-path fallback. This method is retained on ISafeState
-            // for source stability and delegates to the single snapshot chokepoint.
-            return this.Snapshot(refresh: true);
-        }
-
-        /// <inheritdoc/>
         public void PinSnapshotTo(long version)
         {
             if (this.pinnedVersion == version)

@@ -182,10 +182,10 @@ namespace DeltaLake.Tests.Table
                 // the kernel snapshot at v3. The `more` callback then appends on the SAME table
                 // handle and checkpoints again. Because the delta-rs bridge InsertAsync has no
                 // kernel-snapshot invalidation, the cached snapshot is stale-but-non-null, so the
-                // second CheckpointAsync -> AdvanceSnapshot takes the incremental
-                // get_snapshot_builder_from path (advances v3 -> v5 without re-reading the full log).
-                // If InsertAsync ever begins invalidating the kernel snapshot, AdvanceSnapshot falls
-                // back to a full rebuild and the version assertion below still holds.
+                // second CheckpointAsync -> Snapshot(refresh:true) -> RefreshSnapshot takes the
+                // incremental get_snapshot_builder_from path (advances v3 -> v5 without re-reading
+                // the full log). If InsertAsync ever begins invalidating the kernel snapshot,
+                // RefreshSnapshot falls back to a full rebuild and the version assertion still holds.
                 await BaseCheckpointTestWithMore(path, 2, async table =>
                 {
                     var schema = table.Schema();
@@ -280,7 +280,7 @@ namespace DeltaLake.Tests.Table
                 Assert.Equal(8UL, ReadVersion(lastCheckpoint));
 
                 // Load an EARLIER version. LoadVersionAsync pins to v5 and invalidates the cached
-                // snapshot, so AdvanceSnapshot rebuilds from path at the pinned (earlier) version
+                // snapshot, so RefreshSnapshot rebuilds from path at the pinned (earlier) version
                 // rather than attempting an illegal backward incremental advance (get_snapshot_builder_from
                 // only advances forward). The checkpoint must be produced at v5 without crashing.
                 await table.LoadVersionAsync(5, CancellationToken.None);

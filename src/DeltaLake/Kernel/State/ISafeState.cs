@@ -28,18 +28,6 @@ namespace DeltaLake.Kernel.State
         public unsafe SharedSnapshot* Snapshot(bool refresh);
 
         /// <summary>
-        /// Returns the maintained snapshot, advanced to the target version (pinned via
-        /// <see cref="PinSnapshotTo(long)"/>, else latest) using the kernel's incremental
-        /// snapshot builder (<c>get_snapshot_builder_from</c>), which reads only commits since
-        /// the cached snapshot instead of replaying the full log. Falls back to a full
-        /// from-path build when there is no cached snapshot, when the target version is earlier
-        /// than the cached snapshot (the incremental builder only advances forward), or when the
-        /// incremental build fails. Intended for the checkpoint path.
-        /// </summary>
-        /// <returns>The advanced (or freshly built) snapshot; ownership stays with this state object.</returns>
-        public unsafe SharedSnapshot* AdvanceSnapshot();
-
-        /// <summary>
         /// Pins the lifetime snapshot to the specified table version. Subsequent calls to
         /// <see cref="Snapshot(bool)"/> rebuild against this pinned version rather than the
         /// latest log version. Used to mirror the bridge's pinned state after
