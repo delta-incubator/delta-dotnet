@@ -20,29 +20,46 @@ public class WriteReadSameHandleTests
         try
         {
             var path = DirectoryHelpers.ToFileUri(info.FullName);
-            // SetupTable creates v0 and writes an initial commit at v1 (1 row).
-            var data = await TableHelpers.SetupTable(path, 1);
+            // SetupTable creates v0 and writes an initial commit at v1 (2 rows) into a real
+            // parquet file at the table root.
+            var data = await TableHelpers.SetupTable(path, 2);
             using var table = data.table;
 
             // Read once to materialize + cache a kernel snapshot at v1.
             using (OwnedArrowTable initial = await table.ReadAsArrowTableAsync(CancellationToken.None))
             {
-                Assert.Equal(1, initial.Table.RowCount);
+                Assert.Equal(2, initial.Table.RowCount);
             }
 
-            // Kernel commit (add-file action) on the SAME handle -> v2.
+            // Kernel commit (add-file action) on the SAME handle -> v2. Reference the REAL
+            // parquet the initial insert wrote so the post-commit kernel scan can physically
+            // read it. Delta log replay dedupes active files by path, so the logical row set
+            // is unchanged; the point is to drive the full Arrow read pipeline through the
+            // post-commit incremental snapshot, not to change the data.
+            var realFile = Directory
+                .GetFiles(info.FullName, "*.parquet", SearchOption.AllDirectories)
+                .First();
+            var relativePath = Path.GetRelativePath(info.FullName, realFile).Replace('\\', '/');
             var actions = new List<AddAction>
             {
                 new AddAction
                 {
-                    Path = "part-00001.parquet",
-                    Size = 1024,
+                    Path = relativePath,
+                    Size = new FileInfo(realFile).Length,
                     ModificationTime = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                     DataChange = true,
                 },
             };
             var newVersion = await table.CreateWriteTransactionAsync(actions, CancellationToken.None);
             Assert.Equal(2UL, (ulong)newVersion);
+
+            // A kernel DATA read on the SAME handle must advance the cached snapshot to v2
+            // (incremental RefreshSnapshot) and drive the full Arrow read pipeline
+            // (scan/schema/partition/physical-schema) end-to-end without error.
+            using (OwnedArrowTable afterCommit = await table.ReadAsArrowTableAsync(CancellationToken.None))
+            {
+                Assert.Equal(2, afterCommit.Table.RowCount);
+            }
 
             // The kernel Version() (now incremental) must reflect the commit.
             Assert.Equal(2UL, table.Version());
