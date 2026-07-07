@@ -458,6 +458,16 @@ namespace DeltaLake.Kernel.State
                             this.managedPointInTimeSnapshot = advanced;
                             return;
                         }
+
+                        // Incremental build failed: free the kernel error and fall through
+                        // to the full from-path rebuild below.
+                        KernelReadError.HandleEngineError(incSnapshotRes.Anonymous.Anonymous2.err, (KernelReadError* _) => { });
+                    }
+                    else
+                    {
+                        // Incremental builder-create failed: free the kernel error and fall
+                        // through to the full from-path rebuild below.
+                        KernelReadError.HandleEngineError(incBuilderRes.Anonymous.Anonymous2.err, (KernelReadError* _) => { });
                     }
                 }
 
