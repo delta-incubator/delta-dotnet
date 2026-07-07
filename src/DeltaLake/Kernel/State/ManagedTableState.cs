@@ -153,11 +153,11 @@ namespace DeltaLake.Kernel.State
                     // the derived caches (scan/schema/partition); when it advances, it disposes
                     // them. So the derived handles are requested with refresh:false: they reuse
                     // the caches on no-change and rebuild (via the null guard) after an advance.
-                    SharedSnapshot* snap = this.Snapshot(true);
-                    SharedSchema* schema = this.Schema(false);
-                    PartitionList* partList = this.PartitionList(false);
-                    SharedScan* scan = this.Scan(false);
-                    SharedSchema* physical = this.PhysicalSchema(false);
+                    SharedSnapshot* snap = this.Snapshot(refresh: true);
+                    SharedSchema* schema = this.Schema(refresh: false);
+                    PartitionList* partList = this.PartitionList(refresh: false);
+                    SharedScan* scan = this.Scan(refresh: false);
+                    SharedSchema* physical = this.PhysicalSchema(refresh: false);
 
                     this.PopulateArrowContextViaScan(native, snap, schema, scan, partList, physical);
 
@@ -410,12 +410,6 @@ namespace DeltaLake.Kernel.State
             }
         }
 
-        // TODO: delta-kernel-rs upgrade coordination
-        // This code was migrated from snapshot()/scan() to the builder pattern as part of the
-        // v0.17.0 → v0.21.0 upgrade. For future kernel version bumps:
-        // 1. Check https://github.com/delta-incubator/delta-dotnet/pulls for existing upgrade PRs
-        // 2. Review delta-kernel-rs CHANGELOG for FFI breaking changes
-        // 3. Regenerate bindings via 'make generate-kernel-bindings' after updating delta-kernel-rs.version.txt
         private void RefreshSnapshot()
         {
             unsafe
@@ -425,15 +419,9 @@ namespace DeltaLake.Kernel.State
                 // Incremental path: a cached snapshot exists AND we are not targeting an
                 // earlier pinned version (get_snapshot_builder_from advances forward only and
                 // REJECTS an earlier target). Reads only the commits since `previous`.
-                bool pinnedEarlier = false;
-                if (previous != null && this.pinnedVersion is long pinnedCheck)
+                if (previous != null
+                    && !(this.pinnedVersion is long pinnedCheck && (ulong)pinnedCheck < Methods.version(previous)))
                 {
-                    pinnedEarlier = (ulong)pinnedCheck < Methods.version(previous);
-                }
-
-                if (previous != null && !pinnedEarlier)
-                {
-                    // get_snapshot_builder_from clone_as_arc's the handle, so `previous` remains ours to free.
                     ExternResultHandleMutableFfiSnapshotBuilder incBuilderRes =
                         Methods.get_snapshot_builder_from(previous, this.sharedExternEnginePtr);
                     if (incBuilderRes.tag == ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
@@ -450,10 +438,7 @@ namespace DeltaLake.Kernel.State
                         {
                             SharedSnapshot* advanced = incSnapshotRes.Anonymous.Anonymous1.ok;
 
-                            // Equal-version short-circuit: no new commits. Keep `previous` AND all
-                            // derived caches (scan/schema/partition) intact and free the redundant
-                            // advanced handle. This lets BuildArrowContextOwned reuse the derived
-                            // caches: they are disposed ONLY when the version actually advances.
+                            // Equal-version short-circuit: no new commits.
                             if (advanced != null && Methods.version(advanced) == Methods.version(previous))
                             {
                                 Methods.free_snapshot(advanced);
@@ -473,15 +458,13 @@ namespace DeltaLake.Kernel.State
                             this.managedPointInTimeSnapshot = advanced;
                             return;
                         }
-                        // Incremental build failed; `previous` is still valid. Fall through to full rebuild.
                     }
-                    // Incremental builder-create failed; fall through to full rebuild.
                 }
 
                 // Full from-path build: first load, earlier pin, or incremental failure.
-                this.DisposeSnapshot(); // frees `previous` (if any) and nulls the field
+                // (1) Create the snapshot builder, (2) apply the pinned version, (3) then build the snapshot
+                this.DisposeSnapshot();
 
-                // Step 1: Create snapshot builder
                 ExternResultHandleMutableFfiSnapshotBuilder builderRes = Methods.get_snapshot_builder(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
                 {
@@ -489,14 +472,11 @@ namespace DeltaLake.Kernel.State
                 }
                 MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
-                // Step 2: Apply pinned version (if any)
                 if (this.pinnedVersion is long pinned)
                 {
                     Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
                 }
 
-                // Step 3: Build snapshot (latest version, or pinned per Step 2)
-                // snapshot_builder_build consumes the builder handle on both success and failure paths.
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {

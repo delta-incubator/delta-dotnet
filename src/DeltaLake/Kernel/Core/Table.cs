@@ -288,12 +288,9 @@ namespace DeltaLake.Kernel.Core
                     IntPtr tableRootPtr = IntPtr.Zero;
                     try
                     {
-                        // The table root is version-invariant, so use the cached snapshot
-                        // (Snapshot(false)) rather than forcing an incremental refresh.
-                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(false), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
+                        tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(true), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
 
                         // Kernel returns an extra "/", delta-rs does not
-                        //
                         return MarshalExtensions.PtrToStringUTF8(tableRootPtr)?.TrimEnd('/') ?? string.Empty;
                     }
                     finally
