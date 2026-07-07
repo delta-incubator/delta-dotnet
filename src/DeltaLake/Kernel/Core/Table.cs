@@ -416,9 +416,6 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            // The commit writes to the on-disk log; the next kernel read/Version()
-                            // observes it via the incremental RefreshSnapshot (Snapshot(refresh:true)),
-                            // which re-lists from the cached version forward.
                             return TransactionCommitter.Commit(
                                 this.tableLocationSlice,
                                 this.kernelOwnedSharedExternEnginePtr,
@@ -479,9 +476,6 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            // Snapshot(true) now transparently advances the maintained snapshot
-                            // incrementally (get_snapshot_builder_from) via RefreshSnapshot, so the
-                            // checkpoint reads only new commits instead of a full from-path rebuild.
                             ExternResultbool result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
                                 this.kernelOwnedSharedExternEnginePtr);
