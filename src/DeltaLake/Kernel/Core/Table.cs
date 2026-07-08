@@ -291,7 +291,6 @@ namespace DeltaLake.Kernel.Core
                         tableRootPtr = (IntPtr)Methods.snapshot_table_root(this.state.Snapshot(true), Marshal.GetFunctionPointerForDelegate<AllocateStringFn>(StringAllocatorCallbacks.AllocateString));
 
                         // Kernel returns an extra "/", delta-rs does not
-                        //
                         return MarshalExtensions.PtrToStringUTF8(tableRootPtr)?.TrimEnd('/') ?? string.Empty;
                     }
                     finally

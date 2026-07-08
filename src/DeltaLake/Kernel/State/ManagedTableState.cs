@@ -148,11 +148,16 @@ namespace DeltaLake.Kernel.State
 
                 try
                 {
-                    SharedSnapshot* snap = this.Snapshot(true);
-                    SharedSchema* schema = this.Schema(true);
-                    PartitionList* partList = this.PartitionList(true);
-                    SharedScan* scan = this.Scan(true);
-                    SharedSchema* physical = this.PhysicalSchema(true);
+                    // Snapshot(true) advances the maintained snapshot incrementally via
+                    // RefreshSnapshot. When the version is unchanged, RefreshSnapshot preserves
+                    // the derived caches (scan/schema/partition); when it advances, it disposes
+                    // them. So the derived handles are requested with refresh:false: they reuse
+                    // the caches on no-change and rebuild (via the null guard) after an advance.
+                    SharedSnapshot* snap = this.Snapshot(refresh: true);
+                    SharedSchema* schema = this.Schema(refresh: false);
+                    PartitionList* partList = this.PartitionList(refresh: false);
+                    SharedScan* scan = this.Scan(refresh: false);
+                    SharedSchema* physical = this.PhysicalSchema(refresh: false);
 
                     this.PopulateArrowContextViaScan(native, snap, schema, scan, partList, physical);
 
@@ -405,20 +410,71 @@ namespace DeltaLake.Kernel.State
             }
         }
 
-        // TODO: delta-kernel-rs upgrade coordination
-        // This code was migrated from snapshot()/scan() to the builder pattern as part of the
-        // v0.17.0 → v0.21.0 upgrade. For future kernel version bumps:
-        // 1. Check https://github.com/delta-incubator/delta-dotnet/pulls for existing upgrade PRs
-        // 2. Review delta-kernel-rs CHANGELOG for FFI breaking changes
-        // 3. Regenerate bindings via 'make generate-kernel-bindings' after updating delta-kernel-rs.version.txt
         private void RefreshSnapshot()
         {
-
-            this.DisposeSnapshot();
-
             unsafe
             {
-                // Step 1: Create snapshot builder
+                SharedSnapshot* previous = this.managedPointInTimeSnapshot;
+
+                // Incremental path: a cached snapshot exists AND we are not targeting an
+                // earlier pinned version (get_snapshot_builder_from advances forward only and
+                // REJECTS an earlier target). Reads only the commits since `previous`.
+                if (previous != null
+                    && !(this.pinnedVersion is long pinnedCheck && (ulong)pinnedCheck < Methods.version(previous)))
+                {
+                    ExternResultHandleMutableFfiSnapshotBuilder incBuilderRes =
+                        Methods.get_snapshot_builder_from(previous, this.sharedExternEnginePtr);
+                    if (incBuilderRes.tag == ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
+                    {
+                        MutableFfiSnapshotBuilder* incBuilderPtr = incBuilderRes.Anonymous.Anonymous1.ok;
+                        if (this.pinnedVersion is long pinnedFwd)
+                        {
+                            Methods.snapshot_builder_set_version(&incBuilderPtr, (ulong)pinnedFwd);
+                        }
+
+                        // snapshot_builder_build consumes/frees the builder on all paths.
+                        ExternResultHandleSharedSnapshot incSnapshotRes = Methods.snapshot_builder_build(incBuilderPtr);
+                        if (incSnapshotRes.tag == ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
+                        {
+                            SharedSnapshot* advanced = incSnapshotRes.Anonymous.Anonymous1.ok;
+
+                            // Equal-version short-circuit: no new commits.
+                            if (advanced != null && Methods.version(advanced) == Methods.version(previous))
+                            {
+                                Methods.free_snapshot(advanced);
+                                return;
+                            }
+
+                            // Version advanced: invalidate the four dependents (derived from the OLD
+                            // version) WITHOUT freeing the new snapshot, then free previous + install.
+                            // Do NOT call InvalidateSnapshotDependentCaches() here: it also calls
+                            // DisposeSnapshot(), which would free the handle we are about to install.
+                            this.DisposePartitionList();
+                            this.DisposeScan();
+                            this.DisposeSchema();
+                            this.DisposePhysicalSchema();
+
+                            Methods.free_snapshot(previous);
+                            this.managedPointInTimeSnapshot = advanced;
+                            return;
+                        }
+
+                        // Incremental build failed: free the kernel error and fall through
+                        // to the full from-path rebuild below.
+                        KernelReadError.HandleEngineError(incSnapshotRes.Anonymous.Anonymous2.err, (KernelReadError* _) => { });
+                    }
+                    else
+                    {
+                        // Incremental builder-create failed: free the kernel error and fall
+                        // through to the full from-path rebuild below.
+                        KernelReadError.HandleEngineError(incBuilderRes.Anonymous.Anonymous2.err, (KernelReadError* _) => { });
+                    }
+                }
+
+                // Full from-path build: first load, earlier pin, or incremental failure.
+                // (1) Create the snapshot builder, (2) apply the pinned version, (3) then build the snapshot
+                this.DisposeSnapshot();
+
                 ExternResultHandleMutableFfiSnapshotBuilder builderRes = Methods.get_snapshot_builder(this.tableLocationSlice, this.sharedExternEnginePtr);
                 if (builderRes.tag != ExternResultHandleMutableFfiSnapshotBuilder_Tag.OkHandleMutableFfiSnapshotBuilder)
                 {
@@ -426,14 +482,11 @@ namespace DeltaLake.Kernel.State
                 }
                 MutableFfiSnapshotBuilder* builderPtr = builderRes.Anonymous.Anonymous1.ok;
 
-                // Step 2: Apply pinned version (if any)
                 if (this.pinnedVersion is long pinned)
                 {
                     Methods.snapshot_builder_set_version(&builderPtr, (ulong)pinned);
                 }
 
-                // Step 3: Build snapshot (latest version, or pinned per Step 2)
-                // snapshot_builder_build consumes the builder handle on both success and failure paths.
                 ExternResultHandleSharedSnapshot snapshotRes = Methods.snapshot_builder_build(builderPtr);
                 if (snapshotRes.tag != ExternResultHandleSharedSnapshot_Tag.OkHandleSharedSnapshot)
                 {
