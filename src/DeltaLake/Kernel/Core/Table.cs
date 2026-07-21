@@ -473,12 +473,7 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            // v0.26 checkpoint_snapshot takes a nullable FfiCheckpointSpec (null lets
-                            // the kernel auto-pick V1/V2, matching the pre-v0.26 behavior) and returns
-                            // an FfiCheckpointWriteResult instead of a bool. The input snapshot is
-                            // borrowed (the kernel clones the Arc), so the managed cached snapshot
-                            // stays valid. Both Written and AlreadyExists carry an owned post-checkpoint
-                            // snapshot handle that the caller must release via free_snapshot.
+                            // Pass null to let the kernel auto-pick V1/V2.
                             ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
                                 this.kernelOwnedSharedExternEnginePtr,
@@ -495,9 +490,8 @@ namespace DeltaLake.Kernel.Core
                             bool checkpointWritten =
                                 writeResult.tag == FfiCheckpointWriteResult_Tag.FfiCheckpointWriteResultWritten;
 
-                            // Release the owned post-checkpoint snapshot handle the kernel returns
-                            // (Written and AlreadyExists carry it at the same union offset). The managed
-                            // state keeps its own cached snapshot and refreshes it on next use.
+                            // Both "Written" and "AlreadyExists" carry one owned snapshot handle; free it
+                            // regardless of which.
                             SharedSnapshot* returnedSnapshot = checkpointWritten
                                 ? writeResult.Anonymous.Anonymous1.written
                                 : writeResult.Anonymous.Anonymous2.already_exists;
