@@ -473,18 +473,40 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            ExternResultbool result = Methods.checkpoint_snapshot(
+                            // v0.26 checkpoint_snapshot takes a nullable FfiCheckpointSpec (null lets
+                            // the kernel auto-pick V1/V2, matching the pre-v0.26 behavior) and returns
+                            // an FfiCheckpointWriteResult instead of a bool. The input snapshot is
+                            // borrowed (the kernel clones the Arc), so the managed cached snapshot
+                            // stays valid. Both Written and AlreadyExists carry an owned post-checkpoint
+                            // snapshot handle that the caller must release via free_snapshot.
+                            ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
-                                this.kernelOwnedSharedExternEnginePtr);
+                                this.kernelOwnedSharedExternEnginePtr,
+                                null);
 
-                            if (result.tag != ExternResultbool_Tag.Okbool)
+                            if (result.tag != ExternResultFfiCheckpointWriteResult_Tag.OkFfiCheckpointWriteResult)
                             {
                                 throw KernelException.FromEngineError(
                                     result.Anonymous.Anonymous2.err,
                                     "Failed to checkpoint snapshot via kernel FFI");
                             }
 
-                            return result.Anonymous.Anonymous1.ok;
+                            FfiCheckpointWriteResult writeResult = result.Anonymous.Anonymous1.ok;
+                            bool checkpointWritten =
+                                writeResult.tag == FfiCheckpointWriteResult_Tag.FfiCheckpointWriteResultWritten;
+
+                            // Release the owned post-checkpoint snapshot handle the kernel returns
+                            // (Written and AlreadyExists carry it at the same union offset). The managed
+                            // state keeps its own cached snapshot and refreshes it on next use.
+                            SharedSnapshot* returnedSnapshot = checkpointWritten
+                                ? writeResult.Anonymous.Anonymous1.written
+                                : writeResult.Anonymous.Anonymous2.already_exists;
+                            if (returnedSnapshot != null)
+                            {
+                                Methods.free_snapshot(returnedSnapshot);
+                            }
+
+                            return checkpointWritten;
                         }
                     },
                     cancellationToken

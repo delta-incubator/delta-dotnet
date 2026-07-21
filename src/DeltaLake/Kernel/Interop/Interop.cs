@@ -375,6 +375,143 @@ namespace DeltaLake.Kernel.Interop
         }
     }
 
+    internal enum FfiCheckpointWriteResult_Tag
+    {
+        FfiCheckpointWriteResultWritten,
+        FfiCheckpointWriteResultAlreadyExists,
+    }
+
+    internal unsafe partial struct FfiCheckpointWriteResult
+    {
+        [NativeTypeName("ffi::FfiCheckpointWriteResult_Tag")]
+        public FfiCheckpointWriteResult_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L919_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L920_C5")]
+            public _Anonymous1_e__Struct Anonymous1;
+
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L923_C5")]
+            public _Anonymous2_e__Struct Anonymous2;
+
+            internal unsafe partial struct _Anonymous1_e__Struct
+            {
+                [NativeTypeName("ffi::HandleSharedSnapshot")]
+                public SharedSnapshot* written;
+            }
+
+            internal unsafe partial struct _Anonymous2_e__Struct
+            {
+                [NativeTypeName("ffi::HandleSharedSnapshot")]
+                public SharedSnapshot* already_exists;
+            }
+        }
+    }
+
+    internal enum ExternResultFfiCheckpointWriteResult_Tag
+    {
+        OkFfiCheckpointWriteResult,
+        ErrFfiCheckpointWriteResult,
+    }
+
+    internal unsafe partial struct ExternResultFfiCheckpointWriteResult
+    {
+        [NativeTypeName("ffi::ExternResultFfiCheckpointWriteResult_Tag")]
+        public ExternResultFfiCheckpointWriteResult_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L940_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L941_C5")]
+            public _Anonymous1_e__Struct Anonymous1;
+
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L944_C5")]
+            public _Anonymous2_e__Struct Anonymous2;
+
+            internal partial struct _Anonymous1_e__Struct
+            {
+                [NativeTypeName("struct FfiCheckpointWriteResult")]
+                public FfiCheckpointWriteResult ok;
+            }
+
+            internal unsafe partial struct _Anonymous2_e__Struct
+            {
+                [NativeTypeName("struct EngineError *")]
+                public EngineError* err;
+            }
+        }
+    }
+
+    internal enum OptionalValueusize_Tag
+    {
+        Someusize,
+        Noneusize,
+    }
+
+    internal unsafe partial struct OptionalValueusize
+    {
+        [NativeTypeName("ffi::OptionalValueusize_Tag")]
+        public OptionalValueusize_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L960_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal unsafe partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L961_C5")]
+            public _Anonymous_e__Struct Anonymous;
+
+            internal partial struct _Anonymous_e__Struct
+            {
+                [NativeTypeName("uintptr_t")]
+                public ulong some;
+            }
+        }
+    }
+
+    internal enum FfiCheckpointSpec_Tag
+    {
+        FfiCheckpointSpecV1,
+        FfiCheckpointSpecV2NoSidecar,
+        FfiCheckpointSpecV2WithSidecar,
+    }
+
+    internal partial struct FfiCheckpointSpecV2WithSidecar_Body
+    {
+        [NativeTypeName("struct OptionalValueusize")]
+        public OptionalValueusize file_actions_per_sidecar_hint;
+    }
+
+    internal unsafe partial struct FfiCheckpointSpec
+    {
+        [NativeTypeName("ffi::FfiCheckpointSpec_Tag")]
+        public FfiCheckpointSpec_Tag tag;
+
+        [NativeTypeName("__AnonymousRecord_delta_kernel_ffi_L1000_C3")]
+        public _Anonymous_e__Union Anonymous;
+
+        [StructLayout(LayoutKind.Explicit)]
+        internal partial struct _Anonymous_e__Union
+        {
+            [FieldOffset(0)]
+            [NativeTypeName("struct FfiCheckpointSpecV2WithSidecar_Body")]
+            public FfiCheckpointSpecV2WithSidecar_Body v2_with_sidecar;
+        }
+    }
+
     internal enum ExternResultHandleSharedExternEngine_Tag
     {
         OkHandleSharedExternEngine,
@@ -2171,8 +2308,8 @@ namespace DeltaLake.Kernel.Interop
         public static extern void free_snapshot([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        [return: NativeTypeName("struct ExternResultbool")]
-        public static extern ExternResultbool checkpoint_snapshot([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine);
+        [return: NativeTypeName("struct ExternResultFfiCheckpointWriteResult")]
+        public static extern ExternResultFfiCheckpointWriteResult checkpoint_snapshot([NativeTypeName("ffi::HandleSharedSnapshot")] SharedSnapshot* snapshot, [NativeTypeName("ffi::HandleSharedExternEngine")] SharedExternEngine* engine, [NativeTypeName("const struct FfiCheckpointSpec *")] FfiCheckpointSpec* spec);
 
         [DllImport("delta_kernel_ffi", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("uint64_t")]
