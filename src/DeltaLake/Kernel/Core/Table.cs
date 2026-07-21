@@ -457,7 +457,7 @@ namespace DeltaLake.Kernel.Core
                 .ConfigureAwait(false);
         }
 
-        internal async Task CheckpointAsync(ICancellationToken cancellationToken)
+        internal async Task CheckpointAsync(CheckpointOptions options, ICancellationToken cancellationToken)
         {
             if (!this.isKernelAllocated)
             {
@@ -473,11 +473,23 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            // Pass null to let the kernel auto-pick V1/V2.
-                            ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
-                                this.state.Snapshot(refresh: true),
-                                this.kernelOwnedSharedExternEnginePtr,
-                                null);
+                            ExternResultFfiCheckpointWriteResult result;
+                            if (options.Spec == CheckpointSpec.Auto)
+                            {
+                                // Pass null to let the kernel auto-pick V1/V2.
+                                result = Methods.checkpoint_snapshot(
+                                    this.state.Snapshot(refresh: true),
+                                    this.kernelOwnedSharedExternEnginePtr,
+                                    null);
+                            }
+                            else
+                            {
+                                FfiCheckpointSpec spec = BuildCheckpointSpec(options);
+                                result = Methods.checkpoint_snapshot(
+                                    this.state.Snapshot(refresh: true),
+                                    this.kernelOwnedSharedExternEnginePtr,
+                                    &spec);
+                            }
 
                             if (result.tag != ExternResultFfiCheckpointWriteResult_Tag.OkFfiCheckpointWriteResult)
                             {
@@ -506,6 +518,46 @@ namespace DeltaLake.Kernel.Core
                     cancellationToken
                 )
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Translates managed <see cref="CheckpointOptions"/> into the kernel FFI
+        /// <see cref="FfiCheckpointSpec"/>. Only called for non-<see cref="CheckpointSpec.Auto"/>
+        /// specs; the sidecar hint applies to <see cref="CheckpointSpec.V2WithSidecar"/> only.
+        /// </summary>
+        private static unsafe FfiCheckpointSpec BuildCheckpointSpec(CheckpointOptions options)
+        {
+            FfiCheckpointSpec spec = default;
+            switch (options.Spec)
+            {
+                case CheckpointSpec.V1:
+                    spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV1;
+                    break;
+                case CheckpointSpec.V2NoSidecar:
+                    spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV2NoSidecar;
+                    break;
+                case CheckpointSpec.V2WithSidecar:
+                    spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV2WithSidecar;
+                    OptionalValueusize hint = default;
+                    if (options.FileActionsPerSidecarHint is ulong hintValue)
+                    {
+                        hint.tag = OptionalValueusize_Tag.Someusize;
+                        hint.Anonymous.Anonymous.some = hintValue;
+                    }
+                    else
+                    {
+                        hint.tag = OptionalValueusize_Tag.Noneusize;
+                    }
+                    spec.Anonymous.v2_with_sidecar.file_actions_per_sidecar_hint = hint;
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        nameof(options),
+                        options.Spec,
+                        "Unsupported checkpoint spec.");
+            }
+
+            return spec;
         }
 
         #endregion Delta Kernel table operations

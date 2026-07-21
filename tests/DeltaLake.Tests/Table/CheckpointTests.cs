@@ -1,4 +1,5 @@
 using DeltaLake.Interfaces;
+using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Table;
 
 namespace DeltaLake.Tests.Table
@@ -359,6 +360,80 @@ namespace DeltaLake.Tests.Table
             Assert.Equal(length + 2, history.Length);
             await table.CheckpointAsync(CancellationToken.None);
             await more(table);
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_With_Auto_Options_Writes_Checkpoint()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+                var data = await TableHelpers.SetupTable(path, 1);
+                using var table = data.table;
+
+                // The parameterless default (CheckpointSpec.Auto) matches the pre-options behavior.
+                await table.CheckpointAsync(new CheckpointOptions(), CancellationToken.None);
+
+                var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                Assert.True(File.Exists(lastCheckpoint));
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_With_V1_Spec_Writes_Checkpoint()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+                var data = await TableHelpers.SetupTable(path, 1);
+                using var table = data.table;
+
+                await table.CheckpointAsync(
+                    new CheckpointOptions { Spec = CheckpointSpec.V1 },
+                    CancellationToken.None);
+
+                var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
+                Assert.True(File.Exists(lastCheckpoint));
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_V2_Sidecar_Spec_Reaches_Kernel_And_Requires_Feature()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+                var data = await TableHelpers.SetupTable(path, 1);
+                using var table = data.table;
+
+                // The table does not enable the v2Checkpoint feature, so forcing a V2 checkpoint
+                // with sidecars surfaces the kernel's CheckpointWriteError. This confirms the sidecar
+                // spec is marshalled and passed through to the kernel rather than silently ignored.
+                var ex = await Assert.ThrowsAsync<KernelException>(
+                    async () => await table.CheckpointAsync(
+                        new CheckpointOptions
+                        {
+                            Spec = CheckpointSpec.V2WithSidecar,
+                            FileActionsPerSidecarHint = 1,
+                        },
+                        CancellationToken.None));
+                Assert.Contains("v2Checkpoint", ex.Message);
+            }
+            finally
+            {
+                info.Delete(true);
+            }
         }
     }
 }
