@@ -341,12 +341,13 @@ namespace DeltaLake.Kernel.State
                 this.partitionList->Len = 0;
                 this.partitionList->Cols = (char**)Marshal.AllocHGlobal(sizeof(char*) * partitionColumnCount);
 
+                IntPtr visitPartition = Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition);
                 StringSliceIterator* partitionIterator = Methods.get_partition_columns(this.Snapshot(false));
                 try
                 {
-                    for (; ; )
+                    for (int i = 0; i < partitionColumnCount; i++)
                     {
-                        bool hasNext = Methods.string_slice_next(partitionIterator, this.partitionList, Marshal.GetFunctionPointerForDelegate(VisitCallbacks.VisitPartition));
+                        bool hasNext = Methods.string_slice_next(partitionIterator, this.partitionList, visitPartition);
                         if (!hasNext) break;
                     }
 

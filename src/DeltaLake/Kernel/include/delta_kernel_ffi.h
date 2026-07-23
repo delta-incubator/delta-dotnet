@@ -9,6 +9,13 @@
 namespace ffi {
 #endif  // __cplusplus
 
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Max `(name, value)` pairs in a [`CAuthHeaders`] struct.
+ */
+#define AUTH_MAX_NUM_HEADERS 8
+#endif
+
 typedef enum KernelError {
   UnknownError = 0,
   FFIError = 1,
@@ -63,7 +70,40 @@ typedef enum KernelError {
   LiteralExpressionTransformError = 40,
   CheckpointWriteError = 41,
   SchemaError = 42,
+  LogHistoryError = 43,
 } KernelError;
+
+/**
+ * Selects which commit type to return for the history_manager query. FFI-safe mirror of
+ * [`HistoryCommitType`].
+ */
+typedef enum FfiHistoryCommitType {
+  /**
+   * Maps to [`HistoryCommitType::Published`].
+   */
+  Published = 0,
+  /**
+   * Maps to [`HistoryCommitType::Recreatable`].
+   */
+  Recreatable = 1,
+} FfiHistoryCommitType;
+
+/**
+ * FFI-safe mirror of the kernel's [`KernelDeltaAction`]: the Delta log action kinds a caller can
+ * request from [`commit_range_commits`].
+ */
+typedef enum DeltaAction {
+  AddAction = 0,
+  RemoveAction = 1,
+  MetadataAction = 2,
+  ProtocolAction = 3,
+  CommitInfoAction = 4,
+  CdcAction = 5,
+  DomainMetadataAction = 6,
+  SetTxnAction = 7,
+  CheckpointMetadataAction = 8,
+  SidecarAction = 9,
+} DeltaAction;
 
 /**
  * Definitions of level verbosity. Verbose Levels are "greater than" less verbose ones. So
@@ -119,6 +159,35 @@ typedef enum LogLineFormat {
   JSON,
 } LogLineFormat;
 
+/**
+ * Whether a table is path-based or catalog-managed.
+ *
+ */
+typedef enum TableType {
+  TableTypePathBased,
+  TableTypeCatalogManaged,
+} TableType;
+
+/**
+ * Why a transaction commit did not succeed.
+ *
+ */
+typedef enum CommitFailureReason {
+  CommitFailureReasonConflict,
+  CommitFailureReasonRetryableIo,
+  CommitFailureReasonError,
+} CommitFailureReason;
+
+/**
+ * Which scan execution path produced a [`ScanMetadataCompleted`] event.
+ *
+ */
+typedef enum ScanType {
+  ScanTypeSequentialPhase,
+  ScanTypeParallelPhase,
+  ScanTypeFull,
+} ScanType;
+
 typedef struct CStringMap CStringMap;
 
 /**
@@ -141,7 +210,11 @@ typedef struct DvInfo DvInfo;
 
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
 /**
- * A builder that allows setting options on the `Engine` before actually building it
+ * A builder that allows setting options on the `Engine` before actually building it.
+ *
+ * For a normal object store backend, `url` is the table storage location (`s3://…`, `file://…`).
+ * For REST, call [`set_builder_rest_object_store`] with a [`rest_engine::CRestEndpointConfig`]
+ * and set `url` to the REST service base URL; see [`rest_engine`] for TLS and auth options.
  */
 typedef struct EngineBuilder EngineBuilder;
 #endif
@@ -175,6 +248,16 @@ typedef struct ExclusiveCreateTableBuilder ExclusiveCreateTableBuilder;
 typedef struct ExclusiveCreateTransaction ExclusiveCreateTransaction;
 
 /**
+ * Mutable handle for a [`DeletionVectorDescriptor`] crossing the FFI boundary.
+ */
+typedef struct ExclusiveDvDescriptor ExclusiveDvDescriptor;
+
+/**
+ * Mutable handle for a deletion vector descriptor map.
+ */
+typedef struct ExclusiveDvDescriptorMap ExclusiveDvDescriptorMap;
+
+/**
  * an opaque struct that encapsulates data read by an engine. this handle can be passed back into
  * some kernel calls to operate on the data, or can be converted into the raw data as read by the
  * [`delta_kernel::Engine`] by calling [`get_raw_engine_data`]
@@ -184,6 +267,18 @@ typedef struct ExclusiveCreateTransaction ExclusiveCreateTransaction;
 typedef struct ExclusiveEngineData ExclusiveEngineData;
 
 typedef struct ExclusiveFileReadResultIterator ExclusiveFileReadResultIterator;
+
+/**
+ * Mutable handle for a `PartitionValueMap`.
+ */
+typedef struct ExclusivePartitionValueMap ExclusivePartitionValueMap;
+
+/**
+ * A kernel-allocated type representing an owned byte buffer. This can be obtained by
+ * calling [`allocate_kernel_bytes`] with a [`KernelBytesSlice`]. Kernel takes ownership of the
+ * handle when it consumes the bytes and the engine must not use the handle afterwards.
+ */
+typedef struct ExclusiveRustBytes ExclusiveRustBytes;
 
 /**
  * An opaque type that rust will understand as a string. This can be obtained by calling
@@ -230,9 +325,16 @@ typedef struct KernelSchemaVisitorState KernelSchemaVisitorState;
 typedef struct MutableCommitter MutableCommitter;
 
 /**
+ * An opaque handle with exclusive (Box-like) ownership of a [`FfiCommitRangeBuilder`].
+ */
+typedef struct MutableFfiCommitRangeBuilder MutableFfiCommitRangeBuilder;
+
+/**
  * An opaque handle with exclusive (Box-like) ownership of a [`FfiSnapshotBuilder`].
  */
 typedef struct MutableFfiSnapshotBuilder MutableFfiSnapshotBuilder;
+
+typedef struct OptionCAuthHeaderCallback OptionCAuthHeaderCallback;
 
 /**
  * A SQL predicate.
@@ -242,6 +344,22 @@ typedef struct MutableFfiSnapshotBuilder MutableFfiSnapshotBuilder;
  * predicate against a schema and add appropriate casts as required.
  */
 typedef struct Predicate Predicate;
+
+/**
+ * An opaque, shared handle to a single [`CommitAction`] yielded by [`commit_range_commits_next`].
+ * The engine owns each handle passed to its visitor and must release it with
+ * [`free_commit_action`].
+ */
+typedef struct SharedCommitAction SharedCommitAction;
+
+typedef struct SharedCommitActionsIterator SharedCommitActionsIterator;
+
+/**
+ * An opaque, shared handle owning a [`CommitRange`] produced by
+ * [`commit_range_builder_build`]. The caller owns the handle and must release it with
+ * [`free_commit_range`].
+ */
+typedef struct SharedCommitRange SharedCommitRange;
 
 typedef struct SharedExpression SharedExpression;
 
@@ -256,6 +374,11 @@ typedef struct SharedMetadata SharedMetadata;
 typedef struct SharedOpaqueExpressionOp SharedOpaqueExpressionOp;
 
 typedef struct SharedOpaquePredicateOp SharedOpaquePredicateOp;
+
+/**
+ * A shared (`Arc`-like) handle to an [`PlanExecutor`].
+ */
+typedef struct SharedPlanExecutor SharedPlanExecutor;
 
 typedef struct SharedPredicate SharedPredicate;
 
@@ -390,6 +513,53 @@ typedef struct KernelStringSlice {
 typedef struct EngineError *(*AllocateErrorFn)(enum KernelError etype, struct KernelStringSlice msg);
 
 /**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveRustBytes *HandleExclusiveRustBytes;
+
+/**
+ * A non-owned slice of raw bytes, intended for arg-passing between kernel and engine.
+ *
+ * Like [`KernelStringSlice`], the pointed-to data must outlive the slice itself, and the slice
+ * must not be retained beyond the foreign function call it was passed into.
+ */
+typedef struct KernelBytesSlice {
+  const uint8_t *ptr;
+  uintptr_t len;
+} KernelBytesSlice;
+
+/**
  * Represents an owned slice of boolean values allocated by the kernel. Any time the engine
  * receives a `KernelBoolSlice` as a return value from a kernel method, engine is responsible
  * to free that slice, by calling [super::free_bool_slice] exactly once.
@@ -485,6 +655,34 @@ typedef struct ExternResultbool {
     };
   };
 } ExternResultbool;
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * REST file API dialect passed to
+ * [`set_builder_rest_object_store`](crate::set_builder_rest_object_store).
+ *
+ * Each [`KernelStringSlice`] must remain valid for the duration of that call; the kernel copies
+ * the strings into the built engine. Optional fields (the prefixes and `entry_strip_prefix`) may
+ * be empty, which the kernel treats as unset.
+ */
+typedef struct CRestEndpointConfig {
+  struct KernelStringSlice files_prefix;
+  struct KernelStringSlice directories_prefix;
+  struct KernelStringSlice page_token_param;
+  struct KernelStringSlice start_from_param;
+  struct KernelStringSlice recursive_param;
+  struct KernelStringSlice overwrite_param;
+  struct KernelStringSlice contents_field;
+  struct KernelStringSlice next_page_token_field;
+  struct KernelStringSlice entry_path_field;
+  struct KernelStringSlice entry_size_field;
+  struct KernelStringSlice entry_is_directory_field;
+  struct KernelStringSlice entry_last_modified_field;
+  struct KernelStringSlice entry_strip_prefix;
+} CRestEndpointConfig;
+#endif
+
+typedef void *NullableCvoid;
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -700,6 +898,111 @@ typedef struct ExternResultHandleSharedSnapshot {
 } ExternResultHandleSharedSnapshot;
 
 /**
+ * Outcome of a checkpoint write performed via [`checkpoint_snapshot`].
+ *
+ * `Written` indicates the kernel wrote a new checkpoint at this version and returns an
+ * updated snapshot whose log segment reflects the new checkpoint. `AlreadyExists` indicates
+ * a checkpoint at this version was already present (either pre-existed or was written by a
+ * concurrent writer) and returns the original snapshot unchanged.
+ *
+ * Both variants carry an owned `Handle<SharedSnapshot>` that the caller must release via
+ * [`free_snapshot`].
+ *
+ */
+typedef enum FfiCheckpointWriteResult_Tag {
+  FfiCheckpointWriteResultWritten,
+  FfiCheckpointWriteResultAlreadyExists,
+} FfiCheckpointWriteResult_Tag;
+
+typedef struct FfiCheckpointWriteResult {
+  FfiCheckpointWriteResult_Tag tag;
+  union {
+    struct {
+      HandleSharedSnapshot written;
+    };
+    struct {
+      HandleSharedSnapshot already_exists;
+    };
+  };
+} FfiCheckpointWriteResult;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultFfiCheckpointWriteResult_Tag {
+  OkFfiCheckpointWriteResult,
+  ErrFfiCheckpointWriteResult,
+} ExternResultFfiCheckpointWriteResult_Tag;
+
+typedef struct ExternResultFfiCheckpointWriteResult {
+  ExternResultFfiCheckpointWriteResult_Tag tag;
+  union {
+    struct {
+      struct FfiCheckpointWriteResult ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultFfiCheckpointWriteResult;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueusize_Tag {
+  Someusize,
+  Noneusize,
+} OptionalValueusize_Tag;
+
+typedef struct OptionalValueusize {
+  OptionalValueusize_Tag tag;
+  union {
+    struct {
+      uintptr_t some;
+    };
+  };
+} OptionalValueusize;
+
+/**
+ * Checkpoint write configuration for [`checkpoint_snapshot`]. Mirrors the kernel's
+ * [`CheckpointSpec`] and [`V2CheckpointConfig`] across the C ABI; see those types for the
+ * authoritative semantics and constraints.
+ *
+ * Pass `Option<&FfiCheckpointSpec>::None` to [`checkpoint_snapshot`] to let the kernel
+ * auto-pick V1 or V2 based on the table's protocol features.
+ *
+ */
+typedef enum FfiCheckpointSpec_Tag {
+  /**
+   * See [`CheckpointSpec::V1`].
+   */
+  FfiCheckpointSpecV1,
+  /**
+   * See [`V2CheckpointConfig::NoSidecar`].
+   */
+  FfiCheckpointSpecV2NoSidecar,
+  /**
+   * See [`V2CheckpointConfig::WithSidecar`].
+   */
+  FfiCheckpointSpecV2WithSidecar,
+} FfiCheckpointSpec_Tag;
+
+typedef struct FfiCheckpointSpecV2WithSidecar_Body {
+  /**
+   * See [`V2CheckpointConfig::WithSidecar`]. `None` selects the kernel default hint.
+   */
+  struct OptionalValueusize file_actions_per_sidecar_hint;
+} FfiCheckpointSpecV2WithSidecar_Body;
+
+typedef struct FfiCheckpointSpec {
+  FfiCheckpointSpec_Tag tag;
+  union {
+    FfiCheckpointSpecV2WithSidecar_Body v2_with_sidecar;
+  };
+} FfiCheckpointSpec;
+
+/**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
  * allocated one at all), and engine is responsible for freeing it.
  */
@@ -719,6 +1022,82 @@ typedef struct ExternResulti64 {
     };
   };
 } ExternResulti64;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultVersion_Tag {
+  OkVersion,
+  ErrVersion,
+} ExternResultVersion_Tag;
+
+typedef struct ExternResultVersion {
+  ExternResultVersion_Tag tag;
+  union {
+    struct {
+      Version ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultVersion;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueVersion_Tag {
+  SomeVersion,
+  NoneVersion,
+} OptionalValueVersion_Tag;
+
+typedef struct OptionalValueVersion {
+  OptionalValueVersion_Tag tag;
+  union {
+    struct {
+      Version some;
+    };
+  };
+} OptionalValueVersion;
+
+/**
+ * A commit located by a timestamp query: a commit version paired with its timestamp. FFI-safe
+ * mirror of [`CommitAt`].
+ */
+typedef struct FfiCommitAt {
+  /**
+   * The commit version.
+   */
+  Version version;
+  /**
+   * Timestamp (milliseconds since the Unix epoch) associated with this commit. This is the
+   * commit's in-commit timestamp (ICT) when ICT is enabled, otherwise the commit's file
+   * modification time.
+   */
+  int64_t timestamp;
+} FfiCommitAt;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultFfiCommitAt_Tag {
+  OkFfiCommitAt,
+  ErrFfiCommitAt,
+} ExternResultFfiCommitAt_Tag;
+
+typedef struct ExternResultFfiCommitAt {
+  ExternResultFfiCommitAt_Tag tag;
+  union {
+    struct {
+      struct FfiCommitAt ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultFfiCommitAt;
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -755,8 +1134,6 @@ typedef struct ExternResulti64 {
  * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
  */
 typedef struct SharedSchema *HandleSharedSchema;
-
-typedef void *NullableCvoid;
 
 /**
  * Allow engines to allocate strings of their own type. the contract of calling a passed allocate
@@ -890,6 +1267,270 @@ typedef struct OptionalValueKernelStringSlice {
 } OptionalValueKernelStringSlice;
 
 /**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct MutableFfiCommitRangeBuilder *HandleMutableFfiCommitRangeBuilder;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleMutableFfiCommitRangeBuilder_Tag {
+  OkHandleMutableFfiCommitRangeBuilder,
+  ErrHandleMutableFfiCommitRangeBuilder,
+} ExternResultHandleMutableFfiCommitRangeBuilder_Tag;
+
+typedef struct ExternResultHandleMutableFfiCommitRangeBuilder {
+  ExternResultHandleMutableFfiCommitRangeBuilder_Tag tag;
+  union {
+    struct {
+      HandleMutableFfiCommitRangeBuilder ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleMutableFfiCommitRangeBuilder;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedCommitRange *HandleSharedCommitRange;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedCommitRange_Tag {
+  OkHandleSharedCommitRange,
+  ErrHandleSharedCommitRange,
+} ExternResultHandleSharedCommitRange_Tag;
+
+typedef struct ExternResultHandleSharedCommitRange {
+  ExternResultHandleSharedCommitRange_Tag tag;
+  union {
+    struct {
+      HandleSharedCommitRange ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedCommitRange;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedCommitAction *HandleSharedCommitAction;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveFileReadResultIterator *HandleExclusiveFileReadResultIterator;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleExclusiveFileReadResultIterator_Tag {
+  OkHandleExclusiveFileReadResultIterator,
+  ErrHandleExclusiveFileReadResultIterator,
+} ExternResultHandleExclusiveFileReadResultIterator_Tag;
+
+typedef struct ExternResultHandleExclusiveFileReadResultIterator {
+  ExternResultHandleExclusiveFileReadResultIterator_Tag tag;
+  union {
+    struct {
+      HandleExclusiveFileReadResultIterator ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleExclusiveFileReadResultIterator;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedCommitActionsIterator *HandleSharedCommitActionsIterator;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleSharedCommitActionsIterator_Tag {
+  OkHandleSharedCommitActionsIterator,
+  ErrHandleSharedCommitActionsIterator,
+} ExternResultHandleSharedCommitActionsIterator_Tag;
+
+typedef struct ExternResultHandleSharedCommitActionsIterator {
+  ExternResultHandleSharedCommitActionsIterator_Tag tag;
+  union {
+    struct {
+      HandleSharedCommitActionsIterator ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleSharedCommitActionsIterator;
+
+/**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
  * allocated one at all), and engine is responsible for freeing it.
  */
@@ -1016,63 +1657,6 @@ typedef struct ExternResultHandleExclusiveEngineData {
     };
   };
 } ExternResultHandleExclusiveEngineData;
-
-/**
- * Represents an object that crosses the FFI boundary and which outlives the scope that created
- * it. It can be passed freely between rust code and external code. The
- *
- * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
- *
- * * The true underlying ("target") type the handle represents. For safety reasons, target type
- *   must always be [`Send`].
- *
- * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
- *   shared handle must always be [`Send`]+[`Sync`].
- *
- * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
- *
- * # Validity
- *
- * A `Handle` is _valid_ if all of the following hold:
- *
- * * It was created by a call to [`Handle::from`]
- * * Not yet dropped by a call to [`Handle::drop_handle`]
- * * Not yet consumed by a call to [`Handle::into_inner`]
- *
- * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
- * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
- * API call at a time. If thread races are possible, the handle should be protected with a
- * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
- * appear to be read-only (because Rust code always receives the handle as mutable).
- *
- * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
- * freely access shared (non-mutable) handles.
- *
- * [reference rules]:
- * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
- */
-typedef struct ExclusiveFileReadResultIterator *HandleExclusiveFileReadResultIterator;
-
-/**
- * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
- * allocated one at all), and engine is responsible for freeing it.
- */
-typedef enum ExternResultHandleExclusiveFileReadResultIterator_Tag {
-  OkHandleExclusiveFileReadResultIterator,
-  ErrHandleExclusiveFileReadResultIterator,
-} ExternResultHandleExclusiveFileReadResultIterator_Tag;
-
-typedef struct ExternResultHandleExclusiveFileReadResultIterator {
-  ExternResultHandleExclusiveFileReadResultIterator_Tag tag;
-  union {
-    struct {
-      HandleExclusiveFileReadResultIterator ok;
-    };
-    struct {
-      struct EngineError *err;
-    };
-  };
-} ExternResultHandleExclusiveFileReadResultIterator;
 
 typedef struct FileMeta {
   struct KernelStringSlice path;
@@ -1915,6 +2499,12 @@ typedef struct EngineExpressionVisitor {
    */
   VisitVariadicFn visit_coalesce;
   /**
+   * Visits the `Array` variadic constructor belonging to the list identified by
+   * `sibling_list_id`. The element expressions will be in a list identified by
+   * `child_list_id`.
+   */
+  VisitVariadicFn visit_array;
+  /**
    * Visits the `column` belonging to the list identified by `sibling_list_id`.
    */
   void (*visit_column)(void *data, uintptr_t sibling_list_id, struct KernelStringSlice name);
@@ -1924,49 +2514,35 @@ typedef struct EngineExpressionVisitor {
    */
   void (*visit_struct_expr)(void *data, uintptr_t sibling_list_id, uintptr_t child_list_id);
   /**
-   * Visits a `Transform` expression belonging to the list identified by `sibling_list_id`. The
-   * `input_path_list_id` is a single-item list containing transform's input path as a column
-   * reference (0 = no path). The `field_transform_list_id` identifies the list of field
-   * transforms to apply (0 = identity transform). See also [`Self::visit_field_transform`].
+   * Visits a `StructPatch` expression belonging to the list identified by `sibling_list_id`.
+   * The `input_path_list_id` is a zero-or-one item list containing the patch's input path as a
+   * column reference. The `prepended_field_list_id` and `appended_field_list_id` identify
+   * expression lists to emit before and after the named input fields. The
+   * `field_patch_list_id` identifies the list of named field patches to apply. See also
+   * [`Self::visit_field_patch`].
    */
-  void (*visit_transform_expr)(void *data,
-                               uintptr_t sibling_list_id,
-                               uintptr_t input_path_list_id,
-                               uintptr_t field_transform_list_id);
+  void (*visit_struct_patch_expr)(void *data,
+                                  uintptr_t sibling_list_id,
+                                  uintptr_t input_path_list_id,
+                                  uintptr_t prepended_field_list_id,
+                                  uintptr_t field_patch_list_id,
+                                  uintptr_t appended_field_list_id);
   /**
-   * Visits one field transform of a `Transform` expression that owns the list identified by
-   * `sibling_list_id`. Each field transform has a different insertion point (no duplicates).
+   * Visits one named field patch of a `StructPatch` expression that owns the list identified by
+   * `sibling_list_id`.
    *
-   * A field transform is modeled as the triple `(field_name, expr_list, is_replace)`, as
-   * described by the truth table below. The `expr_list_id` identifies the list of expressions
-   * the field transform should emit. The field name (if present) always references a field of
-   * the input struct. Both the field name and the expression list are optional:
-   *
-   * |field_name? |expr_list? |is_replace? |meaning|
-   * |-|-|-|-|
-   * | NO  | NO  | *   | NO-OP (prepend an empty list of expressions to the output)
-   * | NO  | YES | *   | Prepend a list of expressions to the output
-   * | YES | NO  | NO  | NO-OP (insert an empty list of expressions after the named input field)
-   * | YES | NO  | YES | Drop the named input field
-   * | YES | YES | NO  | Insert a list of expressions after the named input field
-   * | YES | YES | YES | Replace the named input field with a list of expressions
-   *
-   * NOTE: Treating list id 0 as an empty list yields a simplified truth table:
-   *
-   * |field_name? |is_replace? |meaning|
-   * |-|-|-|
-   * | NO  | *   | Prepend a (possibly empty) list of expressions to the output
-   * | YES | NO  | Insert a (possibly empty)  list of expressions after the named input field
-   * | YES | YES | Replace the named input field with a (possibly empty) list of expressions
-   *
-   * NOTE: The expressions of each field transform must be emitted in order at the insertion
-   * point.
+   * The `insertion_expr_list_id` identifies expressions to emit after this field's output
+   * position. If `keep_input` is true, the original input field is emitted before these
+   * insertions. If `keep_input` is false, the original input field is omitted and the first
+   * insertion, if present, occupies the input field's output position. The `optional` flag
+   * indicates that the patch is silently ignored when the input field does not exist.
    */
-  void (*visit_field_transform)(void *data,
-                                uintptr_t sibling_list_id,
-                                const struct KernelStringSlice *field_name,
-                                uintptr_t expr_list_id,
-                                bool is_replace);
+  void (*visit_field_patch)(void *data,
+                            uintptr_t sibling_list_id,
+                            struct KernelStringSlice field_name,
+                            uintptr_t insertion_expr_list_id,
+                            bool keep_input,
+                            bool optional);
   /**
    * Visits the operator (`op`) and children (`child_list_id`) of an opaque expression belonging
    * to the list identified by `sibling_list_id`.
@@ -2087,6 +2663,156 @@ typedef struct ExternResultHandleSharedPredicate {
 } ExternResultHandleSharedPredicate;
 
 /**
+ * An error that can be returned from engine-side execution (e.g during an upcall).
+ *
+ * This is intended to be a kernel-allocated error which Engines can return TO kernel. It is the
+ * inverse of [`EngineError`] (which is engine-allocated, and returned FROM kernel).
+ *
+ * The message is an [`ExclusiveRustString`] handle, which means the engine must
+ * downcall to [`allocate_kernel_string`](crate::allocate_kernel_string) to construct it. Kernel
+ * can then take ownership and free it appropriately after receiving the error.
+ */
+typedef struct EngineExecError {
+  enum KernelError etype;
+  HandleExclusiveRustString message;
+} EngineExecError;
+
+/**
+ * Generic wrapper around an EngineExecError, representing the result of an engine upcall.
+ *
+ * Typically, engines will populate an out pointer with this result type. We include an `Uninit`
+ * variant to signal that the engine returned without writing to the out pointer. Kernel should
+ * always initialize such an out pointer to `Uninit` before handing it to an engine upcall.
+ *
+ * The variants are deliberately named `Success`/`Failure` rather than `Ok`/`Err` to avoid a
+ * conflict with [`ExternResult`]. This is due to an issue in cbindgen, where generic types sharing
+ * the same variant names causes failures during monomorphization (<https://github.com/mozilla/cbindgen/issues/1166>).
+ */
+typedef enum EngineExecResultArrowFFIData_Tag {
+  SuccessArrowFFIData,
+  FailureArrowFFIData,
+  UninitArrowFFIData,
+} EngineExecResultArrowFFIData_Tag;
+
+typedef struct EngineExecResultArrowFFIData {
+  EngineExecResultArrowFFIData_Tag tag;
+  union {
+    struct {
+      struct ArrowFFIData success;
+    };
+    struct {
+      struct EngineExecError failure;
+    };
+  };
+} EngineExecResultArrowFFIData;
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Engine callback for **row-time** evaluation of an opaque predicate.
+ *
+ * Kernel pre-evaluates the predicate's args into a `RecordBatch` (one field per arg) and passes it
+ * by value as `args_in` (an `ArrowFFIData`); the engine owns it and must release both Arrow C Data
+ * Interface handles on every path (including `Failure`/`Uninit`). The batch's columns line up with
+ * the predicate's args by position:
+ * - a `Column` arg arrives as its evaluated values
+ * - a `Literal` arg as the constant repeated for every row
+ * - a `Predicate` arg as a `BooleanArray` of its verdicts
+ *
+ * The engine returns one bool per row.
+ *
+ * The result uses the out-pointer convention: kernel pre-initializes `*out` to
+ * `EngineExecResult::Uninit`. On success the engine writes `EngineExecResult::Success` holding the
+ * result `BooleanArray` as Arrow C Data Interface structs, transferring their ownership to kernel.
+ * On failure it writes `EngineExecResult::Failure` carrying a `KernelError` code and a message
+ * handle (built via `allocate_kernel_string`); leaving `*out` as `Uninit` is also treated as an
+ * error. When `inverted`, evaluate `NOT op`.
+ *
+ * # Safety
+ * `out` is valid only for the duration of the call; the engine must not retain it. The callback
+ * must not panic or unwind across the FFI boundary.
+ */
+typedef void (*EngineEvalRowsFn)(void *engine_state,
+                                 struct KernelStringSlice op_name,
+                                 struct ArrowFFIData args_in,
+                                 bool inverted,
+                                 struct EngineExecResultArrowFFIData *out);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Engine callback for **stats-based** evaluation of an opaque predicate, for file data skipping.
+ *
+ * Like [`EngineEvalRowsFn`], but each `Column` arg arrives as a per-file 4-field struct indexed by
+ * position: `0`=min, `1`=max (column type; null if not collected), `2`=nullcount, `3`=rowcount
+ * (`Int64`; null if not collected). `Literal`/`Predicate` args are unchanged. The engine returns
+ * one bool per file: `false` = skip, `true`/`null` = keep.
+ *
+ * Stats are *conservative*: `min`/`max` only bound the values and `nullcount`/`rowcount` may
+ * overcount, so skip a file only when the predicate *cannot* hold for any value in `[min, max]`.
+ * Keep (`true`/`null`) whenever the stats can't prove the predicate impossible -- in particular
+ * on null/absent bounds, where skipping silently drops live files from the scan. Log-replay
+ * soundness does not rest on the engine, though: kernel wraps the rewritten predicate with an
+ * `OR(NOT is_add, ...)` guard, so Remove rows (which carry null stats) are kept regardless of
+ * the verdict and a misbehaving callback cannot resurrect deleted files.
+ * When `inverted`, evaluate `NOT op` -- not `!verdict`; if you can't reason soundly about the
+ * negated op, keep every file. Result/out-pointer/panic contract matches [`EngineEvalRowsFn`].
+ */
+typedef void (*EngineEvalStatsFn)(void *engine_state,
+                                  struct KernelStringSlice op_name,
+                                  struct ArrowFFIData args_in,
+                                  bool inverted,
+                                  struct EngineExecResultArrowFFIData *out);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Destructor for the engine's state pointer.
+ *
+ * Must not panic or unwind across the FFI boundary.
+ */
+typedef void (*EngineFreeStateFn)(void *engine_state);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Bundle of engine callbacks for opaque-predicate evaluation, passed by value to
+ * [`visit_predicate_opaque_with_eval`]. Ownership of `engine_state` transfers to kernel with the
+ * call: `free_state` is invoked exactly once when the predicate built from it (including any
+ * data-skipping clones kernel derives) is dropped. Engines attaching the same logical state to
+ * multiple opaque ops must pass independently freeable state per call.
+ *
+ * # Thread safety
+ *
+ * Kernel may invoke the eval callbacks -- and ultimately `free_state` -- from any thread,
+ * potentially concurrently: the predicate is shared across whatever threads drive the scan, and
+ * the last reference may drop on any of them. The engine must hand over only an `engine_state`
+ * and callbacks that tolerate this; any synchronization is the engine's responsibility.
+ *
+ * [`visit_predicate_opaque_with_eval`]: crate::expressions::kernel_visitor::visit_predicate_opaque_with_eval
+ */
+typedef struct COpaqueEvalCallbacks {
+  /**
+   * Opaque engine state; passed back as the first argument to each
+   * callback.
+   */
+  void *engine_state;
+  /**
+   * Row-time evaluation: one verdict per data row.
+   */
+  EngineEvalRowsFn eval_pred_rows;
+  /**
+   * Stats-based evaluation for file data skipping: one verdict per file.
+   */
+  EngineEvalStatsFn eval_pred_stats;
+  /**
+   * Destructor for `engine_state`. Called exactly once; may run on any
+   * kernel thread.
+   */
+  EngineFreeStateFn free_state;
+} COpaqueEvalCallbacks;
+#endif
+
+/**
  * An `Event` can generally be thought of a "log message". It contains all the relevant bits such
  * that an engine can generate a log message in its format
  */
@@ -2117,6 +2843,580 @@ typedef struct Event {
 typedef void (*TracingEventFn)(struct Event event);
 
 typedef void (*TracingLogLineFn)(struct KernelStringSlice line);
+
+/**
+ * The 16 raw bytes of an operation's UUID, used to correlate events from the same operation.
+ */
+typedef struct MetricId {
+  uint8_t bytes[16];
+} MetricId;
+
+/**
+ * A log segment was loaded.
+ */
+typedef struct LogSegmentLoadSuccess {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  uint64_t duration_ns;
+  uint64_t num_commit_files;
+  uint64_t num_checkpoint_files;
+  uint64_t num_compaction_files;
+  bool has_latest_crc_file;
+} LogSegmentLoadSuccess;
+
+/**
+ * Listing the log segment failed.
+ */
+typedef struct LogSegmentLoadFailure {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+} LogSegmentLoadFailure;
+
+/**
+ * Protocol and metadata actions were read from the log.
+ */
+typedef struct ProtocolMetadataLoadSuccess {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  uint64_t duration_ns;
+} ProtocolMetadataLoadSuccess;
+
+/**
+ * Reading protocol and metadata from the log failed.
+ */
+typedef struct ProtocolMetadataLoadFailure {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+} ProtocolMetadataLoadFailure;
+
+/**
+ * A snapshot was built successfully.
+ */
+typedef struct SnapshotBuildSuccess {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  uint64_t version;
+  uint64_t duration_ns;
+} SnapshotBuildSuccess;
+
+/**
+ * Building a snapshot failed.
+ */
+typedef struct SnapshotBuildFailure {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+} SnapshotBuildFailure;
+
+/**
+ * A transaction was committed successfully. `operation` and `correlation_id` are slices into
+ * engine-supplied data that are only valid for the duration of the callback; an empty slice means
+ * the value was unset.
+ */
+typedef struct TransactionCommitSuccess {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  uint64_t commit_version;
+  uint64_t num_add_files;
+  uint64_t num_remove_files;
+  uint64_t num_dv_updates;
+  uint64_t add_files_bytes;
+  uint64_t remove_files_bytes;
+  bool is_blind_append;
+  bool data_change;
+  struct KernelStringSlice operation;
+  uint64_t prepare_duration_ns;
+  uint64_t committer_duration_ns;
+  uint64_t total_duration_ns;
+} TransactionCommitSuccess;
+
+/**
+ * A transaction commit did not succeed; `reason` distinguishes conflict, retryable IO, and
+ * terminal errors.
+ */
+typedef struct TransactionCommitFailure {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  enum CommitFailureReason reason;
+} TransactionCommitFailure;
+
+/**
+ * A domain metadata load completed.
+ */
+typedef struct DomainMetadataLoadSuccess {
+  bool from_cache;
+  uint64_t num_domains_returned;
+  uint64_t duration_ns;
+} DomainMetadataLoadSuccess;
+
+/**
+ * A `SetTransaction` (app id) load completed.
+ */
+typedef struct SetTransactionLoadSuccess {
+  bool from_cache;
+  bool found;
+  uint64_t duration_ns;
+} SetTransactionLoadSuccess;
+
+/**
+ * A CRC file was read and parsed successfully.
+ */
+typedef struct CrcReadSuccess {
+  uint64_t bytes_read;
+  uint64_t duration_ns;
+} CrcReadSuccess;
+
+/**
+ * A `JsonHandler::read_json_files` call completed.
+ */
+typedef struct JsonReadCompleted {
+  uint64_t num_files;
+  uint64_t bytes_read;
+} JsonReadCompleted;
+
+/**
+ * A `ParquetHandler::read_parquet_files` call completed.
+ */
+typedef struct ParquetReadCompleted {
+  uint64_t num_files;
+  uint64_t bytes_read;
+} ParquetReadCompleted;
+
+/**
+ * A scan metadata operation completed. See [`delta_kernel::metrics::ScanMetadataCompleted`] for
+ * field semantics.
+ */
+typedef struct ScanMetadataCompleted {
+  struct MetricId operation_id;
+  struct KernelStringSlice correlation_id;
+  enum TableType table_type;
+  enum ScanType scan_type;
+  uint64_t duration_ns;
+  uint64_t num_add_files_seen;
+  uint64_t num_active_add_files;
+  uint64_t active_add_files_bytes;
+  uint64_t num_remove_files_seen;
+  uint64_t num_non_file_actions;
+  uint64_t num_predicate_filtered;
+  uint64_t peak_hash_set_size;
+  uint64_t dedup_visitor_time_ns;
+  uint64_t predicate_eval_time_ns;
+} ScanMetadataCompleted;
+
+/**
+ * A storage list operation completed.
+ */
+typedef struct StorageListCompleted {
+  uint64_t duration_ns;
+  uint64_t num_files;
+} StorageListCompleted;
+
+/**
+ * A storage read operation completed.
+ */
+typedef struct StorageReadCompleted {
+  uint64_t duration_ns;
+  uint64_t num_files;
+  uint64_t bytes_read;
+} StorageReadCompleted;
+
+/**
+ * A storage copy or rename operation completed.
+ */
+typedef struct StorageCopyCompleted {
+  uint64_t duration_ns;
+} StorageCopyCompleted;
+
+/**
+ * C version of [`delta_kernel::metrics::MetricEvent`]. Passed by value to a callback registered
+ * via [`crate::ffi_tracing::enable_metrics_reporting`].
+ *
+ */
+typedef enum MetricEvent_Tag {
+  MetricEventLogSegmentLoadSuccess,
+  MetricEventLogSegmentLoadFailure,
+  MetricEventProtocolMetadataLoadSuccess,
+  MetricEventProtocolMetadataLoadFailure,
+  MetricEventSnapshotBuildSuccess,
+  MetricEventSnapshotBuildFailure,
+  MetricEventTransactionCommitSuccess,
+  MetricEventTransactionCommitFailure,
+  MetricEventDomainMetadataLoadSuccess,
+  MetricEventDomainMetadataLoadFailure,
+  MetricEventSetTransactionLoadSuccess,
+  MetricEventSetTransactionLoadFailure,
+  MetricEventCrcReadSuccess,
+  MetricEventCrcReadFailure,
+  MetricEventJsonReadCompleted,
+  MetricEventParquetReadCompleted,
+  MetricEventScanMetadataCompleted,
+  MetricEventStorageListCompleted,
+  MetricEventStorageReadCompleted,
+  MetricEventStorageCopyCompleted,
+} MetricEvent_Tag;
+
+typedef struct MetricEvent {
+  MetricEvent_Tag tag;
+  union {
+    struct {
+      struct LogSegmentLoadSuccess log_segment_load_success;
+    };
+    struct {
+      struct LogSegmentLoadFailure log_segment_load_failure;
+    };
+    struct {
+      struct ProtocolMetadataLoadSuccess protocol_metadata_load_success;
+    };
+    struct {
+      struct ProtocolMetadataLoadFailure protocol_metadata_load_failure;
+    };
+    struct {
+      struct SnapshotBuildSuccess snapshot_build_success;
+    };
+    struct {
+      struct SnapshotBuildFailure snapshot_build_failure;
+    };
+    struct {
+      struct TransactionCommitSuccess transaction_commit_success;
+    };
+    struct {
+      struct TransactionCommitFailure transaction_commit_failure;
+    };
+    struct {
+      struct DomainMetadataLoadSuccess domain_metadata_load_success;
+    };
+    struct {
+      struct SetTransactionLoadSuccess set_transaction_load_success;
+    };
+    struct {
+      struct CrcReadSuccess crc_read_success;
+    };
+    struct {
+      struct JsonReadCompleted json_read_completed;
+    };
+    struct {
+      struct ParquetReadCompleted parquet_read_completed;
+    };
+    struct {
+      struct ScanMetadataCompleted scan_metadata_completed;
+    };
+    struct {
+      struct StorageListCompleted storage_list_completed;
+    };
+    struct {
+      struct StorageReadCompleted storage_read_completed;
+    };
+    struct {
+      struct StorageCopyCompleted storage_copy_completed;
+    };
+  };
+} MetricEvent;
+
+/**
+ * Callback an engine registers via [`enable_metrics_reporting`] to receive kernel
+ * [`MetricEvent`]s. This is invoked synchronously on the thread that emitted the event. Note that
+ * the `event`, and any [`KernelStringSlice`] it carries, are only valid for the duration of the
+ * call.
+ */
+typedef void (*MetricsEventFn)(struct MetricEvent event);
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct SharedPlanExecutor *HandleSharedPlanExecutor;
+
+/**
+ * Generic wrapper around an EngineExecError, representing the result of an engine upcall.
+ *
+ * Typically, engines will populate an out pointer with this result type. We include an `Uninit`
+ * variant to signal that the engine returned without writing to the out pointer. Kernel should
+ * always initialize such an out pointer to `Uninit` before handing it to an engine upcall.
+ *
+ * The variants are deliberately named `Success`/`Failure` rather than `Ok`/`Err` to avoid a
+ * conflict with [`ExternResult`]. This is due to an issue in cbindgen, where generic types sharing
+ * the same variant names causes failures during monomorphization (<https://github.com/mozilla/cbindgen/issues/1166>).
+ */
+typedef enum EngineExecResultHandleExclusiveEngineData_Tag {
+  SuccessHandleExclusiveEngineData,
+  FailureHandleExclusiveEngineData,
+  UninitHandleExclusiveEngineData,
+} EngineExecResultHandleExclusiveEngineData_Tag;
+
+typedef struct EngineExecResultHandleExclusiveEngineData {
+  EngineExecResultHandleExclusiveEngineData_Tag tag;
+  union {
+    struct {
+      HandleExclusiveEngineData success;
+    };
+    struct {
+      struct EngineExecError failure;
+    };
+  };
+} EngineExecResultHandleExclusiveEngineData;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueEngineExecResultHandleExclusiveEngineData_Tag {
+  SomeEngineExecResultHandleExclusiveEngineData,
+  NoneEngineExecResultHandleExclusiveEngineData,
+} OptionalValueEngineExecResultHandleExclusiveEngineData_Tag;
+
+typedef struct OptionalValueEngineExecResultHandleExclusiveEngineData {
+  OptionalValueEngineExecResultHandleExclusiveEngineData_Tag tag;
+  union {
+    struct {
+      struct EngineExecResultHandleExclusiveEngineData some;
+    };
+  };
+} OptionalValueEngineExecResultHandleExclusiveEngineData;
+
+/**
+ * Function pointer an engine iterator uses to yield its next item into `out`.
+ *
+ * See "`next()` protocol" in the module docs.
+ */
+typedef void (*CIterNextFnHandleExclusiveEngineData)(NullableCvoid state,
+                                                     struct OptionalValueEngineExecResultHandleExclusiveEngineData *out);
+
+/**
+ * Function pointer that releases an engine iterator's `state`. Invoked exactly once by kernel once
+ * iteration is complete.
+ */
+typedef void (*CIterFreeFn)(NullableCvoid state);
+
+/**
+ * An engine-owned iterator of [`EngineData`] batches.
+ *
+ * See module level docs for memory management and safety requirements.
+ */
+typedef struct CEngineDataIterator {
+  NullableCvoid state;
+  CIterNextFnHandleExclusiveEngineData next;
+  CIterFreeFn free;
+} CEngineDataIterator;
+
+/**
+ * Generic wrapper around an EngineExecError, representing the result of an engine upcall.
+ *
+ * Typically, engines will populate an out pointer with this result type. We include an `Uninit`
+ * variant to signal that the engine returned without writing to the out pointer. Kernel should
+ * always initialize such an out pointer to `Uninit` before handing it to an engine upcall.
+ *
+ * The variants are deliberately named `Success`/`Failure` rather than `Ok`/`Err` to avoid a
+ * conflict with [`ExternResult`]. This is due to an issue in cbindgen, where generic types sharing
+ * the same variant names causes failures during monomorphization (<https://github.com/mozilla/cbindgen/issues/1166>).
+ */
+typedef enum EngineExecResultFFI_ArrowArray_Tag {
+  SuccessFFI_ArrowArray,
+  FailureFFI_ArrowArray,
+  UninitFFI_ArrowArray,
+} EngineExecResultFFI_ArrowArray_Tag;
+
+typedef struct EngineExecResultFFI_ArrowArray {
+  EngineExecResultFFI_ArrowArray_Tag tag;
+  union {
+    struct {
+      struct FFI_ArrowArray success;
+    };
+    struct {
+      struct EngineExecError failure;
+    };
+  };
+} EngineExecResultFFI_ArrowArray;
+
+/**
+ * FFI-safe implementation for Rust's `Option<T>`
+ */
+typedef enum OptionalValueEngineExecResultFFI_ArrowArray_Tag {
+  SomeEngineExecResultFFI_ArrowArray,
+  NoneEngineExecResultFFI_ArrowArray,
+} OptionalValueEngineExecResultFFI_ArrowArray_Tag;
+
+typedef struct OptionalValueEngineExecResultFFI_ArrowArray {
+  OptionalValueEngineExecResultFFI_ArrowArray_Tag tag;
+  union {
+    struct {
+      struct EngineExecResultFFI_ArrowArray some;
+    };
+  };
+} OptionalValueEngineExecResultFFI_ArrowArray;
+
+/**
+ * Function pointer an engine iterator uses to yield its next item into `out`.
+ *
+ * See "`next()` protocol" in the module docs.
+ */
+typedef void (*CIterNextFnFFI_ArrowArray)(NullableCvoid state,
+                                          struct OptionalValueEngineExecResultFFI_ArrowArray *out);
+
+/**
+ * An engine-owned iterator of [`FileMeta`](delta_kernel::FileMeta) batches.
+ *
+ * See module level docs for memory management and safety requirements.
+ *
+ * Similar to `CBytesIterator`, CFileMetaIterator uses `FFI_ArrowArray` as a convenient container
+ * for passing FileMeta entries across the FFI boundary. Each `next` invocation MUST yield a batch
+ * of one or more FileMeta rows as a `StructArray` whose fields are
+ * `{location: Utf8, last_modified: Int64, size: UInt64}`, all non-null. Kernel assumes this fixed
+ * schema when converting into FileMeta (the schema is NOT passed along through FFI).
+ * Empty or otherwise invalid batches surface as errors and permanently terminate iteration
+ * (kernel will not call `next` again).
+ */
+typedef struct CFileMetaIterator {
+  NullableCvoid state;
+  CIterNextFnFFI_ArrowArray next;
+  CIterFreeFn free;
+} CFileMetaIterator;
+
+/**
+ * An engine-owned iterator of byte buffers.
+ *
+ * See module level docs for memory management and safety requirements.
+ *
+ * Each byte array is transferred across the FFI boundary as an [`FFI_ArrowArray`].
+ * Invocation of `next` MUST yield an Arrow array that is a `BinaryArray` containing a single
+ * row of non-null bytes. Kernel assumes the schema is [`ArrowDataType::Binary`] (the schema is NOT
+ * passed along through FFI).
+ *
+ * FFI_ArrowArray serves as a convenient container for receiving bytes because it internally
+ * manages its own memory release callback.
+ *
+ * TODO: ArrowDataType::Binary uses i32 offsets, so each byte array is limited to 2 GiB. If this is
+ * a problem, we need to support ArrowDataType::LargeBinary instead.
+ */
+typedef struct CBytesIterator {
+  NullableCvoid state;
+  CIterNextFnFFI_ArrowArray next;
+  CIterFreeFn free;
+} CBytesIterator;
+
+/**
+ * C-compatible equivalent of the kernel's `ParquetFooter` struct.
+ *
+ * The schema is delivered as a proto-serialized `delta.kernel.schema.StructType` message. The
+ * engine should call [`allocate_kernel_bytes`](crate::allocate_kernel_bytes) to copy those bytes
+ * into a kernel-owned [`ExclusiveRustBytes`] handle that can then be embedded into this struct.
+ */
+typedef struct CParquetFooter {
+  HandleExclusiveRustBytes schema_proto;
+} CParquetFooter;
+
+/**
+ * C-compatible equivalent of the kernel's `PlanResult` enum.
+ *
+ * We instruct cbindgen to prefix enum variants with enum name (e.g. `CPlanResult_Unit`)
+ * so they don't collide with other identifiers (e.g. with the `FileMeta` struct)
+ *
+ */
+typedef enum CPlanResult_Tag {
+  CPlanResultUnit,
+  CPlanResultData,
+  CPlanResultFileMeta,
+  CPlanResultBytes,
+  CPlanResultParquetFooter,
+} CPlanResult_Tag;
+
+typedef struct CPlanResult {
+  CPlanResult_Tag tag;
+  union {
+    struct {
+      struct CEngineDataIterator data;
+    };
+    struct {
+      struct CFileMetaIterator file_meta;
+    };
+    struct {
+      struct CBytesIterator bytes;
+    };
+    struct {
+      struct CParquetFooter parquet_footer;
+    };
+  };
+} CPlanResult;
+
+/**
+ * Generic wrapper around an EngineExecError, representing the result of an engine upcall.
+ *
+ * Typically, engines will populate an out pointer with this result type. We include an `Uninit`
+ * variant to signal that the engine returned without writing to the out pointer. Kernel should
+ * always initialize such an out pointer to `Uninit` before handing it to an engine upcall.
+ *
+ * The variants are deliberately named `Success`/`Failure` rather than `Ok`/`Err` to avoid a
+ * conflict with [`ExternResult`]. This is due to an issue in cbindgen, where generic types sharing
+ * the same variant names causes failures during monomorphization (<https://github.com/mozilla/cbindgen/issues/1166>).
+ */
+typedef enum EngineExecResultCPlanResult_Tag {
+  SuccessCPlanResult,
+  FailureCPlanResult,
+  UninitCPlanResult,
+} EngineExecResultCPlanResult_Tag;
+
+typedef struct EngineExecResultCPlanResult {
+  EngineExecResultCPlanResult_Tag tag;
+  union {
+    struct {
+      struct CPlanResult success;
+    };
+    struct {
+      struct EngineExecError failure;
+    };
+  };
+} EngineExecResultCPlanResult;
+
+/**
+ * C callback, provided by the Engine, for executing an [`Operation`].
+ *
+ * `context` - an opaque pointer, originally passed to
+ * [`get_plan_executor`](super::get_plan_executor).
+ * `plan_proto` - a byte slice containing the proto-serialized representation of an [`Operation`]
+ * `out` - an out pointer into which the engine writes the result.
+ *
+ * Since the out result is written to caller (Kernel) provided memory, the kernel will also be
+ * responsible for freeing it. Kernel will pre-initialize the out pointer to
+ * [`EngineExecResult::Uninit`] before handing it to the engine upcall.
+ */
+typedef void (*CExecuteOpFn)(NullableCvoid context,
+                             struct KernelBytesSlice plan_proto,
+                             struct EngineExecResultCPlanResult *out);
 
 /**
  * Represents an object that crosses the FFI boundary and which outlives the scope that created
@@ -2674,6 +3974,14 @@ typedef struct EngineSchemaVisitor {
                               bool is_nullable,
                               const struct CStringMap *metadata);
   /**
+   * Visit a `void` belonging to the list identified by `sibling_list_id`.
+   */
+  void (*visit_void)(void *data,
+                     uintptr_t sibling_list_id,
+                     struct KernelStringSlice name,
+                     bool is_nullable,
+                     const struct CStringMap *metadata);
+  /**
    * Visit a `variant` belonging to the list identified by `sibling_list_id`.
    */
   void (*visit_variant)(void *data,
@@ -2929,6 +4237,135 @@ typedef struct ExternResultHandleExclusiveCreateTableBuilder {
 } ExternResultHandleExclusiveCreateTableBuilder;
 
 /**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveDvDescriptorMap *HandleExclusiveDvDescriptorMap;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusiveDvDescriptor *HandleExclusiveDvDescriptor;
+
+/**
+ * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
+ * allocated one at all), and engine is responsible for freeing it.
+ */
+typedef enum ExternResultHandleExclusiveDvDescriptor_Tag {
+  OkHandleExclusiveDvDescriptor,
+  ErrHandleExclusiveDvDescriptor,
+} ExternResultHandleExclusiveDvDescriptor_Tag;
+
+typedef struct ExternResultHandleExclusiveDvDescriptor {
+  ExternResultHandleExclusiveDvDescriptor_Tag tag;
+  union {
+    struct {
+      HandleExclusiveDvDescriptor ok;
+    };
+    struct {
+      struct EngineError *err;
+    };
+  };
+} ExternResultHandleExclusiveDvDescriptor;
+
+/**
+ * Represents an object that crosses the FFI boundary and which outlives the scope that created
+ * it. It can be passed freely between rust code and external code. The
+ *
+ * An accompanying [`HandleDescriptor`] trait defines the behavior of each handle type:
+ *
+ * * The true underlying ("target") type the handle represents. For safety reasons, target type
+ *   must always be [`Send`].
+ *
+ * * Mutable (`Box`-like) vs. shared (`Arc`-like). For safety reasons, the target type of a
+ *   shared handle must always be [`Send`]+[`Sync`].
+ *
+ * * Sized vs. unsized. Sized types allow handle operations to be implemented more efficiently.
+ *
+ * # Validity
+ *
+ * A `Handle` is _valid_ if all of the following hold:
+ *
+ * * It was created by a call to [`Handle::from`]
+ * * Not yet dropped by a call to [`Handle::drop_handle`]
+ * * Not yet consumed by a call to [`Handle::into_inner`]
+ *
+ * Additionally, in keeping with the [`Send`] contract, multi-threaded external code must
+ * enforce mutual exclusion -- no mutable handle should ever be passed to more than one kernel
+ * API call at a time. If thread races are possible, the handle should be protected with a
+ * mutex. Due to Rust [reference rules], this requirement applies even for API calls that
+ * appear to be read-only (because Rust code always receives the handle as mutable).
+ *
+ * NOTE: Because the underlying type is always [`Sync`], multi-threaded external code can
+ * freely access shared (non-mutable) handles.
+ *
+ * [reference rules]:
+ * https://doc.rust-lang.org/book/ch04-02-references-and-borrowing.html#the-rules-of-references
+ */
+typedef struct ExclusivePartitionValueMap *HandleExclusivePartitionValueMap;
+
+/**
  * Semantics: Kernel will always immediately return the leaked engine error to the engine (if it
  * allocated one at all), and engine is responsible for freeing it.
  */
@@ -3010,6 +4447,38 @@ typedef struct ExternResultHandleSharedWriteContext {
 extern "C" {
 #endif // __cplusplus
 
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_HEADER_PREFIX_KEY[8];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_TLS_CERT_PATH_KEY[14];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_TLS_KEY_PATH_KEY[13];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_TLS_CA_PATH_KEY[12];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_TLS_DNS_OVERRIDE_KEY[17];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_TLS_TIMEOUT_SECS_KEY[17];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_RETRY_MAX_RETRIES_KEY[18];
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+extern const uint8_t REST_BUILDER_OPTION_PUT_VERIFY_ON_AMBIGUOUS_KEY[24];
+#endif
+
 /**
  * Allow engines to create an opaque pointer that Rust will understand as a String. Returns an
  * error if the slice contains invalid utf-8 data.
@@ -3020,6 +4489,17 @@ extern "C" {
  */
 struct ExternResultHandleExclusiveRustString allocate_kernel_string(struct KernelStringSlice kernel_str,
                                                                     AllocateErrorFn error_fn);
+
+/**
+ * Allow engines to create an opaque pointer to [`ExclusiveRustBytes`] by copying the provided
+ * `bytes` into kernel-owned memory.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid [`KernelBytesSlice`] whose pointer references at least
+ * `len` readable bytes. The slice only needs to remain valid until after this call returns.
+ */
+HandleExclusiveRustBytes allocate_kernel_bytes(struct KernelBytesSlice bytes);
 
 /**
  * # Safety
@@ -3087,6 +4567,46 @@ struct ExternResultbool set_builder_option(struct EngineBuilder *builder,
 void set_builder_with_multithreaded_executor(struct EngineBuilder *builder,
                                              uintptr_t worker_threads,
                                              uintptr_t max_blocking_threads);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Configure read-path I/O concurrency for the engine's JSON and Parquet handlers.
+ *
+ * These control the `read_*_files` paths used during log replay and scans. Returned data ordering
+ * is preserved regardless of these values.
+ *
+ * # Parameters
+ * - `builder`: The engine builder to configure.
+ * - `buffer_size`: Maximum number of files read concurrently (file-level readahead depth). Higher
+ *   values overlap more object-store requests to hide latency, at the cost of more in-flight
+ *   memory. Pass 0 to use the engine default.
+ * - `batch_size`: Maximum number of rows per yielded batch. Pass 0 to use the engine default.
+ *   Overall read memory usage is roughly proportional to `buffer_size * batch_size`.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid EngineBuilder pointer.
+ */
+void set_builder_with_io_concurrency(struct EngineBuilder *builder,
+                                     uintptr_t buffer_size,
+                                     uintptr_t batch_size);
+#endif
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Select a REST-backed object store. See [`rest_engine`] for setup, option keys, and callbacks.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid builder pointer and a non-null `endpoint_config`. When `callback` is
+ * non-null, `context` must remain valid for the engine lifetime and the callback must be safe to
+ * invoke from any thread concurrently (see [`rest_engine::CAuthHeaderCallback`]).
+ */
+struct ExternResultbool set_builder_rest_object_store(struct EngineBuilder *builder,
+                                                      const struct CRestEndpointConfig *endpoint_config,
+                                                      struct OptionCAuthHeaderCallback callback,
+                                                      NullableCvoid context);
 #endif
 
 #if defined(DEFINE_DEFAULT_ENGINE_BASE)
@@ -3209,16 +4729,26 @@ void free_snapshot_builder(HandleMutableFfiSnapshotBuilder builder);
 void free_snapshot(HandleSharedSnapshot snapshot);
 
 /**
- * Perform a full checkpoint of the specified snapshot using the supplied engine.
+ * Perform a checkpoint write on the given snapshot. Mirrors the kernel's
+ * [`delta_kernel::snapshot::Snapshot::checkpoint`] API across the C ABI.
  *
- * This writes the checkpoint parquet file and the `_last_checkpoint` file.
+ * Pass `Option<&FfiCheckpointSpec>::None` to let the kernel auto-pick V1 or V2 based on the
+ * table's protocol features and emit an inline checkpoint with no sidecars. Pass `Some(&spec)`
+ * to force a specific shape; see [`FfiCheckpointSpec`] for the available options.
+ *
+ * Returns [`FfiCheckpointWriteResult::Written`] with the post-checkpoint snapshot (whose log
+ * segment records the new checkpoint), or [`FfiCheckpointWriteResult::AlreadyExists`] with the
+ * original snapshot when a checkpoint at this version was already present. In both branches the
+ * caller owns the returned snapshot handle and must release it via [`free_snapshot`].
  *
  * # Safety
  *
- * Caller is responsible for passing valid handles.
+ * Caller is responsible for passing valid handles. The `spec` pointer, if non-null, must point
+ * to a valid `FfiCheckpointSpec` for the duration of the call.
  */
-struct ExternResultbool checkpoint_snapshot(HandleSharedSnapshot snapshot,
-                                            HandleSharedExternEngine engine);
+struct ExternResultFfiCheckpointWriteResult checkpoint_snapshot(HandleSharedSnapshot snapshot,
+                                                                HandleSharedExternEngine engine,
+                                                                const struct FfiCheckpointSpec *spec);
 
 /**
  * Get the version of the specified snapshot
@@ -3245,6 +4775,63 @@ uint64_t version(HandleSharedSnapshot snapshot);
  */
 struct ExternResulti64 snapshot_timestamp(HandleSharedSnapshot snapshot,
                                           HandleSharedExternEngine engine);
+
+/**
+ * Get the earliest commit version available in the table's `_delta_log/` directory.
+ *
+ * # Parameters
+ * - `engine`: engine handle used to list the log directory.
+ * - `log_root`: URL of the table's `_delta_log/` directory (must end with `/`).
+ * - `earliest_ratified_commit_version`: for catalog-managed tables, the earliest version the
+ *   catalog has ratified a commit at; pass `OptionalValue::None` for filesystem-only tables.
+ * - `commit_type`: selects the query. [`FfiHistoryCommitType::Published`] returns the earliest
+ *   commit; [`FfiHistoryCommitType::Recreatable`] returns the earliest fully reconstructable
+ *   version.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid `log_root` string slice and a valid engine handle.
+ */
+struct ExternResultVersion get_earliest_commit(HandleSharedExternEngine engine,
+                                               struct KernelStringSlice log_root,
+                                               struct OptionalValueVersion earliest_ratified_commit_version,
+                                               enum FfiHistoryCommitType commit_type);
+
+/**
+ * Get the latest commit (version and timestamp) within `snapshot`'s version range with a
+ * timestamp at or before `timestamp` (milliseconds since the Unix epoch). `commit_type` selects
+ * whether to return any version present in the log ([`FfiHistoryCommitType::Published`]) or only a
+ * version whose table can be fully reconstructed ([`FfiHistoryCommitType::Recreatable`]).
+ *
+ * Returns an error if no version exists at or before `timestamp`,
+ * or when there is an error resolving the commit based on the [`FfiHistoryCommitType`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid snapshot handle and a valid engine handle.
+ */
+struct ExternResultFfiCommitAt latest_version_as_of(HandleSharedSnapshot snapshot,
+                                                    HandleSharedExternEngine engine,
+                                                    int64_t timestamp,
+                                                    enum FfiHistoryCommitType commit_type);
+
+/**
+ * Get the first commit (version and timestamp) within `snapshot`'s version range with a
+ * timestamp at or after `timestamp` (milliseconds since the Unix epoch). `commit_type` selects
+ * whether to return any version present in the log ([`FfiHistoryCommitType::Published`]) or only a
+ * version whose table can be fully reconstructed ([`FfiHistoryCommitType::Recreatable`]).
+ *
+ * Returns an error if no version exists at or after `timestamp`,
+ * or when there is an error resolving the commit based on the [`FfiHistoryCommitType`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid snapshot handle and a valid engine handle.
+ */
+struct ExternResultFfiCommitAt first_version_after(HandleSharedSnapshot snapshot,
+                                                   HandleSharedExternEngine engine,
+                                                   int64_t timestamp,
+                                                   enum FfiHistoryCommitType commit_type);
 
 /**
  * Get the logical schema of the specified snapshot
@@ -3406,6 +4993,176 @@ bool string_slice_next(HandleStringSliceIterator data,
 void free_string_slice_data(HandleStringSliceIterator data);
 
 /**
+ * Get a builder for constructing a [`CommitRange`] from a table path, starting at
+ * `start_version`.
+ *
+ * The caller owns the returned handle and must eventually call either
+ * [`commit_range_builder_build`] to produce a [`CommitRange`], or [`free_commit_range_builder`]
+ * to drop it without building.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid path and engine handle.
+ */
+struct ExternResultHandleMutableFfiCommitRangeBuilder commit_range_builder_for(struct KernelStringSlice path,
+                                                                               Version start_version,
+                                                                               HandleSharedExternEngine engine);
+
+/**
+ * Pin the end version of the range. When omitted, the range extends to the latest committed
+ * version observed at build time.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid builder pointer.
+ */
+void commit_range_builder_set_end_version(HandleMutableFfiCommitRangeBuilder *builder,
+                                          Version end_version);
+
+/**
+ * Consume the builder and return a [`CommitRange`]. After calling, the builder pointer is no
+ * longer valid. The builder is always freed by this call, whether or not it succeeds.
+ *
+ * Returns an error if the resolved version range is invalid (start > end), the listed commits
+ * are non-contiguous, or the requested start version is not present.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid builder pointer and must not use it again after this call.
+ */
+struct ExternResultHandleSharedCommitRange commit_range_builder_build(HandleMutableFfiCommitRangeBuilder builder);
+
+/**
+ * Free a commit range builder without building a range (e.g. on an error path).
+ *
+ * # Safety
+ *
+ * Caller must pass a valid builder pointer and must not use it again after this call.
+ */
+void free_commit_range_builder(HandleMutableFfiCommitRangeBuilder builder);
+
+/**
+ * Free a [`CommitRange`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+void free_commit_range(HandleSharedCommitRange commit_range);
+
+/**
+ * The commit version of this commit action.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid commit action handle.
+ */
+uint64_t commit_action_version(HandleSharedCommitAction commit_action);
+
+/**
+ * The commit timestamp (milliseconds since epoch) of this commit action.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid commit action handle.
+ */
+int64_t commit_action_timestamp(HandleSharedCommitAction commit_action);
+
+/**
+ * Get an iterator over this commit's action batches, projected to the read schema requested when
+ * the iterator was created (the `actions` passed to [`commit_range_commits`]). Each batch is the
+ * raw actions recorded in the commit JSON, with no column-mapping translation applied.
+ *
+ * The caller owns the returned iterator: drain it with [`read_result_next`] and release it with
+ * [`free_read_result_iter`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid commit action and engine handles.
+ *
+ * [`read_result_next`]: crate::engine_funcs::read_result_next
+ * [`free_read_result_iter`]: crate::engine_funcs::free_read_result_iter
+ */
+struct ExternResultHandleExclusiveFileReadResultIterator commit_action_get_actions(HandleSharedCommitAction commit_action,
+                                                                                   HandleSharedExternEngine engine);
+
+/**
+ * Free a [`CommitAction`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid handle.
+ */
+void free_commit_action(HandleSharedCommitAction commit_action);
+
+/**
+ * Get an iterator over the commits in `commit_range`, yielding one [`CommitAction`] per commit.
+ * Use [`commit_range_commits_with_snapshot`] to seed the iterator from a start snapshot instead.
+ *
+ * - `engine`: performs the per-commit JSON reads and allocates errors.
+ * - `actions` / `actions_len`: the action kinds to project into each commit's read schema.
+ *
+ * Returns an error if `actions` is empty or contains duplicate kinds. The caller owns the
+ * returned iterator and must release it with [`free_commit_actions_iter`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles, and an `actions` pointer to `actions_len`
+ * valid [`DeltaAction`] values.
+ */
+struct ExternResultHandleSharedCommitActionsIterator commit_range_commits(HandleSharedCommitRange commit_range,
+                                                                          HandleSharedExternEngine engine,
+                                                                          const enum DeltaAction *actions,
+                                                                          uintptr_t actions_len);
+
+/**
+ * Like [`commit_range_commits`], but seeds the iterator's protocol/metadata from `start_snapshot`.
+ *
+ * The snapshot's version must match the range's anchor (the start version for ascending ranges,
+ * the end version for descending ranges).
+ *
+ * Returns an error if `actions` is empty or contains duplicate kinds, or if `start_snapshot`
+ * belongs to a different table, its version does not match the range anchor, or its table does
+ * not support scanning. The caller owns the returned iterator and must release it with
+ * [`free_commit_actions_iter`].
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing valid handles, and an `actions` pointer to `actions_len`
+ * valid [`DeltaAction`] values.
+ */
+struct ExternResultHandleSharedCommitActionsIterator commit_range_commits_with_snapshot(HandleSharedCommitRange commit_range,
+                                                                                        HandleSharedExternEngine engine,
+                                                                                        HandleSharedSnapshot start_snapshot,
+                                                                                        const enum DeltaAction *actions,
+                                                                                        uintptr_t actions_len);
+
+/**
+ * Call `engine_visitor` with the next [`CommitAction`] in the range, returning `true` if an item
+ * was yielded and `false` once the iterator is exhausted. The visitor receives a
+ * [`SharedCommitAction`] must free via [`free_commit_action`]. Per-commit protocol validation
+ * runs here, so a malformed commit surfaces as an error from this call.
+ *
+ * # Safety
+ *
+ * The iterator must be valid (returned by [`commit_range_commits`]) and not yet freed by
+ * [`free_commit_actions_iter`]. The visitor function pointer must be non-null.
+ */
+struct ExternResultbool commit_range_commits_next(HandleSharedCommitActionsIterator data,
+                                                  NullableCvoid engine_context,
+                                                  void (*engine_visitor)(NullableCvoid engine_context,
+                                                                         HandleSharedCommitAction commit_action));
+
+/**
+ * Free a commit-actions iterator.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid pointer.
+ */
+void free_commit_actions_iter(HandleSharedCommitActionsIterator iter);
+
+/**
  * Get the domain metadata as an optional string allocated by `AllocatedStringFn` for a specific
  * domain in this snapshot
  *
@@ -3461,7 +5218,7 @@ void *get_raw_engine_data(HandleExclusiveEngineData data);
  *
  * # Safety
  * data_handle must be a valid ExclusiveEngineData as read by the
- * [`delta_kernel::engine::default::DefaultEngine`] obtained from `get_default_engine`.
+ * [`delta_kernel_default_engine::DefaultEngine`] obtained from `get_default_engine`.
  */
 struct ExternResultArrowFFIData get_raw_arrow_data(HandleExclusiveEngineData data,
                                                    HandleSharedExternEngine engine);
@@ -4086,16 +5843,61 @@ struct ExternResultHandleSharedPredicate visit_engine_predicate(struct EnginePre
                                                                 AllocateErrorFn allocate_error);
 
 /**
+ * Build a placeholder for an engine-defined predicate that kernel cannot evaluate: a NULL
+ * boolean literal, which abstains from all pruning (even under `NOT`) while sibling predicates
+ * prune normally. `children` are drained and discarded.
+ *
+ * Use [`visit_predicate_opaque_with_eval`] to attach engine eval callbacks so the node itself
+ * can participate in file pruning.
+ *
+ * Returns 0 if any child ID is invalid.
+ *
+ * # Safety
+ * `name` must be valid UTF-8 for the duration of the call.
+ */
+struct ExternResultusize visit_predicate_opaque(struct KernelExpressionVisitorState *state,
+                                                struct KernelStringSlice name,
+                                                struct EngineIterator *children,
+                                                AllocateErrorFn allocate_error);
+
+#if defined(DEFINE_DEFAULT_ENGINE_BASE)
+/**
+ * Build an opaque predicate over `FfiOpaquePredicateOp(name, callbacks)` and
+ * `children`, routed through the default engine's Arrow batch evaluator (via
+ * `Predicate::arrow_opaque`). Kernel pre-evaluates each child arg recursively
+ * via its standard `evaluate_expression`, exports the resulting columns as a
+ * single `RecordBatch` over Arrow C Data Interface, and invokes the engine's
+ * eval callback. Engine never walks the AST.
+ *
+ * `callbacks` is passed by value; ownership of its `engine_state` transfers to
+ * kernel, which invokes `free_state` exactly once -- even when this call fails
+ * or returns 0. Engines attaching the same logical state to multiple opaque
+ * ops must pass independently freeable state per call.
+ *
+ * Returns 0 if any child ID is invalid.
+ *
+ * # Safety
+ * `name` must be valid UTF-8 for the duration of the call; the function
+ * pointers in `callbacks` must remain valid for the lifetime of the built
+ * predicate.
+ */
+struct ExternResultusize visit_predicate_opaque_with_eval(struct KernelExpressionVisitorState *state,
+                                                          struct KernelStringSlice name,
+                                                          struct EngineIterator *children,
+                                                          struct COpaqueEvalCallbacks callbacks,
+                                                          AllocateErrorFn allocate_error);
+#endif
+
+/**
  * Enable getting called back for tracing (logging) events in the kernel. `max_level` specifies
  * that only events `<=` to the specified level should be reported.  More verbose Levels are
  * "greater than" less verbose ones. So Level::ERROR is the lowest, and Level::TRACE the highest.
  *
- * Note that setting up such a call back can only be done ONCE. Calling any of
- * `enable_event_tracing`, `enable_log_line_tracing`, or `enable_formatted_log_line_tracing` more
- * than once is a no-op.
+ * Calling `enable_event_tracing`, `enable_log_line_tracing`, or
+ * `enable_formatted_log_line_tracing` again replaces the active logging layer and its level,
+ * including switching between event-based and log-line formats.
  *
- * Returns `true` if the callback was setup successfully, false on failure (i.e. if called a second
- * time)
+ * Returns `true` if the callback was setup successfully, `false` on failure.
  *
  * Event-based tracing gives an engine maximal flexibility in formatting event log
  * lines. Kernel can also format events for the engine. If this is desired call
@@ -4120,12 +5922,11 @@ bool enable_event_tracing(TracingEventFn callback, enum Level max_level);
  *
  * Log lines passed to the callback will already have a newline at the end.
  *
- * Note that setting up such a call back can only be done ONCE. Calling any of
- * `enable_event_tracing`, `enable_log_line_tracing`, or `enable_formatted_log_line_tracing` more
- * than once is a no-op.
+ * Calling `enable_event_tracing`, `enable_log_line_tracing`, or
+ * `enable_formatted_log_line_tracing` again replaces the active logging layer and its level,
+ * including switching between event-based and log-line formats.
  *
- * Returns `true` if the callback was setup successfully, false on failure (i.e. if called a second
- * time)
+ * Returns `true` if the callback was setup successfully, `false` on failure.
  *
  * Log line based tracing is simple for an engine as it can just log the passed string, but does
  * not provide flexibility for an engine to format events. If the engine wants to use a specific
@@ -4141,12 +5942,11 @@ bool enable_log_line_tracing(TracingLogLineFn callback, enum Level max_level);
  * formatting options for the log lines. See [`enable_log_line_tracing`] for general info on
  * getting called back for log lines.
  *
- * Note that setting up such a call back can only be done ONCE. Calling any of
- * `enable_event_tracing`, `enable_log_line_tracing`, or `enable_formatted_log_line_tracing` more
- * than once is a no-op.
+ * Calling `enable_event_tracing`, `enable_log_line_tracing`, or
+ * `enable_formatted_log_line_tracing` again replaces the active logging layer and its level,
+ * including switching between event-based and log-line formats.
  *
- * Returns `true` if the callback was setup successfully, false on failure (i.e. if called a second
- * time)
+ * Returns `true` if the callback was setup successfully, `false` on failure.
  *
  * Options that can be set:
  * - `format`: see [`LogLineFormat`]
@@ -4165,6 +5965,55 @@ bool enable_formatted_log_line_tracing(TracingLogLineFn callback,
                                        bool with_time,
                                        bool with_level,
                                        bool with_target);
+
+/**
+ * Enable getting called back with structured kernel metric events. `callback` receives a
+ * [`MetricEvent`] each time kernel emits a report. (See the [`delta_kernel::metrics`] module).
+ *
+ * Calling this replaces any previously set callback.
+ *
+ * Returns `true` if reporting was enabled successfully, `false` on failure.
+ *
+ * # Safety
+ * Caller must pass a valid function pointer for the callback.
+ */
+bool enable_metrics_reporting(MetricsEventFn callback);
+
+/**
+ * Build a [`PlanExecutor`] backed by an engine-provided C callback.
+ *
+ * # Safety
+ * The `context` pointer MUST be thread-safe (Send + Sync) and MUST remain valid for as long as the
+ * executor is used. It is valid to pass NULL as the context.
+ */
+HandleSharedPlanExecutor get_plan_executor(NullableCvoid context, CExecuteOpFn callback);
+
+/**
+ * Free a plan executor obtained from [`get_plan_executor`].
+ *
+ * Normally the handle is consumed by [`get_plan_based_engine`] and need not be explicitly freed by
+ * the caller. Use this only when discarding the executor without wrapping it in PlanBasedEngine.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid handle previously obtained from [`get_plan_executor`] and must not use
+ * it again afterwards.
+ */
+void free_plan_executor(HandleSharedPlanExecutor executor);
+
+/**
+ * Construct a [`PlanBasedEngine`] from the given [`SharedPlanExecutor`].
+ *
+ * This method consumes the [`SharedPlanExecutor`] handle, which should be freed when the engine
+ * is dropped via `free_engine` (caller responsibility).
+ *
+ * # Safety
+ *
+ * Caller must pass a valid [`SharedPlanExecutor`] handle obtained from [`get_plan_executor`] and
+ * a valid [`AllocateErrorFn`].
+ */
+HandleSharedExternEngine get_plan_based_engine(HandleSharedPlanExecutor plan_executor,
+                                               AllocateErrorFn allocate_error);
 
 /**
  * Drop a `SharedScanMetadata`.
@@ -5002,6 +6851,53 @@ uint64_t committed_transaction_version(const HandleExclusiveCommittedTransaction
 struct OptionalValueHandleSharedSnapshot committed_transaction_post_commit_snapshot(const HandleExclusiveCommittedTransaction *txn);
 
 /**
+ * Set a clustered data layout on a [`CreateTableTransactionBuilder`] from an array of top-level
+ * clustering column names (in order). Clustering and partitioning are mutually exclusive; the
+ * last data-layout call wins. Column validation (existence, stats-eligible types, duplicates)
+ * happens later at [`create_table_builder_build`].
+ *
+ * This consumes the builder handle and returns a new one. The caller MUST replace their handle
+ * pointer with the returned handle. On error, the old builder handle is consumed and gone --
+ * do not free or reuse it. There is no new handle to free either.
+ *
+ * Only top-level columns are supported through this entry point (each slice is one column name);
+ * nested clustering columns must be set on the Rust builder directly.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid builder handle and a valid `engine`. When
+ * `num_columns > 0`, `columns` must point to `num_columns` contiguous, valid `KernelStringSlice`
+ * values whose backing bytes are readable for the duration of the call; `columns` may be null
+ * when `num_columns == 0`. CONSUMES the builder handle unconditionally (even on error).
+ */
+struct ExternResultHandleExclusiveCreateTableBuilder create_table_builder_with_clustering_columns(HandleExclusiveCreateTableBuilder builder,
+                                                                                                  const struct KernelStringSlice *columns,
+                                                                                                  uintptr_t num_columns,
+                                                                                                  HandleSharedExternEngine engine);
+
+/**
+ * Set a partitioned data layout on a [`CreateTableTransactionBuilder`] from an array of top-level
+ * partition column names (in order). Clustering and partitioning are mutually exclusive; the last
+ * data-layout call wins. Column validation (existence, primitive types, subset of schema) happens
+ * later at [`create_table_builder_build`].
+ *
+ * This consumes the builder handle and returns a new one. The caller MUST replace their handle
+ * pointer with the returned handle. On error, the old builder handle is consumed and gone --
+ * do not free or reuse it. There is no new handle to free either.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a valid builder handle and a valid `engine`. When
+ * `num_columns > 0`, `columns` must point to `num_columns` contiguous, valid `KernelStringSlice`
+ * values whose backing bytes are readable for the duration of the call; `columns` may be null
+ * when `num_columns == 0`. CONSUMES the builder handle unconditionally (even on error).
+ */
+struct ExternResultHandleExclusiveCreateTableBuilder create_table_builder_with_partition_columns(HandleExclusiveCreateTableBuilder builder,
+                                                                                                 const struct KernelStringSlice *columns,
+                                                                                                 uintptr_t num_columns,
+                                                                                                 HandleSharedExternEngine engine);
+
+/**
  * Create a new [`CreateTableTransactionBuilder`] for creating a Delta table at the given path.
  *
  * The schema is provided via the engine's visitor callback pattern ([`EngineSchema`]): the
@@ -5108,6 +7004,308 @@ struct ExternResultbool remove_files(HandleExclusiveTransaction txn,
                                      HandleSharedExternEngine engine);
 
 /**
+ * Allocate an empty deletion vector descriptor map. The returned handle must be released
+ * either by [`free_dv_descriptor_map`] or by [`transaction_update_deletion_vectors`]
+ * (which consumes the map).
+ */
+HandleExclusiveDvDescriptorMap dv_descriptor_map_new(void);
+
+/**
+ * Free a deletion vector descriptor map handle.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid handle previously returned by [`dv_descriptor_map_new`].
+ */
+void free_dv_descriptor_map(HandleExclusiveDvDescriptorMap map);
+
+/**
+ * Free a deletion vector descriptor handle. Only call this if the descriptor has not
+ * been moved into a map via [`dv_descriptor_map_insert`].
+ *
+ * # Safety
+ *
+ * Caller must pass a valid descriptor handle.
+ */
+void free_dv_descriptor(HandleExclusiveDvDescriptor descriptor);
+
+/**
+ * Construct a [`DeletionVectorDescriptor`] from raw fields, for engines that author DV
+ * files themselves and want to install them via [`transaction_update_deletion_vectors`].
+ *
+ * Field validation (storage-type rules, non-negative size/cardinality/offset, etc.) is
+ * performed by [`DeletionVectorDescriptor::try_new`]; see its docs for the full contract.
+ * Pass `has_offset = false` to omit the offset.
+ *
+ * For persisted DVs, `offset` is the byte offset within the DV file at which the DV's
+ * 4-byte big-endian size prefix begins. For a single-DV file, this is usually `1`
+ * (skipping the version byte). Omitting the offset is only appropriate for single-DV files
+ * where the size prefix begins immediately after the version byte.
+ *
+ * # Safety
+ *
+ * Caller must pass valid string slice and engine handle.
+ */
+struct ExternResultHandleExclusiveDvDescriptor dv_descriptor_new(int storage_type,
+                                                                 struct KernelStringSlice path_or_inline_dv,
+                                                                 bool has_offset,
+                                                                 int32_t offset,
+                                                                 int32_t size_in_bytes,
+                                                                 int64_t cardinality,
+                                                                 HandleSharedExternEngine engine);
+
+/**
+ * Insert a deletion vector descriptor into the map under the given data file path.
+ * Consumes the descriptor handle on success. On error (e.g. invalid `data_file_path`),
+ * the descriptor handle is left untouched and must still be released by the caller via
+ * [`free_dv_descriptor`].
+ *
+ * `data_file_path` must be the data-file path exactly as it appears in the scan
+ * metadata produced by the kernel (the Add file action's `path` field). The kernel
+ * matches against this string when applying the DV update; a typo causes
+ * [`transaction_update_deletion_vectors`] to return an error.
+ * Re-inserting a descriptor for an existing path replaces the previous descriptor.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles. The descriptor handle is consumed only on success.
+ */
+struct ExternResultbool dv_descriptor_map_insert(HandleExclusiveDvDescriptorMap map,
+                                                 struct KernelStringSlice data_file_path,
+                                                 HandleExclusiveDvDescriptor descriptor,
+                                                 HandleSharedExternEngine engine);
+
+/**
+ * Stage deletion-vector update actions on the transaction. For every entry in `dv_map`
+ * the kernel emits a Remove + Add action pair on commit (the Add carries the new DV
+ * descriptor; row-level statistics from the original Add are preserved).
+ * Matched scan metadata must include an accurate `numRecords` statistic because the Delta
+ * protocol requires it for files with deletion vectors.
+ *
+ * Consumes both `dv_map` and `scan_iter`. The engine should pass an iterator that covers
+ * at least every file path mentioned in the map; extra files are ignored. If the map
+ * references a path that does not appear in the iterator, the call returns an error and
+ * leaves the transaction unchanged.
+ *
+ * This stages data-changing DV updates by default. Call
+ * [`crate::transaction::set_data_change`] first for maintenance operations that should commit
+ * with `dataChange = false`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles. The transaction handle is borrowed in place and remains
+ * valid after this call; the caller is expected to follow with `commit` (or
+ * `free_transaction`) on the same handle. The DV map and scan iterator handles are
+ * consumed and must not be used or freed after this call.
+ */
+struct ExternResultbool transaction_update_deletion_vectors(HandleExclusiveTransaction txn,
+                                                            HandleExclusiveDvDescriptorMap dv_map,
+                                                            HandleSharedScanMetadataIterator scan_iter,
+                                                            HandleSharedExternEngine engine);
+
+/**
+ * Allocate an empty partition value map. The returned handle must be released either by
+ * [`free_partition_value_map`] or by `get_partitioned_write_context` (which consumes the map).
+ */
+HandleExclusivePartitionValueMap partition_value_map_new(void);
+
+/**
+ * Free a partition value map handle.
+ *
+ * # Safety
+ *
+ * Caller must pass a valid handle previously returned by [`partition_value_map_new`] that has
+ * not already been consumed by a write-context call.
+ */
+void free_partition_value_map(HandleExclusivePartitionValueMap map);
+
+/**
+ * Insert a `string` partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and string slices.
+ */
+struct ExternResultbool partition_value_map_insert_string(HandleExclusivePartitionValueMap map,
+                                                          struct KernelStringSlice name,
+                                                          struct KernelStringSlice value,
+                                                          HandleSharedExternEngine engine);
+
+/**
+ * Insert an `integer` (32-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_int(HandleExclusivePartitionValueMap map,
+                                                       struct KernelStringSlice name,
+                                                       int32_t value,
+                                                       HandleSharedExternEngine engine);
+
+/**
+ * Insert a `long` (64-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_long(HandleExclusivePartitionValueMap map,
+                                                        struct KernelStringSlice name,
+                                                        int64_t value,
+                                                        HandleSharedExternEngine engine);
+
+/**
+ * Insert a `short` (16-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_short(HandleExclusivePartitionValueMap map,
+                                                         struct KernelStringSlice name,
+                                                         int16_t value,
+                                                         HandleSharedExternEngine engine);
+
+/**
+ * Insert a `byte` (8-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_byte(HandleExclusivePartitionValueMap map,
+                                                        struct KernelStringSlice name,
+                                                        int8_t value,
+                                                        HandleSharedExternEngine engine);
+
+/**
+ * Insert a `float` (32-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_float(HandleExclusivePartitionValueMap map,
+                                                         struct KernelStringSlice name,
+                                                         float value,
+                                                         HandleSharedExternEngine engine);
+
+/**
+ * Insert a `double` (64-bit) partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_double(HandleExclusivePartitionValueMap map,
+                                                          struct KernelStringSlice name,
+                                                          double value,
+                                                          HandleSharedExternEngine engine);
+
+/**
+ * Insert a `boolean` partition value under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_bool(HandleExclusivePartitionValueMap map,
+                                                        struct KernelStringSlice name,
+                                                        bool value,
+                                                        HandleSharedExternEngine engine);
+
+/**
+ * Insert a `date` partition value (`value` = days since the Unix epoch) under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_date(HandleExclusivePartitionValueMap map,
+                                                        struct KernelStringSlice name,
+                                                        int32_t value,
+                                                        HandleSharedExternEngine engine);
+
+/**
+ * Insert a `timestamp` partition value (`value` = microseconds since the Unix epoch, UTC) under
+ * `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_timestamp(HandleExclusivePartitionValueMap map,
+                                                             struct KernelStringSlice name,
+                                                             int64_t value,
+                                                             HandleSharedExternEngine engine);
+
+/**
+ * Insert a `timestamp_ntz` partition value (`value` = microseconds since the Unix epoch, no
+ * timezone) under `name`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_timestamp_ntz(HandleExclusivePartitionValueMap map,
+                                                                 struct KernelStringSlice name,
+                                                                 int64_t value,
+                                                                 HandleSharedExternEngine engine);
+
+/**
+ * Insert a `binary` partition value under `name`, copying `len` bytes from `value`.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles, a valid `name` slice, and (when `len > 0`) a `value` pointer to
+ * at least `len` readable bytes. An empty value may be passed as `(null, 0)`.
+ */
+struct ExternResultbool partition_value_map_insert_binary(HandleExclusivePartitionValueMap map,
+                                                          struct KernelStringSlice name,
+                                                          const uint8_t *value,
+                                                          uintptr_t len,
+                                                          HandleSharedExternEngine engine);
+
+/**
+ * Insert a `decimal` partition value under `name`. The unscaled 128-bit value is supplied as two
+ * 64-bit halves (`value_hi << 64 | value_lo`). Returns an error if the precision/scale
+ * combination is invalid.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_decimal(HandleExclusivePartitionValueMap map,
+                                                           struct KernelStringSlice name,
+                                                           uint64_t value_hi,
+                                                           uint64_t value_lo,
+                                                           uint8_t precision,
+                                                           uint8_t scale,
+                                                           HandleSharedExternEngine engine);
+
+/**
+ * Insert a typed `null` partition value under `name`. The `type_tag` identifies the column's
+ * data type using the same `NullTypeTag` encoding as `visit_expression_literal_null` in
+ * [`kernel_visitor`](crate::expressions::kernel_visitor). For the decimal tag, `precision` and
+ * `scale` specify the decimal parameters; for all other types, pass 0 for both.
+ *
+ * Returns an error if the tag is unrecognized, is the non-primitive sentinel (255), or carries an
+ * invalid decimal precision/scale. A null partition value is only legal for a nullable partition
+ * column; the kernel rejects it otherwise when the write context is built.
+ *
+ * # Safety
+ *
+ * Caller must pass valid handles and a valid `name` slice.
+ */
+struct ExternResultbool partition_value_map_insert_null(HandleExclusivePartitionValueMap map,
+                                                        struct KernelStringSlice name,
+                                                        uint8_t type_tag,
+                                                        uint8_t precision,
+                                                        uint8_t scale,
+                                                        HandleSharedExternEngine engine);
+
+/**
  * Associates an app_id and version with a transaction. These will be applied to the table on
  * commit.
  *
@@ -5141,8 +7339,8 @@ struct ExternResultOptionalValuei64 get_app_id_version(HandleSharedSnapshot snap
  * Gets the write context from a transaction for an unpartitioned table. The write context
  * provides schema and path information needed for writing data.
  *
- * For partitioned tables, use a partitioned write context instead.
- * TODO(#2355): expose partitioned_write_context via FFI.
+ * For partitioned tables, use [`get_partitioned_write_context`] instead. Returns an error if the
+ * table is partitioned.
  *
  * # Safety
  *
@@ -5154,8 +7352,8 @@ struct ExternResultHandleSharedWriteContext get_unpartitioned_write_context(Hand
 /**
  * Gets the write context from a create-table transaction for an unpartitioned table.
  *
- * For partitioned tables, use a partitioned write context instead.
- * TODO(#2355): expose partitioned_write_context via FFI.
+ * For partitioned tables, use [`create_table_get_partitioned_write_context`] instead. Returns an
+ * error if the table is partitioned.
  *
  * # Safety
  *
@@ -5163,6 +7361,42 @@ struct ExternResultHandleSharedWriteContext get_unpartitioned_write_context(Hand
  */
 struct ExternResultHandleSharedWriteContext create_table_get_unpartitioned_write_context(HandleExclusiveCreateTransaction txn,
                                                                                          HandleSharedExternEngine engine);
+
+/**
+ * Gets the write context from a transaction for a partitioned table, for the partition described
+ * by `partition_values`. A separate write context (and write directory) is needed per partition,
+ * so call this once per distinct set of partition values.
+ *
+ * `partition_values` maps each partition column's logical name to its value; build it with
+ * [`partition_value_map_new`](super::partition_value::partition_value_map_new) and the
+ * `partition_value_map_insert_*` functions. The map must contain exactly the table's partition
+ * columns (the kernel validates completeness and value types and rejects extras). This function
+ * consumes the map handle on both success and error; do not use or free it afterward.
+ *
+ * Returns an error if the table is not partitioned (use [`get_unpartitioned_write_context`]
+ * instead) or if the partition values are invalid for the table's partition schema.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a [valid][Handle#Validity] transaction handle, partition
+ * value map handle, and engine.
+ */
+struct ExternResultHandleSharedWriteContext get_partitioned_write_context(HandleExclusiveTransaction txn,
+                                                                          HandleExclusivePartitionValueMap partition_values,
+                                                                          HandleSharedExternEngine engine);
+
+/**
+ * Gets the write context from a create-table transaction for a partitioned table. See
+ * [`get_partitioned_write_context`] for the contract; this is the create-table counterpart.
+ *
+ * # Safety
+ *
+ * Caller is responsible for passing a [valid][Handle#Validity] transaction handle, partition
+ * value map handle, and engine.
+ */
+struct ExternResultHandleSharedWriteContext create_table_get_partitioned_write_context(HandleExclusiveCreateTransaction txn,
+                                                                                       HandleExclusivePartitionValueMap partition_values,
+                                                                                       HandleSharedExternEngine engine);
 
 void free_write_context(HandleSharedWriteContext write_context);
 
@@ -5197,14 +7431,14 @@ HandleSharedSchema get_write_schema(HandleSharedWriteContext write_context);
 HandleSharedSchema get_physical_write_schema(HandleSharedWriteContext write_context);
 
 /**
- * Returns the logical-to-physical transform from a [`WriteContext`] handle. Engines apply
+ * Returns the logical-to-physical expression from a [`WriteContext`] handle. Engines apply
  * it via an [`ExpressionEvaluator`] to each batch of logical data before writing parquet.
- * It drops partition columns when partition columns are not materialized. The column
- * rename itself is encoded in the physical schema (the evaluator matches input columns to
- * output fields by position), not in this expression.
+ * The logical data batches must not contain partition columns. The column rename itself is encoded
+ * in the physical schema (the evaluator matches input columns to output fields by position), not
+ * in this expression.
  *
- * To build the evaluator, pass [`get_write_schema`] as the input, this expression as the
- * transform, and [`get_physical_write_schema`] as the output. See
+ * To build the evaluator, pass the schema of the partition-free input data as the input, this
+ * value as the expression to evaluate, and [`get_physical_write_schema`] as the output. See
  * [`crate::engine_funcs::new_expression_evaluator`].
  *
  * The returned expression must be freed via [`crate::expressions::free_kernel_expression`].
@@ -5219,12 +7453,65 @@ HandleSharedExpression get_logical_to_physical(HandleSharedWriteContext write_co
 /**
  * Get the table root URL from a WriteContext handle. Returns the table root, not the
  * recommended write directory (which may include Hive-style partition paths or random
- * prefixes). See TODO(#2355) for full partitioned write support via FFI.
+ * prefixes); use [`get_write_dir`] for the latter.
  *
  * # Safety
  * Engine is responsible for providing a valid WriteContext pointer
  */
 NullableCvoid get_write_path(HandleSharedWriteContext write_context, AllocateStringFn allocate_fn);
+
+/**
+ * Get the recommended directory URL for writing data files from a WriteContext handle.
+ * Connectors should write files as `<write_dir>/<uuid>.parquet`. For a partitioned write context
+ * this includes the Hive-style partition prefix (e.g. `year=2024/`) when column mapping is off, or
+ * a random prefix when column mapping or `delta.randomizeFilePrefixes` is on.
+ *
+ * The returned URL is URI-encoded. Engines that write to a local filesystem must URI-decode it
+ * once before using it as a path; the still-encoded URL (plus the file name) is what
+ * [`resolve_file_path`] expects to produce the `add.path` recorded in the Delta log.
+ *
+ * A fresh random prefix is generated on each call when column mapping or random prefixes are
+ * enabled, so call this once per file batch and reuse the result.
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer
+ */
+NullableCvoid get_write_dir(HandleSharedWriteContext write_context, AllocateStringFn allocate_fn);
+
+/**
+ * Visit the serialized partition values of a WriteContext handle by invoking `visitor` once per
+ * partition column. Keys are *physical* column names (column-mapping applied) and values are the
+ * protocol-serialized strings the engine must record in each Add action's `partitionValues`. When
+ * a partition value is null, `is_null` is `true` and `value` is an empty slice. For an
+ * unpartitioned write context, `visitor` is never called. Entries are visited in sorted key order
+ * so the callback sequence is deterministic across runs.
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer, a valid `engine_context`
+ * pointer passed through to each `visitor` invocation, and a valid `visitor` function pointer.
+ */
+void visit_partition_values(HandleSharedWriteContext write_context,
+                            NullableCvoid engine_context,
+                            void (*visitor)(NullableCvoid engine_context,
+                                            struct KernelStringSlice key,
+                                            struct KernelStringSlice value,
+                                            bool is_null));
+
+/**
+ * Compute the relative `add.path` for the Delta log from the absolute URL of a data file the
+ * engine has written. `file_url` is the full (URI-encoded) URL of the written file, typically
+ * formed by appending the file name to [`get_write_dir`]'s result.
+ *
+ * Returns an error if `file_url` is not a valid URL or does not live under the table root.
+ *
+ * # Safety
+ * Engine is responsible for providing a valid WriteContext pointer, a valid `file_url` slice, and
+ * a valid engine handle.
+ */
+struct ExternResultNullableCvoid resolve_file_path(HandleSharedWriteContext write_context,
+                                                   struct KernelStringSlice file_url,
+                                                   AllocateStringFn allocate_fn,
+                                                   HandleSharedExternEngine engine);
 
 #ifdef __cplusplus
 }  // extern "C"

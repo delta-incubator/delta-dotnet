@@ -473,18 +473,34 @@ namespace DeltaLake.Kernel.Core
                     {
                         unsafe
                         {
-                            ExternResultbool result = Methods.checkpoint_snapshot(
+                            // Pass null to let the kernel auto-pick V1/V2.
+                            ExternResultFfiCheckpointWriteResult result = Methods.checkpoint_snapshot(
                                 this.state.Snapshot(refresh: true),
-                                this.kernelOwnedSharedExternEnginePtr);
+                                this.kernelOwnedSharedExternEnginePtr,
+                                null);
 
-                            if (result.tag != ExternResultbool_Tag.Okbool)
+                            if (result.tag != ExternResultFfiCheckpointWriteResult_Tag.OkFfiCheckpointWriteResult)
                             {
                                 throw KernelException.FromEngineError(
                                     result.Anonymous.Anonymous2.err,
                                     "Failed to checkpoint snapshot via kernel FFI");
                             }
 
-                            return result.Anonymous.Anonymous1.ok;
+                            FfiCheckpointWriteResult writeResult = result.Anonymous.Anonymous1.ok;
+                            bool checkpointWritten =
+                                writeResult.tag == FfiCheckpointWriteResult_Tag.FfiCheckpointWriteResultWritten;
+
+                            // Both "Written" and "AlreadyExists" carry one owned snapshot handle; free it
+                            // regardless of which.
+                            SharedSnapshot* returnedSnapshot = checkpointWritten
+                                ? writeResult.Anonymous.Anonymous1.written
+                                : writeResult.Anonymous.Anonymous2.already_exists;
+                            if (returnedSnapshot != null)
+                            {
+                                Methods.free_snapshot(returnedSnapshot);
+                            }
+
+                            return checkpointWritten;
                         }
                     },
                     cancellationToken
