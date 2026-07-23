@@ -268,6 +268,14 @@ namespace DeltaLake.Interfaces
         Task CheckpointAsync(CancellationToken cancellationToken);
 
         /// <summary>
+        /// Create a checkpoint at the latest transaction using the supplied options.
+        /// </summary>
+        /// <param name="options">Options controlling the checkpoint format.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/>representing the checkpoint operation.</returns>
+        Task CheckpointAsync(CheckpointOptions options, CancellationToken cancellationToken);
+
+        /// <summary>
         /// Optimize an existing table
         /// </summary>
         /// <param name="options">Options for the operation</param>
