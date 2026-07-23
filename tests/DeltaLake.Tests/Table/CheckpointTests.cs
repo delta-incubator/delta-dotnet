@@ -372,7 +372,7 @@ namespace DeltaLake.Tests.Table
                 var data = await TableHelpers.SetupTable(path, 1);
                 using var table = data.table;
 
-                // The parameterless default (CheckpointSpec.Auto) matches the pre-options behavior.
+                // The parameterless default (CheckpointFormat.Auto) matches the pre-options behavior.
                 await table.CheckpointAsync(new CheckpointOptions(), CancellationToken.None);
 
                 var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
@@ -395,7 +395,7 @@ namespace DeltaLake.Tests.Table
                 using var table = data.table;
 
                 await table.CheckpointAsync(
-                    new CheckpointOptions { Spec = CheckpointSpec.V1 },
+                    new CheckpointOptions { Format = CheckpointFormat.V1 },
                     CancellationToken.None);
 
                 var lastCheckpoint = Path.Join(info.FullName, "_delta_log", "_last_checkpoint");
@@ -424,7 +424,7 @@ namespace DeltaLake.Tests.Table
                     async () => await table.CheckpointAsync(
                         new CheckpointOptions
                         {
-                            Spec = CheckpointSpec.V2WithSidecar,
+                            Format = CheckpointFormat.V2WithSidecar,
                             FileActionsPerSidecarHint = 1,
                         },
                         CancellationToken.None));

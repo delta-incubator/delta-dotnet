@@ -474,7 +474,7 @@ namespace DeltaLake.Kernel.Core
                         unsafe
                         {
                             ExternResultFfiCheckpointWriteResult result;
-                            if (options.Spec == CheckpointSpec.Auto)
+                            if (options.Format == CheckpointFormat.Auto)
                             {
                                 // Pass null to let the kernel auto-pick V1/V2.
                                 result = Methods.checkpoint_snapshot(
@@ -522,21 +522,21 @@ namespace DeltaLake.Kernel.Core
 
         /// <summary>
         /// Translates managed <see cref="CheckpointOptions"/> into the kernel FFI
-        /// <see cref="FfiCheckpointSpec"/>. Only called for non-<see cref="CheckpointSpec.Auto"/>
-        /// specs; the sidecar hint applies to <see cref="CheckpointSpec.V2WithSidecar"/> only.
+        /// <see cref="FfiCheckpointSpec"/>. Only called for non-<see cref="CheckpointFormat.Auto"/>
+        /// specs; the sidecar hint applies to <see cref="CheckpointFormat.V2WithSidecar"/> only.
         /// </summary>
         private static unsafe FfiCheckpointSpec BuildCheckpointSpec(CheckpointOptions options)
         {
             FfiCheckpointSpec spec = default;
-            switch (options.Spec)
+            switch (options.Format)
             {
-                case CheckpointSpec.V1:
+                case CheckpointFormat.V1:
                     spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV1;
                     break;
-                case CheckpointSpec.V2NoSidecar:
+                case CheckpointFormat.V2NoSidecar:
                     spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV2NoSidecar;
                     break;
-                case CheckpointSpec.V2WithSidecar:
+                case CheckpointFormat.V2WithSidecar:
                     spec.tag = FfiCheckpointSpec_Tag.FfiCheckpointSpecV2WithSidecar;
                     OptionalValueusize hint = default;
                     if (options.FileActionsPerSidecarHint is ulong hintValue)
@@ -553,8 +553,8 @@ namespace DeltaLake.Kernel.Core
                 default:
                     throw new ArgumentOutOfRangeException(
                         nameof(options),
-                        options.Spec,
-                        "Unsupported checkpoint spec.");
+                        options.Format,
+                        "Unsupported checkpoint Format.");
             }
 
             return spec;

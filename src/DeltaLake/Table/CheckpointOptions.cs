@@ -1,13 +1,13 @@
 namespace DeltaLake.Table
 {
     /// <summary>
-    /// Determines the shape of the checkpoint written by a checkpoint operation.
+    /// Determines the format of the checkpoint written by a checkpoint operation.
     /// </summary>
-    public enum CheckpointSpec
+    public enum CheckpointFormat
     {
         /// <summary>
         /// Let the kernel auto-pick a V1 or V2 checkpoint based on the table's protocol
-        /// features. This matches the default checkpoint behavior.
+        /// features.
         /// </summary>
         Auto,
 
@@ -36,13 +36,13 @@ namespace DeltaLake.Table
     public record CheckpointOptions
     {
         /// <summary>
-        /// The checkpoint shape to write. Defaults to <see cref="CheckpointSpec.Auto"/>.
+        /// The checkpoint format to write. Defaults to <see cref="CheckpointFormat.Auto"/>.
         /// </summary>
-        public CheckpointSpec Spec { get; init; } = CheckpointSpec.Auto;
+        public CheckpointFormat Format { get; init; } = CheckpointFormat.Auto;
 
         /// <summary>
-        /// Optional hint for the number of file actions to place in each sidecar file. Only used
-        /// when <see cref="Spec"/> is <see cref="CheckpointSpec.V2WithSidecar"/>; <see langword="null"/>
+        /// Optional hint for the number of file actions to place in each sidecar file. Should be used only
+        /// when <see cref="Format"/> is <see cref="CheckpointFormat.V2WithSidecar"/>; <see langword="null"/>
         /// lets the kernel choose a default.
         /// </summary>
         public ulong? FileActionsPerSidecarHint { get; init; }
