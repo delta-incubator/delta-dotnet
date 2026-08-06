@@ -21,7 +21,7 @@ use deltalake::{
         sql::sqlparser::ast::{Assignment, AssignmentTarget, Expr},
     },
     ensure_table_uri,
-    kernel::{transaction::CommitProperties, StructType, CommitInfo},
+    kernel::{transaction::CommitProperties, CommitInfo, StructType, TableFeatures},
     operations::vacuum::VacuumMode,
     protocol::SaveMode,
     DeltaTableBuilder
@@ -1613,6 +1613,126 @@ fn get_table_metadata(table: &mut RawDeltaTable) -> Result<TableMetadata, deltal
         },
         release: Some(release_metadata),
     })
+}
+
+#[no_mangle]
+pub extern "C" fn table_add_features(
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    features: NonNull<Map>,
+    allow_protocol_versions_increase: bool,
+    custom_metadata: *mut Map,
+    cancellation_token: Option<&CancellationToken>,
+    callback: TableEmptyCallback,
+) {
+    let feature_names: Vec<String> = unsafe {
+        Box::from_raw(features.as_ptr())
+            .data
+            .into_keys()
+            .collect()
+    };
+    let custom_metadata = unsafe { Map::into_hash_map(custom_metadata) };
+    let features = feature_names
+        .into_iter()
+        .map(|name| {
+            TableFeatures::from_str(&name).map_err(|_| {
+                deltalake::DeltaTableError::Generic(format!(
+                    "Invalid table feature: {name}"
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>();
+    let features = match features {
+        Ok(features) => features,
+        Err(error) => {
+            let rt = unsafe { runtime.as_mut() };
+            unsafe {
+                callback(DeltaTableError::from_error(rt, error).into_raw());
+            }
+            return;
+        }
+    };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let mut features = features;
+            let protocol = match tbl.table.snapshot() {
+                Ok(snapshot) => snapshot.protocol(),
+                Err(error) => {
+                    unsafe {
+                        callback(DeltaTableError::from_error(rt, error).into_raw());
+                    }
+                    return;
+                }
+            };
+            add_legacy_protocol_features(
+                &mut features,
+                protocol.min_reader_version(),
+                protocol.min_writer_version(),
+            );
+
+            let mut cmd = tbl
+                .table
+                .clone()
+                .add_feature()
+                .with_features(features)
+                .with_allow_protocol_versions_increase(allow_protocol_versions_increase);
+
+            if let Some(metadata) = custom_metadata {
+                let json_metadata: serde_json::Map<String, serde_json::Value> =
+                    metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
+                cmd = cmd.with_commit_properties(
+                    CommitProperties::default().with_metadata(json_metadata),
+                );
+            };
+
+            match cmd.into_future().await {
+                Ok(table) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null());
+                },
+                Err(error) => unsafe {
+                    callback(DeltaTableError::from_error(rt, error).into_raw());
+                },
+            }
+        },
+        { callback(std::ptr::null()) }
+    );
+}
+
+fn add_legacy_protocol_features(
+    features: &mut Vec<TableFeatures>,
+    min_reader_version: i32,
+    min_writer_version: i32,
+) {
+    let mut add = |feature| {
+        if !features.contains(&feature) {
+            features.push(feature);
+        }
+    };
+
+    if min_reader_version == 2 || (5..7).contains(&min_writer_version) {
+        add(TableFeatures::ColumnMapping);
+    }
+    if (2..7).contains(&min_writer_version) {
+        add(TableFeatures::AppendOnly);
+        add(TableFeatures::Invariants);
+    }
+    if (3..7).contains(&min_writer_version) {
+        add(TableFeatures::CheckConstraints);
+    }
+    if (4..7).contains(&min_writer_version) {
+        add(TableFeatures::ChangeDataFeed);
+        add(TableFeatures::GeneratedColumns);
+    }
+    if min_writer_version == 6 {
+        add(TableFeatures::IdentityColumns);
+    }
 }
 
 #[no_mangle]

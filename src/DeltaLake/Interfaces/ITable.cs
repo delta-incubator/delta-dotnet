@@ -257,6 +257,40 @@ namespace DeltaLake.Interfaces
         /// <returns>A <see cref="Task"/>representing applying the constraint operation.</returns>
         Task AddConstraintsAsync(IReadOnlyDictionary<string, string> constraints, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Adds table features without automatically increasing protocol versions.
+        /// </summary>
+        /// <remarks>
+        /// Adding a feature is an irreversible protocol change and can make the table incompatible
+        /// with older clients. Only <see cref="TableFeature.V2Checkpoint"/> is currently supported.
+        /// </remarks>
+        /// <param name="features">The strongly typed table features to add.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/> representing the add-feature operation.</returns>
+        /// <exception cref="NotSupportedException">A requested feature is not supported by delta-dotnet.</exception>
+        Task AddTableFeaturesAsync(
+            IReadOnlyCollection<TableFeature> features,
+            CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Adds table features using the supplied options.
+        /// </summary>
+        /// <remarks>
+        /// Adding a feature is an irreversible protocol change and can make the table incompatible
+        /// with older clients. Adding <see cref="TableFeature.V2Checkpoint"/> to a classic table
+        /// requires <see cref="AddTableFeatureOptions.AllowProtocolVersionsIncrease"/> to be
+        /// <see langword="true"/>. Other table features are not currently supported.
+        /// </remarks>
+        /// <param name="features">The strongly typed table features to add.</param>
+        /// <param name="options">Options controlling protocol upgrades and commit metadata.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/> representing the add-feature operation.</returns>
+        /// <exception cref="NotSupportedException">A requested feature is not supported by delta-dotnet.</exception>
+        Task AddTableFeaturesAsync(
+            IReadOnlyCollection<TableFeature> features,
+            AddTableFeatureOptions options,
+            CancellationToken cancellationToken);
+
         #endregion Metadata Operations
 
         #region Maintenance Operations

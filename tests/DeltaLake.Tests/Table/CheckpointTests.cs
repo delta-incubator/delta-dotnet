@@ -1,3 +1,4 @@
+using System.Text.Json;
 using DeltaLake.Interfaces;
 using DeltaLake.Kernel.Callbacks.Errors;
 using DeltaLake.Table;
@@ -434,6 +435,101 @@ namespace DeltaLake.Tests.Table
             {
                 info.Delete(true);
             }
+        }
+
+        [Fact]
+        public async Task File_System_Checkpoint_V2_Sidecar_With_Feature_WritesAndReopens()
+        {
+            var info = DirectoryHelpers.CreateTempSubdirectory();
+            try
+            {
+                var path = DirectoryHelpers.ToFileUri(info.FullName);
+                var data = await TableHelpers.SetupTable(path, 3);
+                using var engine = data.engine;
+                using var table = data.table;
+
+                var schema = table.Schema();
+                var insertOptions = new InsertOptions { SaveMode = SaveMode.Append };
+                for (var i = 0; i < 3; i++)
+                {
+                    using var batch = TableHelpers.BuildBasicRecordBatch(1);
+                    await table.InsertAsync(
+                        [batch],
+                        schema,
+                        insertOptions,
+                        CancellationToken.None);
+                }
+
+                // Materialize a pre-feature kernel snapshot. CheckpointAsync must incrementally
+                // advance it after the bridge commits the feature on the same handle.
+                Assert.Equal(4UL, table.Version());
+                await table.AddTableFeaturesAsync(
+                    [TableFeature.V2Checkpoint],
+                    new AddTableFeatureOptions { AllowProtocolVersionsIncrease = true },
+                    CancellationToken.None);
+
+                var protocol = table.ProtocolVersions();
+                Assert.Equal(3, protocol.MinimumReaderVersion);
+                Assert.Equal(7, protocol.MinimumWriterVersion);
+
+                var featureCommit = Path.Join(
+                    info.FullName,
+                    "_delta_log",
+                    "00000000000000000005.json");
+                var protocolAction = ReadAction(featureCommit, "protocol");
+                Assert.Contains(
+                    "v2Checkpoint",
+                    protocolAction.GetProperty("readerFeatures").EnumerateArray().Select(value => value.GetString()));
+                Assert.Contains(
+                    "v2Checkpoint",
+                    protocolAction.GetProperty("writerFeatures").EnumerateArray().Select(value => value.GetString()));
+
+                await table.CheckpointAsync(
+                    new CheckpointOptions
+                    {
+                        Format = CheckpointFormat.V2WithSidecar,
+                        FileActionsPerSidecarHint = 1,
+                    },
+                    CancellationToken.None);
+
+                var logPath = Path.Join(info.FullName, "_delta_log");
+                var lastCheckpoint = Path.Join(logPath, "_last_checkpoint");
+                Assert.True(File.Exists(lastCheckpoint));
+                Assert.Equal(5UL, ReadVersion(lastCheckpoint));
+
+                var manifest = Path.Join(logPath, "00000000000000000005.checkpoint.parquet");
+                Assert.True(new FileInfo(manifest).Length > 0);
+
+                var sidecarPath = Path.Join(logPath, "_sidecars");
+                var sidecars = Directory.GetFiles(sidecarPath, "*.parquet");
+                Assert.True(sidecars.Length > 1);
+                Assert.All(sidecars, sidecar => Assert.True(new FileInfo(sidecar).Length > 0));
+
+                table.Dispose();
+                using var reopened = await engine.LoadTableAsync(
+                    new TableOptions { TableLocation = path },
+                    CancellationToken.None);
+                using var rows = await reopened.ReadAsArrowTableAsync(CancellationToken.None);
+                Assert.Equal(6, rows.Table.RowCount);
+            }
+            finally
+            {
+                info.Delete(true);
+            }
+        }
+
+        private static JsonElement ReadAction(string commitPath, string actionName)
+        {
+            foreach (var line in File.ReadLines(commitPath))
+            {
+                using var document = JsonDocument.Parse(line);
+                if (document.RootElement.TryGetProperty(actionName, out var action))
+                {
+                    return action.Clone();
+                }
+            }
+
+            throw new InvalidOperationException($"Commit did not contain a {actionName} action.");
         }
     }
 }

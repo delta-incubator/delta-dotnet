@@ -234,6 +234,55 @@ namespace DeltaLake.Table
         ) => this.AddConstraintsAsync(constraints, null, cancellationToken);
 
         /// <inheritdoc/>
+        public Task AddTableFeaturesAsync(
+            IReadOnlyCollection<TableFeature> features,
+            CancellationToken cancellationToken
+        ) => this.AddTableFeaturesAsync(features, new AddTableFeatureOptions(), cancellationToken);
+
+        /// <inheritdoc/>
+        public async Task AddTableFeaturesAsync(
+            IReadOnlyCollection<TableFeature> features,
+            AddTableFeatureOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (features == null)
+            {
+                throw new ArgumentNullException(nameof(features));
+            }
+
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            if (features.Count == 0)
+            {
+                throw new DeltaConfigurationException(
+                    "At least one table feature is required",
+                    new ArgumentException("features cannot be empty", nameof(features)));
+            }
+
+            foreach (TableFeature feature in features)
+            {
+                if (!Enum.IsDefined(typeof(TableFeature), feature))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(features), feature, "Unknown table feature");
+                }
+
+                if (feature != TableFeature.V2Checkpoint)
+                {
+                    throw new NotSupportedException(
+                        $"Table feature '{feature}' is not supported by DeltaLake.Net. " +
+                        $"Only '{TableFeature.V2Checkpoint}' is currently supported.");
+                }
+            }
+
+            await this.table
+                .AddTableFeaturesAsync(features, options, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         public Task CheckpointAsync(CancellationToken cancellationToken)
             => CheckpointAsync(new CheckpointOptions(), cancellationToken);
 

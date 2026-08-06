@@ -76,7 +76,7 @@ namespace DeltaLake.Table
             };
         }
 
-        private unsafe static string[] StringArrayFromPointer(byte** pointer, int length)
+        private unsafe static string[] StringArrayFromPointer(sbyte** pointer, int length)
         {
             if (pointer == null)
             {

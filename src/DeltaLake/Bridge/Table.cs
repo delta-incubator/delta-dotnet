@@ -541,6 +541,47 @@ namespace DeltaLake.Bridge
             }
         }
 
+        internal virtual async Task AddTableFeaturesAsync(
+            IReadOnlyCollection<TableFeature> features,
+            AddTableFeatureOptions options,
+            ICancellationToken cancellationToken)
+        {
+            KeyValuePair<string, string?>[] featureNames = features
+                .Select(feature => new KeyValuePair<string, string?>(ConvertTableFeature(feature), null))
+                .ToArray();
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_add_features(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.OptionalDictionary(_runtime, featureNames),
+                        BoolAsByte(options.AllowProtocolVersionsIncrease),
+                        options.CustomMetadata == null ? null : scope.Dictionary(_runtime, options.CustomMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>((fail) =>
+                        {
+                            if (cancellationToken.IsCancellationRequested)
+                            {
+                                tsc.TrySetCanceled(cancellationToken);
+                            }
+                            else if (fail != null)
+                            {
+                                tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
+                            }
+                            else
+                            {
+                                _ = Task.Run(() => tsc.TrySetResult(true));
+                            }
+                        }));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
         internal virtual async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>();
@@ -760,6 +801,26 @@ namespace DeltaLake.Bridge
                 SaveMode.ErrorIfExists => SaveModeError,
                 SaveMode.Ignore => SaveModeIfgnore,
                 _ => throw new ArgumentOutOfRangeException(nameof(saveMode)),
+            };
+
+        internal static string ConvertTableFeature(TableFeature feature) =>
+            feature switch
+            {
+                TableFeature.ColumnMapping => "columnMapping",
+                TableFeature.DeletionVectors => "deletionVectors",
+                TableFeature.TimestampWithoutTimezone => "timestampNtz",
+                TableFeature.V2Checkpoint => "v2Checkpoint",
+                TableFeature.AppendOnly => "appendOnly",
+                TableFeature.Invariants => "invariants",
+                TableFeature.CheckConstraints => "checkConstraints",
+                TableFeature.ChangeDataFeed => "changeDataFeed",
+                TableFeature.GeneratedColumns => "generatedColumns",
+                TableFeature.IdentityColumns => "identityColumns",
+                TableFeature.RowTracking => "rowTracking",
+                TableFeature.DomainMetadata => "domainMetadata",
+                TableFeature.IcebergCompatV1 => "icebergCompatV1",
+                TableFeature.MaterializePartitionColumns => "materializePartitionColumns",
+                _ => throw new ArgumentOutOfRangeException(nameof(feature)),
             };
 
         private static byte BoolAsByte(bool input) =>

@@ -406,6 +406,14 @@ int64_t table_version(struct RawDeltaTable *_Nonnull table_handle);
 struct MetadataOrError table_metadata(struct Runtime *_Nonnull runtime,
                                       struct RawDeltaTable *_Nonnull table_handle);
 
+void table_add_features(struct Runtime *_Nonnull runtime,
+                        struct RawDeltaTable *_Nonnull table,
+                        struct Map *_Nonnull features,
+                        bool allow_protocol_versions_increase,
+                        struct Map *custom_metadata,
+                        const struct CancellationToken *cancellation_token,
+                        TableEmptyCallback callback);
+
 void table_add_constraints(struct Runtime *_Nonnull runtime,
                            struct RawDeltaTable *_Nonnull table,
                            struct Map *constraints,

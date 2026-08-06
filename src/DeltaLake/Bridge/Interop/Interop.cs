@@ -111,7 +111,7 @@ namespace DeltaLake.Bridge.Interop
         public ByteArray* fail;
     }
 
-    internal unsafe partial struct RuntimeOptions
+    internal partial struct RuntimeOptions
     {
         [NativeTypeName("size_t")]
         public UIntPtr data_fusion_execution_batch_size;
@@ -192,15 +192,6 @@ namespace DeltaLake.Bridge.Interop
         public UIntPtr log_buffer_size;
     }
 
-    internal unsafe partial struct GenericOrError
-    {
-        [NativeTypeName("const void *")]
-        public void* bytes;
-
-        [NativeTypeName("const struct DeltaTableError *")]
-        public DeltaTableError* error;
-    }
-
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     internal unsafe delegate void GenericErrorCallback([NativeTypeName("const void *")] void* success, [NativeTypeName("const struct DeltaTableError *")] DeltaTableError* fail);
 
@@ -214,6 +205,15 @@ namespace DeltaLake.Bridge.Interop
 
         [NativeTypeName("int32_t")]
         public int min_writer_version;
+
+        [NativeTypeName("const struct DeltaTableError *")]
+        public DeltaTableError* error;
+    }
+
+    internal unsafe partial struct GenericOrError
+    {
+        [NativeTypeName("const void *")]
+        public void* bytes;
 
         [NativeTypeName("const struct DeltaTableError *")]
         public DeltaTableError* error;
@@ -315,25 +315,25 @@ namespace DeltaLake.Bridge.Interop
     internal unsafe partial struct TableMetadata
     {
         [NativeTypeName("const char *")]
-        public byte* id;
+        public sbyte* id;
 
         [NativeTypeName("const char *")]
-        public byte* name;
+        public sbyte* name;
 
         [NativeTypeName("const char *")]
-        public byte* description;
+        public sbyte* description;
 
         [NativeTypeName("const char *")]
-        public byte* format_provider;
+        public sbyte* format_provider;
 
         [NativeTypeName("struct Dictionary")]
         public Dictionary format_options;
 
         [NativeTypeName("const char *")]
-        public byte* schema_string;
+        public sbyte* schema_string;
 
         [NativeTypeName("char **")]
-        public byte** partition_columns;
+        public sbyte** partition_columns;
 
         [NativeTypeName("uintptr_t")]
         public UIntPtr partition_columns_count;
@@ -425,10 +425,10 @@ namespace DeltaLake.Bridge.Interop
         public static extern void table_new([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct ByteArrayRef * _Nonnull")] ByteArrayRef* table_uri, [NativeTypeName("struct TableOptions * _Nonnull")] TableOptions* table_options, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
+        public static extern void table_file_uris([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-        public static extern void table_files([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableNewCallback")] IntPtr callback);
+        public static extern void table_files([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct PartitionFilterList *")] PartitionFilterList* filters, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void history([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("uintptr_t")] UIntPtr limit, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("GenericErrorCallback")] IntPtr callback);
@@ -481,6 +481,9 @@ namespace DeltaLake.Bridge.Interop
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         [return: NativeTypeName("struct MetadataOrError")]
         public static extern MetadataOrError table_metadata([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table_handle);
+
+        [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        public static extern void table_add_features([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct Map * _Nonnull")] Map* features, [NativeTypeName("bool")] byte allow_protocol_versions_increase, [NativeTypeName("struct Map *")] Map* custom_metadata, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
 
         [DllImport("delta_rs_bridge", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         public static extern void table_add_constraints([NativeTypeName("struct Runtime * _Nonnull")] Runtime* runtime, [NativeTypeName("struct RawDeltaTable * _Nonnull")] RawDeltaTable* table, [NativeTypeName("struct Map *")] Map* constraints, [NativeTypeName("struct Map *")] Map* custom_metadata, [NativeTypeName("const struct CancellationToken *")] CancellationToken* cancellation_token, [NativeTypeName("TableEmptyCallback")] IntPtr callback);
