@@ -243,7 +243,10 @@ namespace DeltaLake.Bridge
             InsertOptions options,
             ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<string>();
+            // Configure the completion source to run continuations asynchronously so they
+            // aren't run on a Tokio thread, which could lead to deadlocks if a continuation
+            // tries to call another bridge method.
+            var tsc = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -275,7 +278,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult("{}"));
+                                tsc.TrySetResult("{}");
                             }
                         }));
                     }

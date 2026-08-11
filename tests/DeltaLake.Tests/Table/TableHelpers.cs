@@ -147,11 +147,16 @@ public static class TableHelpers
 
     public static RecordBatch BuildBasicRecordBatch(int length)
     {
+        return BuildBasicRecordBatch(0, length);
+    }
+
+    public static RecordBatch BuildBasicRecordBatch(int start, int length)
+    {
         var allocator = new NativeMemoryAllocator();
         var recordBatchBuilder = new RecordBatch.Builder(allocator)
-            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(0, length))))
-            .Append("second", false, col => col.String(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => x.ToString()))))
-            .Append("third", false, col => col.Int64(arr => arr.AppendRange(Enumerable.Range(0, length).Select(x => (long)x))));
+            .Append("test", false, col => col.Int32(arr => arr.AppendRange(Enumerable.Range(start, length))))
+            .Append("second", false, col => col.String(arr => arr.AppendRange(Enumerable.Range(start, length).Select(x => x.ToString()))))
+            .Append("third", false, col => col.Int64(arr => arr.AppendRange(Enumerable.Range(start, length).Select(x => (long)x))));
         return recordBatchBuilder.Build();
     }
 }

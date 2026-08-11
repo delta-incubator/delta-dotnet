@@ -15,6 +15,7 @@ pub mod schema;
 mod sql;
 pub mod table;
 mod runtime_options;
+mod stream_reader;
 
 use std::{collections::HashMap, mem::ManuallyDrop};
 

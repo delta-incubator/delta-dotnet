@@ -22,7 +22,7 @@ use deltalake::{
     },
     ensure_table_uri,
     kernel::{transaction::CommitProperties, StructType, CommitInfo},
-    operations::vacuum::VacuumMode,
+    operations::{vacuum::VacuumMode, write::WriteBuilder},
     protocol::SaveMode,
     DeltaTableBuilder
 };
@@ -34,6 +34,7 @@ use crate::{
     error::{DeltaTableError, DeltaTableErrorCode},
     runtime::Runtime,
     schema::PartitionFilterList,
+    stream_reader::record_batch_stream_plan,
     sql::{extract_table_factor_alias, DeltaLakeParser, Statement},
     ByteArray,
     ByteArrayRef,
@@ -1245,7 +1246,7 @@ pub extern "C" fn table_insert(
     };
     let predicate = predicate.and_then(|b| b.to_option_string());
 
-    let (batches, _) = match ffi_to_batches(
+    let batch_stream = match ffi_to_batch_stream(
         unsafe { runtime.as_mut() },
         stream
             .cast::<arrow::ffi_stream::FFI_ArrowArrayStream>()
@@ -1257,6 +1258,16 @@ pub extern "C" fn table_insert(
             return;
         },
     };
+
+    let input_stream_plan =
+        match record_batch_stream_plan(unsafe { runtime.as_mut() }, batch_stream) {
+            Ok(plan) => plan,
+            Err(err) => unsafe {
+                callback(std::ptr::null(), err.into_raw());
+                return;
+            },
+        };
+
     run_async_with_cancellation!(
         runtime,
         table,
@@ -1270,10 +1281,14 @@ pub extern "C" fn table_insert(
                 deltalake::operations::write::SchemaMode::Merge
             };
 
-            let mut mb = tbl.table.clone().write(batches)
-                .with_write_batch_size(max_rows_per_group)
-                .with_save_mode(save_mode)
-                .with_schema_mode(schema_mode);
+            let mut mb = WriteBuilder::new(
+                tbl.table.log_store(),
+                tbl.table.snapshot().map(|s| s.snapshot().clone()).ok(),
+            )
+            .with_input_plan(input_stream_plan)
+            .with_write_batch_size(max_rows_per_group)
+            .with_save_mode(save_mode)
+            .with_schema_mode(schema_mode);
             if let Some(predicate) = predicate {
                 mb = mb.with_replace_where(predicate);
             }
@@ -1767,18 +1782,7 @@ fn ffi_to_batches(
     runtime: &mut Runtime,
     stream: *mut arrow::ffi_stream::FFI_ArrowArrayStream,
 ) -> Result<(Vec<RecordBatch>, Arc<Schema>), DeltaTableError> {
-    let reader = unsafe {
-        match arrow::ffi_stream::ArrowArrayStreamReader::from_raw(stream) {
-            Ok(reader) => reader,
-            Err(error) => {
-                return Err(DeltaTableError::new(
-                    runtime,
-                    DeltaTableErrorCode::Arrow,
-                    &error.to_string(),
-                ));
-            }
-        }
-    };
+    let reader = ffi_to_batch_stream(runtime, stream)?;
     let schema = reader.schema();
     let mut read_batches: Vec<RecordBatch> = Vec::new();
     for batch in reader {
@@ -1794,6 +1798,17 @@ fn ffi_to_batches(
         }
     }
     Ok((read_batches, schema))
+}
+
+fn ffi_to_batch_stream(
+    runtime: &mut Runtime,
+    stream: *mut arrow::ffi_stream::FFI_ArrowArrayStream,
+) -> Result<arrow::ffi_stream::ArrowArrayStreamReader, DeltaTableError> {
+    unsafe {
+        arrow::ffi_stream::ArrowArrayStreamReader::from_raw(stream).map_err(|err| {
+            DeltaTableError::new(runtime, DeltaTableErrorCode::Arrow, &err.to_string())
+        })
+    }
 }
 
 #[cfg(test)]
