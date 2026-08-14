@@ -1259,7 +1259,7 @@ pub extern "C" fn table_insert(
         },
     };
 
-    let input_stream_plan =
+    let (input_stream_plan, mut reader_released) =
         match record_batch_stream_plan(unsafe { runtime.as_mut() }, batch_stream) {
             Ok(plan) => plan,
             Err(err) => unsafe {
@@ -1267,6 +1267,7 @@ pub extern "C" fn table_insert(
                 return;
             },
         };
+    let mut input_stream_plan = Some(input_stream_plan);
 
     run_async_with_cancellation!(
         runtime,
@@ -1285,7 +1286,7 @@ pub extern "C" fn table_insert(
                 tbl.table.log_store(),
                 tbl.table.snapshot().map(|s| s.snapshot().clone()).ok(),
             )
-            .with_input_plan(input_stream_plan)
+            .with_input_plan(input_stream_plan.take().expect("plan was already taken"))
             .with_write_batch_size(max_rows_per_group)
             .with_save_mode(save_mode)
             .with_schema_mode(schema_mode);
@@ -1296,19 +1297,27 @@ pub extern "C" fn table_insert(
             match mb.await {
                 Ok(updated) => {
                     tbl.table = updated;
+                    let _ = (&mut reader_released).await;
                     unsafe {
                         callback(std::ptr::null(), std::ptr::null());
                     }
                 }
-                Err(error) => unsafe {
-                    callback(
-                        std::ptr::null(),
-                        DeltaTableError::from_error(rt, error).into_raw(),
-                    );
-                },
+                Err(error) => {
+                    let error = DeltaTableError::from_error(rt, error);
+                    let _ = (&mut reader_released).await;
+                    unsafe {
+                        callback(std::ptr::null(), error.into_raw());
+                    }
+                }
             };
         },
-        { callback(std::ptr::null(), std::ptr::null()) }
+        {
+            // Drop the plan if the write never started, otherwise it has already been
+            // dropped along with the write future and the reader will stop on its next send:
+            drop(input_stream_plan.take());
+            let _ = (&mut reader_released).await;
+            callback(std::ptr::null(), std::ptr::null())
+        }
     );
 }
 
