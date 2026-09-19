@@ -257,6 +257,37 @@ namespace DeltaLake.Interfaces
         /// <returns>A <see cref="Task"/>representing applying the constraint operation.</returns>
         Task AddConstraintsAsync(IReadOnlyDictionary<string, string> constraints, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Sets (adds or replaces) table properties through a metadata-only commit.
+        /// </summary>
+        /// <param name="properties">The properties to set.</param>
+        /// <param name="raiseIfNotExists">True refuses keys outside the <c>delta.*</c> namespace (delta-rs's default); false writes application keys verbatim.</param>
+        /// <param name="customMetadata">Optional commit metadata.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/> representing the commit.</returns>
+        Task SetTablePropertiesAsync(IReadOnlyDictionary<string, string> properties, bool raiseIfNotExists, IReadOnlyDictionary<string, string>? customMetadata, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Replaces one column's field metadata (for example its <c>comment</c>) through a metadata-only commit.
+        /// Keys in the <c>delta.</c> namespace are refused.
+        /// </summary>
+        /// <param name="fieldName">The column.</param>
+        /// <param name="metadata">The field metadata to write; values are strings.</param>
+        /// <param name="customMetadata">Optional commit metadata.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/> representing the commit.</returns>
+        Task UpdateFieldMetadataAsync(string fieldName, IReadOnlyDictionary<string, string> metadata, IReadOnlyDictionary<string, string>? customMetadata, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Updates the table's name and/or description through a metadata-only commit. Null leaves a field untouched.
+        /// </summary>
+        /// <param name="name">The new table name, or null.</param>
+        /// <param name="description">The new table description, or null.</param>
+        /// <param name="customMetadata">Optional commit metadata.</param>
+        /// <param name="cancellationToken">A <see cref="System.Threading.CancellationToken">cancellation token</see>.</param>
+        /// <returns>A <see cref="Task"/> representing the commit.</returns>
+        Task UpdateTableMetadataAsync(string? name, string? description, IReadOnlyDictionary<string, string>? customMetadata, CancellationToken cancellationToken);
+
         #endregion Metadata Operations
 
         #region Maintenance Operations

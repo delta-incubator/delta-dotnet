@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
@@ -63,8 +64,18 @@ namespace DeltaLake.Table
         /// <summary>
         /// Additional provenance information for the commit
         /// </summary>
+        /// <remarks>
+        /// Retained for compatibility. delta-rs never writes a nested <c>info</c> member, so this is
+        /// always null; the custom metadata a commit was written with is in <see cref="Metadata"/>.
+        /// </remarks>
         [JsonPropertyName("info")]
         public Dictionary<string, JsonValue>? Info { get; set; }
+        /// <summary>
+        /// The custom metadata the commit was written with. delta-rs flattens those keys into the
+        /// commitInfo object itself, so they arrive here as the JSON members no other property claims.
+        /// </summary>
+        [JsonExtensionData]
+        public Dictionary<string, JsonElement>? Metadata { get; set; }
     }
 #pragma warning restore CA2227 // Collection properties should be read only
 }

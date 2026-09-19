@@ -541,6 +541,96 @@ namespace DeltaLake.Bridge
             }
         }
 
+        internal virtual async Task SetTablePropertiesAsync(IReadOnlyDictionary<string, string> properties, bool raiseIfNotExists, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
+        {
+            if (properties.Count == 0)
+            {
+                return;
+            }
+
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_set_tbl_properties(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.Dictionary(_runtime, properties),
+                        raiseIfNotExists ? (byte)1 : (byte)0,
+                        customMetadata == null ? null : scope.Dictionary(_runtime, customMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>(EmptyCallback(tsc, cancellationToken)));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
+        internal virtual async Task UpdateFieldMetadataAsync(string fieldName, IReadOnlyDictionary<string, string> metadata, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
+        {
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_update_field_metadata(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.ByteArray(fieldName),
+                        scope.Dictionary(_runtime, metadata),
+                        customMetadata == null ? null : scope.Dictionary(_runtime, customMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>(EmptyCallback(tsc, cancellationToken)));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
+        internal virtual async Task UpdateTableMetadataAsync(string? name, string? description, IReadOnlyDictionary<string, string>? customMetadata, ICancellationToken cancellationToken)
+        {
+            if (name == null && description == null)
+            {
+                return;
+            }
+
+            var tsc = new TaskCompletionSource<bool>();
+            using (var scope = new Scope())
+            {
+                unsafe
+                {
+                    Methods.table_update_table_metadata(
+                        _runtime.Ptr,
+                        _ptr,
+                        scope.ByteArray(name),
+                        scope.ByteArray(description),
+                        customMetadata == null ? null : scope.Dictionary(_runtime, customMetadata),
+                        scope.CancellationToken(cancellationToken),
+                        scope.FunctionPointer<Interop.TableEmptyCallback>(EmptyCallback(tsc, cancellationToken)));
+                }
+
+                await tsc.Task.ConfigureAwait(false);
+            }
+        }
+
+        private unsafe Interop.TableEmptyCallback EmptyCallback(TaskCompletionSource<bool> tsc, ICancellationToken cancellationToken) =>
+            (fail) =>
+            {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    tsc.TrySetCanceled(cancellationToken);
+                }
+                else if (fail != null)
+                {
+                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
+                }
+                else
+                {
+                    _ = Task.Run(() => tsc.TrySetResult(true));
+                }
+            };
+
         internal virtual async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
             var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

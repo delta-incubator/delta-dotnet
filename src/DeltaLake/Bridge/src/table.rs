@@ -206,6 +206,9 @@ pub struct TableCreatOptions {
     configuration: *mut Map,
     storage_options: *mut Map,
     custom_metadata: *mut Map,
+    /// Accept configuration keys outside the `delta.*` namespace (they land verbatim in the
+    /// table's metaData.configuration); false keeps delta-rs's default of refusing them.
+    allow_unknown_properties: bool,
 }
 
 #[repr(C)]
@@ -337,6 +340,7 @@ pub extern "C" fn create_deltalake(
             Map::into_hash_map(options.custom_metadata),
         )
     };
+    let allow_unknown_properties = options.allow_unknown_properties;
     let save_mode = unsafe {
         match SaveMode::from_str(options.mode.to_str()) {
             Ok(save_mode) => save_mode,
@@ -369,6 +373,7 @@ pub extern "C" fn create_deltalake(
                 configuration,
                 storage_options,
                 custom_metadata,
+                allow_unknown_properties,
             )
             .await
             {
@@ -1704,6 +1709,173 @@ pub extern "C" fn table_add_constraints(
     );
 }
 
+/// Reads an optional commit-metadata map handed over by the managed side (null = none).
+unsafe fn take_custom_metadata(custom_metadata: *mut Map) -> Option<serde_json::Map<String, serde_json::Value>> {
+    if custom_metadata.is_null() {
+        return None;
+    }
+    let metadata: HashMap<String, String> = Box::from_raw(custom_metadata)
+        .data
+        .into_iter()
+        .map(|(k, v)| (k, v.unwrap_or_default()))
+        .collect();
+    if metadata.is_empty() {
+        return None;
+    }
+    Some(metadata.into_iter().map(|(k, v)| (k, v.into())).collect())
+}
+
+/// Sets (adds or replaces) table properties through a metaData-only commit
+/// (delta-rs `set_tbl_properties`). `raise_if_not_exists` keeps delta-rs's refusal of keys
+/// outside the `delta.*` namespace; false lets application keys through.
+#[no_mangle]
+pub extern "C" fn table_set_tbl_properties(
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    properties: *mut Map,
+    raise_if_not_exists: bool,
+    custom_metadata: *mut Map,
+    cancellation_token: Option<&CancellationToken>,
+    callback: TableEmptyCallback,
+) {
+    let properties: HashMap<String, String> = unsafe {
+        Box::from_raw(properties)
+            .data
+            .into_iter()
+            .map(|(k, v)| (k, v.unwrap_or_default()))
+            .collect()
+    };
+    let custom_metadata = unsafe { take_custom_metadata(custom_metadata) };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let mut cmd = tbl
+                .table
+                .clone()
+                .set_tbl_properties()
+                .with_properties(properties)
+                .with_raise_if_not_exists(raise_if_not_exists);
+            if let Some(metadata) = custom_metadata {
+                cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(metadata));
+            }
+
+            match cmd.into_future().await {
+                Ok(table) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null());
+                },
+                Err(error) => unsafe {
+                    callback(DeltaTableError::from_error(rt, error).into_raw());
+                },
+            }
+        },
+        { callback(std::ptr::null()) }
+    );
+}
+
+/// Replaces one column's field metadata (e.g. `comment`) through a metaData-only commit
+/// (delta-rs `update_field_metadata`). Keys in the `delta.` namespace are refused by delta-rs.
+#[no_mangle]
+pub extern "C" fn table_update_field_metadata(
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    field_name: ByteArrayRef,
+    metadata: *mut Map,
+    custom_metadata: *mut Map,
+    cancellation_token: Option<&CancellationToken>,
+    callback: TableEmptyCallback,
+) {
+    let field_name = field_name.to_owned_string();
+    let metadata: HashMap<String, deltalake::kernel::MetadataValue> = unsafe {
+        Box::from_raw(metadata)
+            .data
+            .into_iter()
+            .map(|(k, v)| (k, deltalake::kernel::MetadataValue::String(v.unwrap_or_default())))
+            .collect()
+    };
+    let custom_metadata = unsafe { take_custom_metadata(custom_metadata) };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let mut cmd = tbl
+                .table
+                .clone()
+                .update_field_metadata()
+                .with_field_name(&field_name)
+                .with_metadata(metadata);
+            if let Some(metadata) = custom_metadata {
+                cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(metadata));
+            }
+
+            match cmd.into_future().await {
+                Ok(table) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null());
+                },
+                Err(error) => unsafe {
+                    callback(DeltaTableError::from_error(rt, error).into_raw());
+                },
+            }
+        },
+        { callback(std::ptr::null()) }
+    );
+}
+
+/// Updates the table's name and/or description through a metaData-only commit
+/// (delta-rs `update_table_metadata`). An empty byte array leaves that field untouched.
+#[no_mangle]
+pub extern "C" fn table_update_table_metadata(
+    mut runtime: NonNull<Runtime>,
+    mut table: NonNull<RawDeltaTable>,
+    name: ByteArrayRef,
+    description: ByteArrayRef,
+    custom_metadata: *mut Map,
+    cancellation_token: Option<&CancellationToken>,
+    callback: TableEmptyCallback,
+) {
+    let (name, description) = (name.to_option_string(), description.to_option_string());
+    let custom_metadata = unsafe { take_custom_metadata(custom_metadata) };
+
+    run_async_with_cancellation!(
+        runtime,
+        table,
+        cancellation_token,
+        rt,
+        tbl,
+        {
+            let mut cmd = tbl
+                .table
+                .clone()
+                .update_table_metadata()
+                .with_update(deltalake::operations::update_table_metadata::TableMetadataUpdate { name, description });
+            if let Some(metadata) = custom_metadata {
+                cmd = cmd.with_commit_properties(CommitProperties::default().with_metadata(metadata));
+            }
+
+            match cmd.into_future().await {
+                Ok(table) => unsafe {
+                    tbl.table = table;
+                    callback(std::ptr::null());
+                },
+                Err(error) => unsafe {
+                    callback(DeltaTableError::from_error(rt, error).into_raw());
+                },
+            }
+        },
+        { callback(std::ptr::null()) }
+    );
+}
+
 impl RawDeltaTable {
     fn new(table: deltalake::DeltaTable) -> Self {
         RawDeltaTable { table }
@@ -1721,8 +1893,8 @@ async fn create_delta_table(
     description: Option<String>,
     configuration: Option<HashMap<String, Option<String>>>,
     storage_options: Option<HashMap<String, String>>,
-    #[allow(unused)]
     custom_metadata: Option<HashMap<String, String>>,
+    allow_unknown_properties: bool,
 ) -> Result<deltalake::DeltaTable, DeltaTableError> {
     let url = ensure_table_uri(table_uri.as_str()).map_err(|e| DeltaTableError::from_error(runtime, e))?;
     let table = DeltaTableBuilder::from_url(url)
@@ -1736,7 +1908,8 @@ async fn create_delta_table(
     let mut builder = table.create()
         .with_columns(delta_schema.fields().cloned())
         .with_save_mode(mode)
-        .with_partition_columns(partition_by);
+        .with_partition_columns(partition_by)
+        .with_raise_if_key_not_exists(!allow_unknown_properties);
     if let Some(name) = &name {
         builder = builder.with_table_name(name);
     };
@@ -1749,11 +1922,15 @@ async fn create_delta_table(
         builder = builder.with_configuration(config);
     };
 
-    /*if let Some(metadata) = custom_metadata {
-        let json_metadata: serde_json::Map<String, serde_json::Value> =
-            metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
-        builder = builder.with_metadata(json_metadata);
-    };*/
+    // Custom metadata rides on the CREATE TABLE commitInfo (flattened into it, like every other
+    // operation's `CommitProperties::with_metadata`).
+    if let Some(metadata) = custom_metadata {
+        if !metadata.is_empty() {
+            let json_metadata: serde_json::Map<String, serde_json::Value> =
+                metadata.into_iter().map(|(k, v)| (k, v.into())).collect();
+            builder = builder.with_commit_properties(CommitProperties::default().with_metadata(json_metadata));
+        }
+    };
 
     let table = builder
         .await

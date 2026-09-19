@@ -149,6 +149,7 @@ namespace DeltaLake.Bridge
                             configuration = scope.Dictionary(this, options.Configuration ?? new Dictionary<string, string>()),
                             custom_metadata = scope.Dictionary(this, options.CustomMetadata ?? new Dictionary<string, string>()),
                             storage_options = scope.Dictionary(this, options.StorageOptions ?? new Dictionary<string, string>()),
+                            allow_unknown_properties = options.AllowUnknownConfiguration ? (byte)1 : (byte)0,
                         };
                         Interop.Methods.create_deltalake(
                             Ptr,

@@ -136,6 +136,11 @@ typedef struct TableCreatOptions {
   struct Map *configuration;
   struct Map *storage_options;
   struct Map *custom_metadata;
+  /**
+   * Accept configuration keys outside the `delta.*` namespace (they land verbatim in the
+   * table's metaData.configuration); false keeps delta-rs's default of refusing them.
+   */
+  bool allow_unknown_properties;
 } TableCreatOptions;
 
 typedef void (*TableNewCallback)(struct RawDeltaTable *success, const struct DeltaTableError *fail);
@@ -412,6 +417,43 @@ void table_add_constraints(struct Runtime *_Nonnull runtime,
                            struct Map *custom_metadata,
                            const struct CancellationToken *cancellation_token,
                            TableEmptyCallback callback);
+
+/**
+ * Sets (adds or replaces) table properties through a metaData-only commit
+ * (delta-rs `set_tbl_properties`). `raise_if_not_exists` keeps delta-rs's refusal of keys
+ * outside the `delta.*` namespace; false lets application keys through.
+ */
+void table_set_tbl_properties(struct Runtime *_Nonnull runtime,
+                              struct RawDeltaTable *_Nonnull table,
+                              struct Map *properties,
+                              bool raise_if_not_exists,
+                              struct Map *custom_metadata,
+                              const struct CancellationToken *cancellation_token,
+                              TableEmptyCallback callback);
+
+/**
+ * Replaces one column's field metadata (e.g. `comment`) through a metaData-only commit
+ * (delta-rs `update_field_metadata`). Keys in the `delta.` namespace are refused by delta-rs.
+ */
+void table_update_field_metadata(struct Runtime *_Nonnull runtime,
+                                 struct RawDeltaTable *_Nonnull table,
+                                 struct ByteArrayRef field_name,
+                                 struct Map *metadata,
+                                 struct Map *custom_metadata,
+                                 const struct CancellationToken *cancellation_token,
+                                 TableEmptyCallback callback);
+
+/**
+ * Updates the table's name and/or description through a metaData-only commit
+ * (delta-rs `update_table_metadata`). An empty byte array leaves that field untouched.
+ */
+void table_update_table_metadata(struct Runtime *_Nonnull runtime,
+                                 struct RawDeltaTable *_Nonnull table,
+                                 struct ByteArrayRef name,
+                                 struct ByteArrayRef description,
+                                 struct Map *custom_metadata,
+                                 const struct CancellationToken *cancellation_token,
+                                 TableEmptyCallback callback);
 
 #ifdef __cplusplus
 }  // extern "C"

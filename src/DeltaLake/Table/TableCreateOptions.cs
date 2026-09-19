@@ -55,5 +55,13 @@ namespace DeltaLake.Table
         /// Table metadata
         /// </summary>
         public Dictionary<string, string>? CustomMetadata { get; init; }
+
+        /// <summary>
+        /// Accept <see cref="Configuration"/> keys outside the <c>delta.*</c> namespace. They are
+        /// written verbatim into the table's metadata configuration (as <c>TBLPROPERTIES</c> are on
+        /// Spark) and read back through <see cref="TableMetadata.Configuration"/>. False (the
+        /// default) keeps delta-rs's refusal of unknown keys.
+        /// </summary>
+        public bool AllowUnknownConfiguration { get; init; }
     }
 }

@@ -234,6 +234,39 @@ namespace DeltaLake.Table
         ) => this.AddConstraintsAsync(constraints, null, cancellationToken);
 
         /// <inheritdoc/>
+        public async Task SetTablePropertiesAsync(
+            IReadOnlyDictionary<string, string> properties,
+            bool raiseIfNotExists,
+            IReadOnlyDictionary<string, string>? customMetadata,
+            CancellationToken cancellationToken
+        ) =>
+            await this
+                .table.SetTablePropertiesAsync(properties, raiseIfNotExists, customMetadata, cancellationToken)
+                .ConfigureAwait(false);
+
+        /// <inheritdoc/>
+        public async Task UpdateFieldMetadataAsync(
+            string fieldName,
+            IReadOnlyDictionary<string, string> metadata,
+            IReadOnlyDictionary<string, string>? customMetadata,
+            CancellationToken cancellationToken
+        ) =>
+            await this
+                .table.UpdateFieldMetadataAsync(fieldName, metadata, customMetadata, cancellationToken)
+                .ConfigureAwait(false);
+
+        /// <inheritdoc/>
+        public async Task UpdateTableMetadataAsync(
+            string? name,
+            string? description,
+            IReadOnlyDictionary<string, string>? customMetadata,
+            CancellationToken cancellationToken
+        ) =>
+            await this
+                .table.UpdateTableMetadataAsync(name, description, customMetadata, cancellationToken)
+                .ConfigureAwait(false);
+
+        /// <inheritdoc/>
         public Task CheckpointAsync(CancellationToken cancellationToken)
             => CheckpointAsync(new CheckpointOptions(), cancellationToken);
 
