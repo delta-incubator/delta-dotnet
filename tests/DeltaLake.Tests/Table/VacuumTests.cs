@@ -24,6 +24,7 @@ public sealed class VacuumTests
     {
         using var source = new CancellationTokenSource(30_000);
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10_000);
+        using var engine = data.engine;
         using var table = data.table;
 
         await table.VacuumAsync(options, source.Token);

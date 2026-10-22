@@ -20,6 +20,7 @@ public class StreamingInsertTests
     public async Task Memory_Insert_Stream_Of_Batches_Test(int batchCount, int rowsPerBatch)
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
 
@@ -38,6 +39,7 @@ public class StreamingInsertTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{tempDir.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var version = table.Version();
 
@@ -63,6 +65,7 @@ public class StreamingInsertTests
     public async Task Insert_Stream_Producer_Error_Test(int failAfterBatches, SaveMode saveMode)
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 20);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
 
@@ -89,6 +92,7 @@ public class StreamingInsertTests
     public async Task Insert_Stream_Will_Cancel_Midway_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
 

@@ -23,6 +23,7 @@ public class WriteReadSameHandleTests
             // SetupTable creates v0 and writes an initial commit at v1 (2 rows) into a real
             // parquet file at the table root.
             var data = await TableHelpers.SetupTable(path, 2);
+            using var engine = data.engine;
             using var table = data.table;
 
             // Read once to materialize + cache a kernel snapshot at v1.
@@ -79,6 +80,7 @@ public class WriteReadSameHandleTests
             var path = DirectoryHelpers.ToFileUri(info.FullName);
             // SetupTable creates v0 and writes an initial commit at v1 (1 row).
             var data = await TableHelpers.SetupTable(path, 1);
+            using var engine = data.engine;
             using var table = data.table;
             var schema = table.Schema();
             var options = new InsertOptions { SaveMode = SaveMode.Append };
@@ -117,6 +119,7 @@ public class WriteReadSameHandleTests
         {
             var path = DirectoryHelpers.ToFileUri(info.FullName);
             var data = await TableHelpers.SetupTable(path, 5);
+            using var engine = data.engine;
             using var table = data.table;
 
             // Two consecutive reads with no new commits: exercises the equal-version

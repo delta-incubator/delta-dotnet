@@ -61,6 +61,7 @@ public class UpdateTests
     public async Task Update_Cancellation_Test()
     {
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10);
+        using var engine = data.engine;
         using var table = data.table;
         var version = table.Version();
         try
@@ -81,6 +82,7 @@ public class UpdateTests
         long expectedTotal)
     {
         var data = await TableHelpers.SetupTable(path, length);
+        using var engine = data.engine;
         using var table = data.table;
         await table.UpdateAsync(query, CancellationToken.None);
         var queryResult = table.QueryAsync(new SelectQuery("select SUM(test) from test")

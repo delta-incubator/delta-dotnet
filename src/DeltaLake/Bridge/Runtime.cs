@@ -83,7 +83,7 @@ namespace DeltaLake.Bridge
             DeltaLake.Table.TableOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<IntPtr>();
+            var tsc = new TaskCompletionSource<IntPtr>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -104,17 +104,17 @@ namespace DeltaLake.Bridge
                     {
                         if (cancellationToken.IsCancellationRequested)
                         {
-                            _ = Task.Run(() => tsc.TrySetCanceled(cancellationToken)); ;
+                            tsc.TrySetCanceled(cancellationToken);
                             return;
                         }
 
                         if (fail != null)
                         {
-                            _ = Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
+                            tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
                         }
                         else
                         {
-                            _ = Task.Run(() => tsc.TrySetResult((IntPtr)success));
+                            tsc.TrySetResult((IntPtr)success);
                         }
                     }));
                 }
@@ -127,7 +127,7 @@ namespace DeltaLake.Bridge
             DeltaLake.Table.TableCreateOptions options,
             System.Threading.CancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<IntPtr>();
+            var tsc = new TaskCompletionSource<IntPtr>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -158,17 +158,17 @@ namespace DeltaLake.Bridge
                             {
                                 if (cancellationToken.IsCancellationRequested)
                                 {
-                                    _ = Task.Run(() => tsc.TrySetCanceled(cancellationToken)); ;
+                                    tsc.TrySetCanceled(cancellationToken);
                                     return;
                                 }
 
                                 if (fail != null)
                                 {
-                                    _ = Task.Run(() => tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail)));
+                                    tsc.TrySetException(DeltaRuntimeException.FromDeltaTableError(Ptr, fail));
                                 }
                                 else
                                 {
-                                    _ = Task.Run(() => tsc.TrySetResult((IntPtr)success));
+                                    tsc.TrySetResult((IntPtr)success);
                                 }
                             }));
                     }

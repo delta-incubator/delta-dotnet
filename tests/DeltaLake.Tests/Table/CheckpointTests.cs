@@ -81,6 +81,7 @@ namespace DeltaLake.Tests.Table
         public async Task Memory_CheckpointAsync_Throws_NotSupported()
         {
             var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+            using var engine = data.engine;
             using var table = data.table;
             var ex = await Assert.ThrowsAsync<NotSupportedException>(
                 async () => await table.CheckpointAsync(CancellationToken.None));
@@ -94,6 +95,7 @@ namespace DeltaLake.Tests.Table
             try
             {
                 var data = await TableHelpers.SetupTable(DirectoryHelpers.ToFileUri(info.FullName), 0);
+                using var engine = data.engine;
                 using var table = data.table;
                 var schema = table.Schema();
                 var options = new InsertOptions { SaveMode = SaveMode.Append };
@@ -135,6 +137,7 @@ namespace DeltaLake.Tests.Table
                 // Build a table with v0..v8.
                 {
                     var data = await TableHelpers.SetupTable(path, 0);
+                    using var seedEngine = data.engine;
                     using var seed = data.table;
                     var schema = seed.Schema();
                     var insert = new InsertOptions { SaveMode = SaveMode.Append };
@@ -220,6 +223,7 @@ namespace DeltaLake.Tests.Table
                 // Writer builds v0..v8.
                 {
                     var data = await TableHelpers.SetupTable(path, 0);
+                    using var seedEngine = data.engine;
                     using var seed = data.table;
                     var schema = seed.Schema();
                     var insert = new InsertOptions { SaveMode = SaveMode.Append };
@@ -266,6 +270,7 @@ namespace DeltaLake.Tests.Table
             {
                 var path = DirectoryHelpers.ToFileUri(info.FullName);
                 var data = await TableHelpers.SetupTable(path, 0);
+                using var engine = data.engine;
                 using var table = data.table;
                 var schema = table.Schema();
                 var options = new InsertOptions { SaveMode = SaveMode.Append };
@@ -346,6 +351,7 @@ namespace DeltaLake.Tests.Table
             Func<ITable, Task> more)
         {
             var data = await TableHelpers.SetupTable(path, 0);
+            using var engine = data.engine;
             using var table = data.table;
             var schema = table.Schema();
             var options = new InsertOptions
@@ -370,6 +376,7 @@ namespace DeltaLake.Tests.Table
             {
                 var path = DirectoryHelpers.ToFileUri(info.FullName);
                 var data = await TableHelpers.SetupTable(path, 1);
+                using var engine = data.engine;
                 using var table = data.table;
 
                 // The parameterless default (CheckpointFormat.Auto) matches the pre-options behavior.
@@ -392,6 +399,7 @@ namespace DeltaLake.Tests.Table
             {
                 var path = DirectoryHelpers.ToFileUri(info.FullName);
                 var data = await TableHelpers.SetupTable(path, 1);
+                using var engine = data.engine;
                 using var table = data.table;
 
                 await table.CheckpointAsync(
@@ -415,6 +423,7 @@ namespace DeltaLake.Tests.Table
             {
                 var path = DirectoryHelpers.ToFileUri(info.FullName);
                 var data = await TableHelpers.SetupTable(path, 1);
+                using var engine = data.engine;
                 using var table = data.table;
 
                 // The table does not enable the v2Checkpoint feature, so forcing a V2 checkpoint

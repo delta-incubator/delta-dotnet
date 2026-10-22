@@ -12,6 +12,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var initialVersion = table.Version();
@@ -94,6 +95,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var baseVersion = (long)table.Version()!;
@@ -132,6 +134,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             await Assert.ThrowsAsync<DeltaConfigurationException>(
@@ -152,6 +155,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             await Assert.ThrowsAsync<DeltaConfigurationException>(
@@ -172,6 +176,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var version = table.Version();
 
@@ -205,6 +210,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -237,6 +243,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -274,6 +281,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -309,6 +317,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var baseVersion = (long)table.Version()!;
 
@@ -342,6 +351,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -374,6 +384,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -416,6 +427,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -452,6 +464,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -483,6 +496,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -530,6 +544,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -572,6 +587,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var options = new CommitOptions
@@ -599,6 +615,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var baseVersion = (long)table.Version()!;
@@ -642,6 +659,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var options = new CommitOptions
@@ -705,6 +723,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var actions = new List<AddAction>
@@ -748,6 +767,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             var txnVersion = await table.GetLatestTransactionVersionAsync(
@@ -769,6 +789,7 @@ public class CreateWriteTransactionTests
         try
         {
             var tableParts = await TableHelpers.SetupTable($"file://{info.FullName}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
 
             for (int i = 1; i <= 3; i++)

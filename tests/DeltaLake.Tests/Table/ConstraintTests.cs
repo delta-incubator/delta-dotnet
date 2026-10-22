@@ -45,6 +45,7 @@ namespace DeltaLake.Tests.Table
         public async Task Invalid_Constraint_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             await Assert.ThrowsAsync<DeltaRuntimeException>(() => table.AddConstraintsAsync(
                 new Dictionary<string, string>
@@ -59,6 +60,7 @@ namespace DeltaLake.Tests.Table
         public async Task Add_Constraint_Cancellation_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var version = table.Version();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => table.AddConstraintsAsync(
@@ -75,6 +77,7 @@ namespace DeltaLake.Tests.Table
         public async Task Empty_Constraint_Test()
         {
             var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var version = table.Version();
             await table.AddConstraintsAsync(

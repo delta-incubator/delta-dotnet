@@ -37,6 +37,7 @@ public class InsertTests
     public async Task Memory_Insert_Zero_Record_Count_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
         await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
@@ -47,6 +48,7 @@ public class InsertTests
     public async Task Insert_Stream_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
         var rb = new[] {
@@ -62,6 +64,7 @@ public class InsertTests
     public async Task Memory_Insert_Will_Cancel_Test()
     {
         var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = tableParts.engine;
         using var table = tableParts.table;
         var version = table.Version();
         try
@@ -86,6 +89,7 @@ public class InsertTests
                 OverwriteSchema = true,
             };
             var tableParts = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 1, options);
+            using var engine = tableParts.engine;
             using var table = tableParts.table;
             var version = table.Version();
             await table.InsertAsync([], table.Schema(), new InsertOptions(), CancellationToken.None);
@@ -97,6 +101,7 @@ public class InsertTests
     private async Task BaseInsertTest(string path, int length)
     {
         var data = await TableHelpers.SetupTable(path, length);
+        using var engine = data.engine;
         using var table = data.table;
         var queryResult = table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test > 1")
         {
@@ -118,6 +123,7 @@ public class InsertTests
     private async Task StreamInsertTest(string path, int length)
     {
         var data = await TableHelpers.SetupTable(path, length);
+        using var engine = data.engine;
         using var table = data.table;
         var queryResult = table.QueryAsync(new SelectQuery("SELECT test FROM test WHERE test > 1")
         {

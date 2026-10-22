@@ -12,6 +12,7 @@ public partial class LoadTests
     public async Task Memory_LoadVersionAsync_Throws_NotSupported()
     {
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = data.engine;
         using var table = data.table;
         var ex = await Assert.ThrowsAsync<NotSupportedException>(
             async () => await table.LoadVersionAsync(0, CancellationToken.None));
@@ -22,6 +23,7 @@ public partial class LoadTests
     public async Task Memory_LoadDateTimeAsync_Throws_NotSupported()
     {
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 0);
+        using var engine = data.engine;
         using var table = data.table;
         var ex = await Assert.ThrowsAsync<NotSupportedException>(
             async () => await table.LoadDateTimeAsync(0L, CancellationToken.None));

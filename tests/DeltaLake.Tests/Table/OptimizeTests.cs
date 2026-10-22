@@ -44,6 +44,7 @@ public sealed class OptimizeTests
     {
         using var source = new CancellationTokenSource(30_000);
         var data = await TableHelpers.SetupTable($"memory:///{Guid.NewGuid():N}", 10_000);
+        using var engine = data.engine;
         using var table = data.table;
 
         await table.OptimizeAsync(options, source.Token);

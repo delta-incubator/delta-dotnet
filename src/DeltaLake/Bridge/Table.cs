@@ -51,7 +51,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task LoadVersionAsync(ulong version, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -75,7 +75,7 @@ namespace DeltaLake.Bridge
                         }
                         else
                         {
-                            _ = Task.Run(() => tsc.TrySetResult(true));
+                            tsc.TrySetResult(true);
                         }
                     }));
                 }
@@ -86,7 +86,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task LoadTimestampAsync(long timestampMilliseconds, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -110,7 +110,7 @@ namespace DeltaLake.Bridge
                         }
                         else
                         {
-                            _ = Task.Run(() => tsc.TrySetResult(true));
+                            tsc.TrySetResult(true);
                         }
                     }));
                 }
@@ -152,7 +152,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task<string[]> FileUrisAsync(System.Threading.CancellationToken cancellationToken = default)
         {
-            var tsc = new TaskCompletionSource<string[]>();
+            var tsc = new TaskCompletionSource<string[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var scope = new Scope();
 
             unsafe
@@ -171,7 +171,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task<string[]> FilesAsync(System.Threading.CancellationToken cancellationToken = default)
         {
-            var tsc = new TaskCompletionSource<string[]>();
+            var tsc = new TaskCompletionSource<string[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var scope = new Scope();
 
             unsafe
@@ -303,7 +303,7 @@ namespace DeltaLake.Bridge
                 return string.Empty;
             }
 
-            var tsc = new TaskCompletionSource<string>();
+            var tsc = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 using (var stream = new RecordBatchReader(records, schema))
@@ -335,7 +335,7 @@ namespace DeltaLake.Bridge
                                 {
                                     using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                     var value = content.ToUTF8();
-                                    _ = Task.Run(() => tsc.TrySetResult(value));
+                                    tsc.TrySetResult(value);
                                 }
 
                             }));
@@ -356,7 +356,7 @@ namespace DeltaLake.Bridge
             string? tableName,
             ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<IArrowArrayStream>();
+            var tsc = new TaskCompletionSource<IArrowArrayStream>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -382,13 +382,10 @@ namespace DeltaLake.Bridge
                         else
                         {
                             var stream = CArrowArrayStreamImporter.ImportArrayStream((CArrowArrayStream*)success);
-                            _ = Task.Run(() =>
+                            if (!tsc.TrySetResult(stream))
                             {
-                                if (!tsc.TrySetResult(stream))
-                                {
-                                    stream.Dispose();
-                                }
-                            });
+                                stream.Dispose();
+                            }
                         }
                     }));
                 }
@@ -399,7 +396,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task<string> DeleteAsync(string predicate, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<string>();
+            var tsc = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -423,7 +420,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var value = content.ToUTF8();
-                                _ = Task.Run(() => tsc.TrySetResult(value));
+                                tsc.TrySetResult(value);
                             }
                         }));
 
@@ -435,7 +432,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task<string> UpdateAsync(string query, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<string>();
+            var tsc = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -459,7 +456,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var result = content.ToUTF8();
-                                _ = Task.Run(() => tsc.TrySetResult(result));
+                                tsc.TrySetResult(result);
                             }
                         }));
 
@@ -471,7 +468,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task<byte[]> HistoryAsync(ulong limit, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<byte[]>();
+            var tsc = new TaskCompletionSource<byte[]>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -495,7 +492,7 @@ namespace DeltaLake.Bridge
                             {
                                 using var content = new ByteArray(_runtime, (Interop.ByteArray*)success);
                                 var bytes = content.ToByteArray();
-                                _ = Task.Run(() => tsc.TrySetResult(bytes)); ;
+                                tsc.TrySetResult(bytes);
                             }
                         }));
 
@@ -512,7 +509,7 @@ namespace DeltaLake.Bridge
                 return;
             }
 
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -535,7 +532,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
+                                tsc.TrySetResult(true);
                             }
                         }));
                 }
@@ -546,7 +543,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task UpdateIncrementalAsync(long? maxVersion, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -568,7 +565,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
+                                tsc.TrySetResult(true);
                             }
                         }));
 
@@ -606,7 +603,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task RestoreAsync(RestoreOptions options, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -632,7 +629,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
+                                tsc.TrySetResult(true);
                             }
                         }));
                 }
@@ -643,7 +640,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task OptimizeAsync(DeltaLake.Table.OptimizeOptions options, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -687,7 +684,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
+                                tsc.TrySetResult(true);
                             }
                         }));
                 }
@@ -698,7 +695,7 @@ namespace DeltaLake.Bridge
 
         internal virtual async Task VacuumAsync(DeltaLake.Table.VacuumOptions options, ICancellationToken cancellationToken)
         {
-            var tsc = new TaskCompletionSource<bool>();
+            var tsc = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (var scope = new Scope())
             {
                 unsafe
@@ -728,7 +725,7 @@ namespace DeltaLake.Bridge
                             }
                             else
                             {
-                                _ = Task.Run(() => tsc.TrySetResult(true));
+                                tsc.TrySetResult(true);
                             }
                         }));
                 }
@@ -780,14 +777,14 @@ namespace DeltaLake.Bridge
         {
             if (cancellationToken.IsCancellationRequested)
             {
-                _ = Task.Run(() => taskCompletionSource.TrySetCanceled(cancellationToken));
+                taskCompletionSource.TrySetCanceled(cancellationToken);
                 return;
             }
 
             if (fail != null)
             {
-                _ = Task.Run(() => taskCompletionSource.TrySetException(
-                    DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail)));
+                taskCompletionSource.TrySetException(
+                    DeltaRuntimeException.FromDeltaTableError(_runtime.Ptr, fail));
                 return;
             }
 
@@ -795,7 +792,7 @@ namespace DeltaLake.Bridge
             {
                 if (success == null)
                 {
-                    _ = Task.Run(() => taskCompletionSource.TrySetResult(System.Array.Empty<string>()));
+                    taskCompletionSource.TrySetResult(System.Array.Empty<string>());
                     return;
                 }
 
@@ -807,7 +804,7 @@ namespace DeltaLake.Bridge
                     uris[i] = ByteArrayRef.StrictUTF8.GetString(instance->data, (int)instance->size);
                 }
 
-                _ = Task.Run(() => taskCompletionSource.TrySetResult(uris));
+                taskCompletionSource.TrySetResult(uris);
             }
             finally
             {

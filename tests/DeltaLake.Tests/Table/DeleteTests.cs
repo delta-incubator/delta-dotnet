@@ -91,6 +91,7 @@ public class DeleteTests
         bool cancelOp = false)
     {
         var data = await TableHelpers.SetupTable(path, length);
+        using var engine = data.engine;
         using var table = data.table;
         var token = cancelOp ? new CancellationToken(true) : CancellationToken.None;
         if (predicate == null)
