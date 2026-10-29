@@ -364,7 +364,17 @@ namespace DeltaLake.Kernel.Interop
 
             internal partial struct _Anonymous1_e__Struct
             {
+#if NETCOREAPP
                 public bool ok;
+#else
+                // Desktop framework apparently doesn't consider bool to be blittable
+                private int intOk;
+
+                public bool ok
+                {
+                    get => intOk != 0;
+                }
+#endif
             }
 
             internal unsafe partial struct _Anonymous2_e__Struct
