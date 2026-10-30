@@ -83,6 +83,13 @@ public class DeleteTests
         await BaseDeleteTest($"memory:///{Guid.NewGuid():N}", 10, default, 10, true));
     }
 
+    [Fact]
+    public async Task Delete_Uses_Engine_Options_Test()
+    {
+        await TableHelpers.AssertUsesEngineOptions(table =>
+            table.DeleteAsync("test < CAST(5 AS INT)", CancellationToken.None));
+    }
+
     private async Task BaseDeleteTest(
         string path,
         int length,

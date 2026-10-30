@@ -98,6 +98,18 @@ public class InsertTests
         });
     }
 
+    [Fact]
+    public async Task Insert_Replace_Where_Uses_Engine_Options_Test()
+    {
+        var options = new InsertOptions
+        {
+            SaveMode = SaveMode.Overwrite,
+            Predicate = "test < CAST(10 AS INT)",
+        };
+        await TableHelpers.AssertUsesEngineOptions(table =>
+            table.InsertAsync([TableHelpers.BuildBasicRecordBatch(10)], table.Schema(), options, CancellationToken.None));
+    }
+
     private async Task BaseInsertTest(string path, int length)
     {
         var data = await TableHelpers.SetupTable(path, length);
