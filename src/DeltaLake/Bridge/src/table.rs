@@ -1016,7 +1016,20 @@ pub extern "C" fn table_update(
         rt,
         tbl,
         {
-            let mut ub = tbl.table.clone().update();
+            let ctx = match rt.create_session_context(None) {
+                Ok(ctx) => ctx,
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                            .into_raw(),
+                    );
+                    return;
+                }
+            };
+
+            let mut ub = tbl.table.clone().update()
+                .with_session_state(Arc::new(ctx.state()));
             if let Some(predicate) = predicate {
                 ub = ub.with_predicate(predicate.to_string());
             }
@@ -1077,7 +1090,20 @@ pub extern "C" fn table_delete(
         rt,
         tbl,
         {
-            let mut db = tbl.table.clone().delete();
+            let ctx = match rt.create_session_context(None) {
+                Ok(ctx) => ctx,
+                Err(err) => unsafe {
+                    callback(
+                        std::ptr::null(),
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                            .into_raw(),
+                    );
+                    return;
+                }
+            };
+
+            let mut db = tbl.table.clone().delete()
+                .with_session_state(Arc::new(ctx.state()));
             if let Some(predicate) = predicate {
                 db = db.with_predicate(predicate);
             }
@@ -1259,6 +1285,19 @@ pub extern "C" fn table_insert(
         },
     };
 
+    // After the stream import, so an error here drops the reader and releases the stream.
+    let session = match unsafe { runtime.as_mut() }.create_session_context(None) {
+        Ok(ctx) => Arc::new(ctx.state()),
+        Err(err) => unsafe {
+            callback(
+                std::ptr::null(),
+                DeltaTableError::new(runtime.as_mut(), DeltaTableErrorCode::DataFusion, &err.to_string())
+                    .into_raw(),
+            );
+            return;
+        },
+    };
+
     let (input_stream_plan, mut reader_released) =
         match record_batch_stream_plan(unsafe { runtime.as_mut() }, batch_stream) {
             Ok(plan) => plan,
@@ -1289,7 +1328,8 @@ pub extern "C" fn table_insert(
             .with_input_plan(input_stream_plan.take().expect("plan was already taken"))
             .with_write_batch_size(max_rows_per_group)
             .with_save_mode(save_mode)
-            .with_schema_mode(schema_mode);
+            .with_schema_mode(schema_mode)
+            .with_session_state(session);
             if let Some(predicate) = predicate {
                 mb = mb.with_replace_where(predicate);
             }
@@ -1676,7 +1716,19 @@ pub extern "C" fn table_add_constraints(
         rt,
         tbl,
         {
-            let mut cmd = tbl.table.clone().add_constraint();
+            let ctx = match rt.create_session_context(None) {
+                Ok(ctx) => ctx,
+                Err(err) => unsafe {
+                    callback(
+                        DeltaTableError::new(rt, DeltaTableErrorCode::DataFusion, &err.to_string())
+                            .into_raw(),
+                    );
+                    return;
+                }
+            };
+
+            let mut cmd = tbl.table.clone().add_constraint()
+                .with_session_state(Arc::new(ctx.state()));
 
             for (col_name, expression) in constraints {
                 cmd = cmd.with_constraint(col_name.clone(), expression.clone());

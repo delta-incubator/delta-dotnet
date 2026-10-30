@@ -51,6 +51,13 @@ public class UpdateTests
     }
 
     [Fact]
+    public async Task Update_Uses_Engine_Options_Test()
+    {
+        await TableHelpers.AssertUsesEngineOptions(table =>
+            table.UpdateAsync(UpdateGreaterThanOne, CancellationToken.None));
+    }
+
+    [Fact]
     public async Task Memory_Update_Invalid_Predicate__Test()
     {
         await Assert.ThrowsAsync<DeltaRuntimeException>(() =>
