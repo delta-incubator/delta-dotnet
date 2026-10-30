@@ -38,7 +38,8 @@ namespace DeltaLake.Bridge
                     data_fusion_execution_batch_size = new UIntPtr(options.DataFusionExecutionBatchSize),
                     data_fusion_runtime_max_spill_size = new UIntPtr(options.DataFusionRuntimeMaxSpillSize),
                     data_fusion_runtime_temp_directory = scope.ByteArray(options.DataFusionRuntimeTempDirectory),
-                    data_fusion_runtime_max_temp_directory_size = new UIntPtr(options.DataFusionRuntimeMaxTempDirectorySize)
+                    data_fusion_runtime_max_temp_directory_size = new UIntPtr(options.DataFusionRuntimeMaxTempDirectorySize),
+                    data_fusion_execution_target_partitions = new UIntPtr(options.DataFusionExecutionTargetPartitions)
                 };
 
                 var res = Interop.Methods.runtime_new(&interopOptions);

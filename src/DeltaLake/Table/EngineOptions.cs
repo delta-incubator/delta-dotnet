@@ -27,6 +27,12 @@ namespace DeltaLake.Table
         public ulong DataFusionExecutionBatchSize { get; init; }
 
         /// <summary>
+        /// If non-zero, sets how many partitions DataFusion splits each query and write plan into.
+        /// Defaults to the number of CPU cores. Fewer partitions lower peak memory but also lower parallelism.
+        /// </summary>
+        public ulong DataFusionExecutionTargetPartitions { get; init; }
+
+        /// <summary>
         /// If non-zero, sets the maximum memory (in bytes) available to DataFusion before disk spilling occurs.
         /// </summary>
         public ulong DataFusionRuntimeMaxSpillSize { get; init; }

@@ -1,3 +1,4 @@
+using Apache.Arrow;
 using DeltaLake.Errors;
 using DeltaLake.Table;
 
@@ -63,5 +64,28 @@ public class QueryTests
             .ToBlockingEnumerable()
             .ToList();
         });
+    }
+
+    [Theory]
+    [InlineData(3)]
+    [InlineData(5)]
+    public async Task Query_Uses_Target_Partitions_Test(int partitions)
+    {
+        var data = await TableHelpers.SetupTable(
+            $"memory:///{Guid.NewGuid():N}",
+            100,
+            new InsertOptions(),
+            new EngineOptions { DataFusionExecutionTargetPartitions = (ulong)partitions });
+        using var engine = data.engine;
+        using var table = data.table;
+        var query = new SelectQuery("EXPLAIN SELECT second, COUNT(*) FROM test GROUP BY second")
+        {
+            TableAlias = "test",
+        };
+        var plan = string.Concat(table.QueryAsync(query, CancellationToken.None)
+            .ToBlockingEnumerable()
+            .Select(batch => (StringArray)batch.Column("plan"))
+            .SelectMany(lines => Enumerable.Range(0, lines.Length).Select(i => lines.GetString(i))));
+        Assert.Contains($"Hash([second@0], {partitions})", plan);
     }
 }
