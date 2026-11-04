@@ -1,6 +1,7 @@
 using Apache.Arrow;
 using Apache.Arrow.Memory;
 using Apache.Arrow.Types;
+using DeltaLake.Errors;
 using DeltaLake.Interfaces;
 using DeltaLake.Table;
 
@@ -143,6 +144,28 @@ public static class TableHelpers
 
         await table.InsertAsync([BuildBasicRecordBatch(length)], schema, options, CancellationToken.None);
         return (engine, table);
+    }
+
+    // Only operators that run under the engine's session draw on its 1-byte pool.
+    public static async Task AssertUsesEngineOptions(Func<ITable, Task> operation)
+    {
+        var info = DirectoryHelpers.CreateTempSubdirectory();
+        try
+        {
+            var path = DirectoryHelpers.ToFileUri(info.FullName);
+            var setup = await SetupTable(path, 100);
+            setup.table.Dispose();
+            setup.engine.Dispose();
+
+            using var engine = new DeltaEngine(new EngineOptions { DataFusionRuntimeMaxSpillSize = 1 });
+            using var table = await engine.LoadTableAsync(new TableOptions { TableLocation = path }, CancellationToken.None);
+            var ex = await Assert.ThrowsAsync<DeltaRuntimeException>(() => operation(table));
+            Assert.Contains("Resources exhausted", ex.Message);
+        }
+        finally
+        {
+            info.Delete(true);
+        }
     }
 
     public static RecordBatch BuildBasicRecordBatch(int length)
