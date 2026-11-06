@@ -166,7 +166,7 @@ public class StreamingInsertTests
 
         /// <summary>
         /// Creates a producer of batches matching the schema built by
-        /// <see cref="TableHelpers.SetupTable(string, int, InsertOptions)"/>, where the values in
+        /// <see cref="TableHelpers.SetupTable(string, int, InsertOptions, EngineOptions?)"/>, where the values in
         /// each batch continue on from the previous one.
         /// </summary>
         public static TestRecordBatchProducer Basic(

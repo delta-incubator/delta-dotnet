@@ -114,9 +114,10 @@ public static class TableHelpers
     public async static Task<(IEngine engine, ITable table)> SetupTable(
         string path,
         int length,
-        InsertOptions options)
+        InsertOptions options,
+        EngineOptions? engineOptions = null)
     {
-        IEngine engine = new DeltaEngine(new EngineOptions());
+        IEngine engine = new DeltaEngine(engineOptions ?? new EngineOptions());
         var builder = new Schema.Builder();
         builder.Field(fb =>
         {

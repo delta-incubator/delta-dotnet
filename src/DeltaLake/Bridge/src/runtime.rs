@@ -20,6 +20,7 @@ pub struct Runtime {
     data_fusion_runtime_max_spill_size: Option<usize>,
     data_fusion_runtime_temp_directory: Option<String>,
     data_fusion_runtime_max_temp_directory_size: Option<u64>,
+    data_fusion_execution_target_partitions: Option<usize>,
 }
 
 /// If fail is not null, it must be manually freed when done. Runtime is always
@@ -140,6 +141,7 @@ impl Runtime {
                 data_fusion_runtime_max_spill_size: none_when_zero(options.data_fusion_runtime_max_spill_size),
                 data_fusion_runtime_temp_directory: options.data_fusion_runtime_temp_directory.to_option_string(),
                 data_fusion_runtime_max_temp_directory_size: none_when_zero(options.data_fusion_runtime_max_temp_directory_size).map(|v| v as u64),
+                data_fusion_execution_target_partitions: none_when_zero(options.data_fusion_execution_target_partitions),
             })
     }
 
@@ -160,6 +162,9 @@ impl Runtime {
         let config = SessionConfig::from(DeltaSessionConfig::default())
             .chain_if_some(self.data_fusion_execution_batch_size, |c, batch_size| {
                 c.with_batch_size(batch_size)
+            })
+            .chain_if_some(self.data_fusion_execution_target_partitions, |c, partitions| {
+                c.with_target_partitions(partitions)
             })
 
             // TODO: Do we actually want to keep case insensitivity? Or can we accept the breaking change?
@@ -216,6 +221,7 @@ impl Default for Runtime {
             data_fusion_runtime_max_spill_size: None,
             data_fusion_runtime_temp_directory: None,
             data_fusion_runtime_max_temp_directory_size: None,
+            data_fusion_execution_target_partitions: None,
         }
     }
 }

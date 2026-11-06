@@ -124,6 +124,9 @@ namespace DeltaLake.Bridge.Interop
 
         [NativeTypeName("size_t")]
         public UIntPtr data_fusion_runtime_max_temp_directory_size;
+
+        [NativeTypeName("size_t")]
+        public UIntPtr data_fusion_execution_target_partitions;
     }
 
     internal unsafe partial struct DynamicArray
